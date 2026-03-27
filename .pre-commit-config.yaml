@@ -1,0 +1,50 @@
+# .pre-commit-config.yaml - Root monorepo config (Windows + ash-bot aligned)
+default_language_version:
+  python: default # Use Python from active venv (matches ash-bot)
+  node: 20.x
+
+repos:
+  # --- Backend: Python ---
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^apps/api/
+      - id: ruff-format
+        files: ^apps/api/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.0
+    hooks:
+      - id: mypy
+        files: ^apps/api/
+        additional_dependencies:
+          - pydantic
+          - sqlalchemy
+          - fastapi
+          - types-redis
+          - types-boto3
+          - types-python-jose
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"] # ← Quoted args (Windows-safe)
+        exclude: \.secrets\.baseline$ # ← Exclude baseline from scanning
+        # pass_filenames: false  # ← Remove this (causes path issues on Windows)
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.secrets\.baseline$
+      - id: end-of-file-fixer
+        exclude: \.secrets\.baseline$
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: \.secrets\.baseline$
+      - id: check-merge-conflict
+      - id: debug-statements

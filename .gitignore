@@ -73,7 +73,7 @@ Thumbs.db
 desktop.ini
 
 # --- Secrets & Sensitive ---
-.secrets.baseline
+!.secrets.baseline
 !.secrets.baseline.example
 *.pem
 *.key
