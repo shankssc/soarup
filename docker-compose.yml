@@ -1,0 +1,171 @@
+# docker-compose.yml - Local development environment for SoarUp
+# Usage: docker compose up --build
+
+name: soarup
+
+services:
+  # === Backend: FastAPI ===
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: soarup-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=local
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/soarup
+      - REDIS_URL=redis://redis:6379/0
+      - R2_ENDPOINT_URL=http://minio:9000
+      - R2_BUCKET_NAME=soarup-local
+      - R2_ACCESS_KEY_ID=minioadmin
+      - R2_SECRET_ACCESS_KEY=minioadmin
+      - SUPABASE_URL=http://localhost:54321
+      - SUPABASE_JWT_SECRET=your-local-jwt-secret-change-in-prod
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - NOVU_API_KEY=${NOVU_API_KEY:-}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    command: uvicorn app.main:create_app --factory --reload --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # === Celery Worker ===
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: soarup-worker
+    environment:
+      - ENVIRONMENT=local
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/soarup
+      - REDIS_URL=redis://redis:6379/0
+      - R2_ENDPOINT_URL=http://minio:9000
+      - R2_BUCKET_NAME=soarup-local
+      - R2_ACCESS_KEY_ID=minioadmin
+      - R2_SECRET_ACCESS_KEY=minioadmin
+      - SUPABASE_URL=http://localhost:54321
+      - SUPABASE_JWT_SECRET=your-local-jwt-secret-change-in-prod
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      - api
+      - redis
+      - minio
+    command: celery -A app.workers.celery_app worker --loglevel=info
+
+  # === Celery Beat (scheduled tasks) ===
+  beat:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: soarup-beat
+    environment:
+      - ENVIRONMENT=local
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/soarup
+    depends_on:
+      - redis
+    command: celery -A app.workers.celery_app beat --loglevel=info
+
+  # === Flower (Celery monitoring) ===
+  flower:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: soarup-flower
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    command: celery -A app.workers.celery_app flower --port=5555
+
+  # === Frontend: Next.js ===
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: soarup-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000/api/v1/ws
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    depends_on:
+      - api
+    command: npm run dev -- --hostname 0.0.0.0
+
+  # === Database: PostgreSQL ===
+  db:
+    image: postgres:16-alpine
+    container_name: soarup-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=soarup
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # === Cache/Queue: Redis ===
+  redis:
+    image: redis:7-alpine
+    container_name: soarup-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # === Object Storage: Minio (S3-compatible for local dev) ===
+  minio:
+    image: minio/minio
+    container_name: soarup-minio
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console UI
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_
+  minio_
