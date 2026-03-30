@@ -128,7 +128,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     volumes:
-      - postgres_/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -152,20 +152,21 @@ services:
     image: minio/minio
     container_name: soarup-minio
     ports:
-      - "9000:9000"   # API
-      - "9001:9001"   # Console UI
+      - "9000:9000"
+      - "9002:9001"
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
     command: server /data --console-address ":9001"
     volumes:
-      - minio_/data
+      - minio_data:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+# === Named Volumes (correct YAML mapping syntax) ===
 volumes:
-  postgres_
-  minio_
+  postgres_data:
+  minio_data:
