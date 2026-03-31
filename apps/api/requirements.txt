@@ -12,7 +12,7 @@ celery[redis]==5.4.0
 redis==5.0.8
 flower==2.0.1
 
-# === Auth ← Add this section ===
+# === Auth ===
 supabase==2.28.3
 
 # === Storage ===

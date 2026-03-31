@@ -27,24 +27,16 @@ class Profile(Base):
     # === App-Specific Fields ===
     full_name: Mapped[str | None] = mapped_column(String(100), nullable=True, doc="User's display name")
 
-    avatar_url: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, doc="Public URL for avatar image (Minio)"
-    )
+    avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True, doc="Public URL for avatar image (Minio)")
 
-    avatar_key: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, doc="Minio object key for avatar deletion"
-    )
+    avatar_key: Mapped[str | None] = mapped_column(String(255), nullable=True, doc="Minio object key for avatar deletion")
 
     timezone: Mapped[str] = mapped_column(String(50), default="UTC", doc="User's preferred timezone (IANA format)")
 
-    email_notifications: Mapped[bool] = mapped_column(
-        Boolean, default=True, doc="Whether user receives email notifications"
-    )
+    email_notifications: Mapped[bool] = mapped_column(Boolean, default=True, doc="Whether user receives email notifications")
 
     # === Timestamps ===
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False, doc="Account creation timestamp"
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, doc="Account creation timestamp")
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -54,9 +46,7 @@ class Profile(Base):
         doc="Last profile update timestamp",
     )
 
-    last_login_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, doc="Last successful sign-in timestamp"
-    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, doc="Last successful sign-in timestamp")
 
     # === Helper Methods ===
 
