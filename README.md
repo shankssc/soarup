@@ -2,6 +2,10 @@
 
 > Async standup platform for indie developers and small remote teams.
 
+[![🚀 SoarUp CI](https://github.com/shankssc/soarup/actions/workflows/pr-checks.yml/badge.svg?branch=develop)](https://github.com/shankssc/soarup/actions/workflows/pr-checks.yml)
+[![Codecov](https://codecov.io/gh/shankssc/soarup/branch/develop/graph/badge.svg?token=YOUR_TOKEN)](https://codecov.io/gh/shankssc/soarup)
+[![CodeQL](https://github.com/shankssc/soarup/actions/workflows/codeql.yml/badge.svg)](https://github.com/shankssc/soarup/security/code-scanning)
+
 **SoarUp** helps you stay in sync without the meeting. Submit a 30-second voice note or text update, get an AI-powered summary, and receive a clean digest when it works for your timezone.
 
 ## ✨ Core Features
