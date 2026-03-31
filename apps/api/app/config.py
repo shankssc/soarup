@@ -1,7 +1,7 @@
 # apps/api/app/config.py
 # Settings via pydantic-settings — reads from environment variables
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # === Database ===
-    # Use str for default; pydantic validates at runtime
+    # Safe defaults for local dev (no secrets)
     database_url: str = Field(
         default="postgresql+asyncpg://postgres:postgres@db:5432/soarup",  # pragma: allowlist secret
         description="PostgreSQL connection URL",
@@ -38,19 +38,17 @@ class Settings(BaseSettings):
         description="R2/Minio endpoint URL",
     )
     r2_bucket_name: str = "soarup-local"
-    r2_access_key_id: SecretStr = Field(default=SecretStr("minioadmin"))
-    r2_secret_access_key: SecretStr = Field(default=SecretStr("minioadmin"))
+    # Sensitive: require from .env, no default
+    r2_access_key_id: SecretStr | None = None
+    r2_secret_access_key: SecretStr | None = None
 
     # === Supabase Auth ===
     supabase_url: str = Field(
         default="http://localhost:54321",
         description="Supabase project URL",
     )
-    supabase_jwt_secret: SecretStr = Field(
-        default=SecretStr(
-            "your-local-jwt-secret-change-in-prod",
-        ),  # pragma: allowlist secret
-    )
+    # Sensitive: require from .env, no default
+    supabase_jwt_secret: SecretStr | None = None
 
     # === AI Services ===
     openai_api_key: SecretStr | None = None
@@ -61,10 +59,22 @@ class Settings(BaseSettings):
     novu_api_key: SecretStr | None = None
 
     # === Observability ===
-    sentry_dsn: str | None = Field(
-        default=None,
-        description="Sentry DSN for error tracking",
-    )
+    sentry_dsn: str | None = None
+
+    # === Validation: Fail fast in production if secrets are missing ===
+    @field_validator("r2_access_key_id", "r2_secret_access_key", mode="after")
+    @classmethod
+    def validate_r2_secrets(cls, v: SecretStr | None, info: ValidationInfo) -> SecretStr | None:
+        if info.data.get("environment") == "production" and not v:
+            raise ValueError("R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY are required in production")
+        return v
+
+    @field_validator("supabase_jwt_secret", mode="after")
+    @classmethod
+    def validate_supabase_secret(cls, v: SecretStr | None, info: ValidationInfo) -> SecretStr | None:
+        if info.data.get("environment") == "production" and not v:
+            raise ValueError("SUPABASE_JWT_SECRET is required in production")
+        return v
 
 
 # Singleton instance
