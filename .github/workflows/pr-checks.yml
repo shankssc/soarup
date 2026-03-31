@@ -11,25 +11,20 @@ on:
   schedule:
     - cron: "0 2 * * 1" # Weekly security scan: Mondays 2AM UTC
 
-# Cancel in-progress runs for the same branch/PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
-# Restrict permissions for security best practices
 permissions:
   contents: read
   security-events: write
   actions: read
 
 jobs:
-  # ===== 🔧 SETUP: Warm caches for all jobs =====
+  # ===== 🔧 SETUP: Warm caches (runs from repo root) =====
   setup:
     name: 🔧 Setup Dependencies
     runs-on: ubuntu-latest
-    outputs:
-      api-hash: ${{ steps.api-cache.outputs.cache-hit }}
-      web-hash: ${{ steps.web-cache.outputs.cache-hit }}
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -40,7 +35,6 @@ jobs:
           python-version: "3.12"
           cache: "pip"
           cache-dependency-path: apps/api/requirements*.txt
-        id: api-cache
 
       - name: 📦 Setup Node.js 20 (Frontend)
         uses: actions/setup-node@v4
@@ -48,18 +42,17 @@ jobs:
           node-version: "20"
           cache: "npm"
           cache-dependency-path: apps/web/package-lock.json
-        id: web-cache
 
+      # Install backend deps from root (paths relative to repo root)
       - name: 📦 Install backend dependencies
         run: |
           pip install --upgrade pip
           pip install -r apps/api/requirements.txt
           pip install -r apps/api/requirements-dev.txt
-        working-directory: apps/api
 
+      # Install frontend deps from root
       - name: 📦 Install frontend dependencies
-        run: npm ci
-        working-directory: apps/web
+        run: npm ci --prefix apps/web
 
   # ===== 🐍 BACKEND: Quality + Tests (Linux) =====
   api-quality:
@@ -68,7 +61,7 @@ jobs:
     needs: [setup]
     defaults:
       run:
-        working-directory: apps/api
+        working-directory: apps/api # ← All commands run from here
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -80,7 +73,7 @@ jobs:
           cache: "pip"
           cache-dependency-path: apps/api/requirements*.txt
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install dependencies (relative paths now work)
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
@@ -102,7 +95,6 @@ jobs:
 
       - name: 🧪 Run tests with coverage
         run: |
-          # Create minimal .env for tests
           cat > .env << EOF
           ENVIRONMENT=test
           DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/soarup_test
@@ -113,7 +105,7 @@ jobs:
       - name: 📊 Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          file: ./apps/api/coverage.xml
+          file: ./coverage.xml
           flags: backend
           name: backend-coverage
           fail_ci_if_error: false
@@ -126,7 +118,7 @@ jobs:
     needs: [setup]
     defaults:
       run:
-        working-directory: apps/api
+        working-directory: apps/api # ← Consistent with api-quality
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -149,7 +141,7 @@ jobs:
         run: |
           echo ENVIRONMENT=test > .env
           pytest tests/ -v --tb=short -m "not slow"
-        continue-on-error: true # Non-blocking for now
+        continue-on-error: true
 
   # ===== 🌐 FRONTEND: Quality + Tests =====
   web-quality:
@@ -158,7 +150,7 @@ jobs:
     needs: [setup]
     defaults:
       run:
-        working-directory: apps/web
+        working-directory: apps/web # ← All frontend commands run from here
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -171,7 +163,7 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
 
       - name: 📦 Install dependencies
-        run: npm ci
+        run: npm ci # ← Relative path works because of working-directory
 
       - name: 🧹 Run ESLint
         run: npm run lint
@@ -188,7 +180,7 @@ jobs:
       - name: 📊 Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          file: ./apps/web/coverage/coverage-final.json
+          file: ./coverage/coverage-final.json
           flags: frontend
           name: frontend-coverage
           fail_ci_if_error: false
@@ -204,7 +196,7 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required for dependency-review
+          fetch-depth: 0
 
       - name: 🔍 Dependency Review (PRs only)
         if: github.event_name == 'pull_request'
@@ -219,7 +211,7 @@ jobs:
           python-version: "3.12"
 
       - name: 📦 Install backend deps for analysis
-        run: pip install -r apps/api/requirements.txt
+        run: pip install -r apps/api/requirements.txt # ← Root path for security job
 
       - name: 🧪 Initialize CodeQL
         uses: github/codeql-action/init@v3
@@ -251,7 +243,7 @@ jobs:
       - name: 🏗️ Build backend image (dry run)
         uses: docker/build-push-action@v5
         with:
-          context: apps/api
+          context: apps/api # ← Context path, not working-directory
           file: apps/api/Dockerfile
           load: true
           tags: soarup-api:ci-check
@@ -262,3 +254,34 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: apps/web
+          file: apps/web/Dockerfile
+          load: true
+          tags: soarup-web:ci-check
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===== 📊 SUMMARY: Report Status =====
+  summary:
+    name: 📋 CI Summary
+    runs-on: ubuntu-latest
+    needs: [api-quality, api-windows, web-quality, security-scan, docker-build]
+    if: always()
+    steps:
+      - name: 📊 Report final status
+        run: |
+          echo "## 🚀 SoarUp CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐍 Backend (Linux) | ${{ needs.api-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🪟 Backend (Windows) | ${{ needs.api-windows.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌐 Frontend | ${{ needs.web-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔐 Security | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐳 Docker | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.api-quality.result }}" = "success" ] && \
+             [ "${{ needs.web-quality.result }}" = "success" ]; then
+            echo "✅ **All critical checks passed!** Ready to merge." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Some checks failed. Review logs above." >> $GITHUB_STEP_SUMMARY
+          fi
