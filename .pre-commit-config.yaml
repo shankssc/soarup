@@ -1,6 +1,6 @@
-# .pre-commit-config.yaml - Root monorepo config (Windows + ash-bot aligned)
+# .pre-commit-config.yaml - Root monorepo config (Windows-compatible)
 default_language_version:
-  python: default # Use Python from active venv (matches ash-bot)
+  python: default
   node: 20.x
 
 repos:
@@ -18,22 +18,18 @@ repos:
     rev: v1.11.0
     hooks:
       - id: mypy
-        files: ^apps/api/
-        additional_dependencies:
-          - pydantic
-          - sqlalchemy
-          - fastapi
-          - types-redis
-          - types-boto3
-          - types-python-jose
+        name: mypy (backend)
+        entry: cmd /c "cd apps/api && mypy --config-file pyproject.toml --explicit-package-bases --namespace-packages -p app"
+        language: system
+        pass_filenames: false
+        files: ^apps/api/app/
 
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:
       - id: detect-secrets
-        args: ["--baseline", ".secrets.baseline"] # ← Quoted args (Windows-safe)
-        exclude: \.secrets\.baseline$ # ← Exclude baseline from scanning
-        # pass_filenames: false  # ← Remove this (causes path issues on Windows)
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: \.secrets\.baseline$
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
