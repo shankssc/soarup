@@ -1,10 +1,21 @@
 # apps/api/app/schemas/profile.py
 
 from datetime import datetime
+from typing import Any, NotRequired, TypedDict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # === Profile Requests ===
+
+
+# Optional: TypedDict for stricter update validation (not required)
+class ProfileUpdateData(TypedDict, total=False):
+    """Type-safe update payload for repository layer."""
+
+    full_name: NotRequired[str | None]
+    avatar_url: NotRequired[str | None]
+    timezone: NotRequired[str]
+    email_notifications: NotRequired[bool]
 
 
 class UpdateProfileRequest(BaseModel):
@@ -15,11 +26,20 @@ class UpdateProfileRequest(BaseModel):
     timezone: str | None = Field(None, max_length=50, examples=["America/New_York"])
     email_notifications: bool | None = Field(None, examples=[True])
 
+    # Optional: Add method to convert to dict for repo layer
+    def to_update_dict(self) -> dict[str, Any]:
+        """Convert request to repository update payload."""
+        return {k: v for k, v in self.model_dump(exclude_unset=True).items() if v is not None}
+
 
 class UploadAvatarRequest(BaseModel):
-    """Request schema for POST /profile/avatar (multipart form)."""
+    """
+    Request schema for POST /profile/avatar (multipart form).
 
-    # This is handled via FastAPI's UploadFile, not JSON body
+    Note: Actual file handling uses FastAPI's UploadFile, not JSON body.
+    This class is a marker for documentation/openapi purposes.
+    """
+
     pass
 
 
@@ -40,8 +60,8 @@ class ProfileResponse(BaseModel):
     updated_at: datetime = Field(..., description="Last profile update timestamp")
     last_login_at: datetime | None = Field(None, description="Last successful sign-in timestamp")
 
-    class Config:
-        from_attributes = True
+    # Pydantic v2: Use model_config instead of Config class
+    model_config = ConfigDict(from_attributes=True)  # ← Updated syntax
 
 
 class UploadResponse(BaseModel):
@@ -53,6 +73,8 @@ class UploadResponse(BaseModel):
     content_type: str = Field(..., description="MIME type of uploaded file")
     uploaded_at: datetime = Field(..., description="Upload timestamp")
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 # === Validation ===
 
@@ -60,6 +82,6 @@ class UploadResponse(BaseModel):
 class FileValidationConfig:
     """Configuration for file upload validation."""
 
-    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-    ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
-    ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"]
+    MAX_FILE_SIZE: int = 5 * 1024 * 1024  # 5MB
+    ALLOWED_CONTENT_TYPES: list[str] = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    ALLOWED_EXTENSIONS: list[str] = [".jpg", ".jpeg", ".png", ".webp", ".gif"]
