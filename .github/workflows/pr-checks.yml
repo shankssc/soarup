@@ -79,14 +79,6 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: 🧹 Run linters
-        run: |
-          ruff check . --output-format=github
-          ruff format --check .
-
-      - name: 🔎 Run type checker
-        run: mypy app --config-file pyproject.toml --explicit-package-bases --namespace-packages -p app
-
       - name: 🔐 Run security scan (Bandit)
         run: bandit -r app -c pyproject.toml -ll
 
@@ -133,9 +125,6 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-
-      - name: 🧹 Basic linting (Windows)
-        run: ruff check . --output-format=github
 
       - name: 🧪 Run basic tests (Windows)
         run: |

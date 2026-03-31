@@ -27,7 +27,7 @@ def create_app() -> FastAPI:
     )
 
     # Register routers
-    app.include_router(health.router)
+    app.include_router(health.router, prefix="/api/v1")
 
     return app
 
