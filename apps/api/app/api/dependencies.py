@@ -61,7 +61,7 @@ async def require_auth(
             detail={"error": "invalid_token", "message": "Token is invalid or expired"},
         )
 
-    return {"user_id": user.id, "email": user.email}
+    return {"user_id": user.id, "email": user.email, "access_token": token}
 
 
 # === Convenience Aliases ===

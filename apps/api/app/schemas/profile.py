@@ -68,6 +68,7 @@ class UploadResponse(BaseModel):
     """Response schema for file upload endpoints."""
 
     file_url: str = Field(..., description="Public URL to uploaded file")
+    file_key: str = Field(..., description="Storage object key")
     file_name: str = Field(..., description="Original file name")
     file_size: int = Field(..., description="File size in bytes")
     content_type: str = Field(..., description="MIME type of uploaded file")
