@@ -74,6 +74,10 @@ module = [
     "redis.*",
     "boto3.*",
     "botocore.*",
+    "aioboto3.*",
+    "structlog.*",
+    "supabase.*",
+    "supabase_auth.*",
 ]
 ignore_missing_imports = true
 
