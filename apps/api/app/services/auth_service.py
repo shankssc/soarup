@@ -240,6 +240,112 @@ class AuthService:
             logger.warning("get_current_user_failed", error=str(e))
             return None
 
+    async def refresh_tokens(self, refresh_token: str) -> LoginResponse:
+        """
+        Issue new access token using valid refresh token.
+
+        Business rules:
+        - Refresh token must be valid and not expired
+        - User account must still be active
+        - Rate limiting applied at router layer (not here)
+
+        Returns:
+            LoginResponse with new access_token, expires_in, etc.
+
+        Raises:
+            AuthError: If refresh token is invalid or expired
+        """
+        try:
+            logger.info("token_refresh_attempt", refresh_token_prefix=refresh_token[:10] + "...")
+
+            auth_repo = await self._get_auth_repo()
+            profile_repo = self._get_profile_repo()
+
+            # Call repository (wrapped in circuit breaker)
+            session = await auth_repo.refresh_session(refresh_token)
+
+            if not session or not session.get("access_token"):
+                logger.warning("token_refresh_failed", reason="invalid_refresh_token")
+                raise AuthError(
+                    error_code="invalid_refresh_token",
+                    message="Refresh token is invalid or expired",
+                )
+
+            # Get user info for response
+            supabase_user = session.get("user") or {}
+            user_id = supabase_user.get("id")
+
+            if not user_id or not isinstance(user_id, str):
+                logger.warning("token_refresh_failed", reason="missing_user_id")
+                raise AuthError(
+                    error_code="invalid_refresh_token",
+                    message="Refresh token is invalid or expired",
+                )
+
+            profile = await profile_repo.get_by_user_id(user_id)
+
+            user_response = self._map_user_to_response(supabase_user, profile)
+
+            logger.info("token_refresh_success", user_id=user_id)
+
+            return LoginResponse(
+                access_token=session["access_token"],
+                token_type=OAUTH2_BEARER_TOKEN_TYPE,
+                expires_in=session.get("expires_in", 3600),
+                refresh_token=session.get("refresh_token"),  # May rotate refresh tokens
+                user=user_response,
+            )
+
+        except CircuitBreakerError as e:
+            logger.error("auth_service_unavailable", operation="refresh_tokens")
+            raise AuthError(
+                error_code="service_unavailable",
+                message="Token refresh service temporarily unavailable",
+                details={"retry_after": getattr(e, "retry_after", 30)},
+            ) from e
+        except AuthError:
+            raise
+        except Exception as e:
+            logger.exception("token_refresh_error", error=str(e))
+            # Don't leak internal errors — generic message for security
+            raise AuthError(
+                error_code="invalid_refresh_token",
+                message="Refresh token is invalid or expired",
+            ) from e
+
+    async def logout(self, access_token: str) -> bool:
+        """
+        Invalidate session by revoking refresh token.
+
+        Note: JWT access tokens cannot be revoked (stateless by design),
+        but we can blacklist the refresh token to prevent token renewal.
+
+        Business rules:
+        - Refresh token is revoked in Supabase
+        - Client should discard access token
+        - Idempotent: returns True even if already logged out
+
+        Returns:
+            True if successful, False if token was already invalid.
+        """
+        try:
+            logger.info("logout_attempt", token_prefix=access_token[:10] + "...")
+
+            auth_repo = await self._get_auth_repo()
+            success = await auth_repo.sign_out(access_token)
+
+            if success:
+                logger.info("logout_success", token_prefix=access_token[:10] + "...")
+            else:
+                logger.warning("logout_noop", reason="token_already_invalid")
+
+            return success
+
+        except Exception as e:
+            logger.exception("logout_error", error=str(e))
+            # Make logout idempotent — don't raise, just return False
+            return False
+
     def _map_user_to_response(self, supabase_user: dict[str, Any], profile: Any | None) -> UserResponse:
         """
         Convert Supabase user + Profile to UserResponse schema.
