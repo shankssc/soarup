@@ -31,7 +31,7 @@ venv/
 ENV/
 env/
 *.log
-alembic.ini
+alembic/__pycache__/
 *.db
 sqlite.db
 
