@@ -2,22 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #0f172a;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
+    --font-headline: var(--font-newsreader);
   }
-}
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: var(--font-inter), system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Remove default focus outline — we handle focus rings explicitly per component */
+  *:focus {
+    outline: none;
+  }
+
+  /* Custom selection color — matches Stitch output */
+  ::selection {
+    background-color: theme("colors.secondary.DEFAULT");
+    color: theme("colors.secondary.on");
+  }
 }
