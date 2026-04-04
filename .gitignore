@@ -104,3 +104,5 @@ specs/*.draft.md
 !specs/
 !apps/
 !.github/
+
+*storybook.log

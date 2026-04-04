@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import forms from "@tailwindcss/forms";
 
 // Electric Atelier — Design System Tokens
 // Generated from Google Stitch output, reconciled for Next.js + shadcn/ui compatibility
@@ -12,7 +13,8 @@ const config: Config = {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./stories/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/stories/**/*.{js,ts,jsx,tsx,mdx}",  // ← stories inside src/
+    "./.storybook/**/*.{js,ts,jsx,tsx}",         // ← storybook config files
   ],
 
   theme: {
@@ -174,9 +176,7 @@ const config: Config = {
   },
 
   plugins: [
-    // @tailwindcss/forms — resets browser form styles so our custom inputs
-    // (border-bottom only, no box) render consistently cross-browser.
-    require("@tailwindcss/forms")({ strategy: "class" }),
+    forms({ strategy: "class" }),
   ],
 };
 
