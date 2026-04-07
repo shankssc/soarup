@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 
 
 class ProfileRepository:
-    """Repository for profile CRUD operations."""
+    """epository for app-level user profile operations."""
 
     def __init__(self, db_session: AsyncSession):
         """
@@ -88,7 +88,8 @@ class ProfileRepository:
             logger.error("Profile creation failed: user already exists", user_id=user_id)
             raise
 
-    async def update(self, user_id: str, data: dict[str, Any]) -> Profile | None:  # ← Fixed: added "data:" parameter name
+    # ← Fixed: added "data:" parameter name
+    async def update(self, user_id: str, data: dict[str, Any]) -> Profile | None:
         """
         Update profile fields.
 

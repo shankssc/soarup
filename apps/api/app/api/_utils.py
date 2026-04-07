@@ -36,7 +36,7 @@ def create_error_response(
             error=error_code,
             message=message,
             details=details,
-        ).model_dump(),
+        ).model_dump(mode="json"),
     )
 
     if api_version and api_version.deprecated:
@@ -62,7 +62,7 @@ def create_success_response(
         JSONResponse ready to return from a FastAPI endpoint
     """
     # Handle Pydantic models
-    content = data.model_dump() if hasattr(data, "model_dump") else data
+    content = data.model_dump(mode="json") if hasattr(data, "model_dump") else data
 
     response = JSONResponse(status_code=status_code, content=content)
 

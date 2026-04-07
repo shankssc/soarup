@@ -2,7 +2,6 @@
 # Async SQLAlchemy session management
 
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -39,7 +38,6 @@ async def close_db() -> None:
     await engine.dispose()
 
 
-@asynccontextmanager
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency for FastAPI routes: provides async DB session.
