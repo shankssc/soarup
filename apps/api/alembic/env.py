@@ -1,6 +1,8 @@
 # apps/api/alembic/env.py
 # Configure Alembic for PostgreSQL migrations — uses SYNC engine (Alembic requirement)
 
+import os
+from dotenv import load_dotenv
 from app.config import settings
 # Ensure models are imported for autogenerate
 from app.models.profile import Profile
@@ -10,6 +12,8 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 import sys
 from pathlib import Path
+
+load_dotenv()
 
 # Add app to Python path (for importing models/config)
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -30,7 +34,7 @@ target_metadata = Base.metadata
 # Convert async URL to sync URL for Alembic (Alembic uses sync engine)
 sync_database_url = settings.database_url.replace(
     "postgresql+asyncpg://",
-    "postgresql://",  # ← Sync URL for psycopg2
+    "postgresql+psycopg2://",  # ← Sync URL for psycopg2
 )
 config.set_main_option("sqlalchemy.url", sync_database_url)
 
