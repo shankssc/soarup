@@ -106,3 +106,10 @@ specs/*.draft.md
 !.github/
 
 *storybook.log
+
+# --- Supabase CLI files
+supabase/.env
+supabase/logs/
+supabase/storage/
+supabase/.temp/
+supabase/studio/dist/
