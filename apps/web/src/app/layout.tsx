@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
+import type { Viewport } from "next";
 import { Space_Grotesk, Newsreader } from "next/font/google";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import "./globals.css";
+
+// ─── Fonts ────────────────────────────────────────────────────────────────────
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -17,10 +21,26 @@ const newsreader = Newsreader({
   display: "swap",
 });
 
+// ─── Metadata ─────────────────────────────────────────────────────────────────
+
 export const metadata: Metadata = {
-  title: "Stand-up Buddy",
+  title: "SoarUp",
   description: "Async standups for indie developers and small teams.",
+  icons: {
+    icon: [
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: { url: "/apple-touch-180.png" },
+  },
 };
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
 
 export default function RootLayout({
   children,
@@ -28,7 +48,30 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/*
+          FOUC prevention — runs synchronously before paint.
+          Reads localStorage and applies dark class before React hydrates.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var stored = localStorage.getItem('soarup-theme');
+                  if (stored === 'dark' || stored === 'light') {
+                    if (stored === 'dark') document.documentElement.classList.add('dark');
+                  } else {
+                    var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    if (systemDark) document.documentElement.classList.add('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body
         className={`
           ${spaceGrotesk.variable}
@@ -40,7 +83,9 @@ export default function RootLayout({
           min-h-screen
         `}
       >
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
