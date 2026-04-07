@@ -1,5 +1,6 @@
 // apps/web/.storybook/preview.ts
 import type { Preview } from "@storybook/nextjs-vite";
+import { ThemeProvider } from "../src/components/providers/theme-provider";
 import "../src/app/globals.css";
 
 const preview: Preview = {
@@ -24,6 +25,11 @@ const preview: Preview = {
   },
 
   decorators: [
+    // Global ThemeProvider — every story gets this automatically.
+    // Prevents "useTheme must be used inside <ThemeProvider>" errors.
+    (Story) => ThemeProvider({ children: Story() }),
+
+    // Sync dark class with background switcher
     (Story, context) => {
       const bg = context.globals?.backgrounds?.value;
       if (bg === "#ebfdfc") {

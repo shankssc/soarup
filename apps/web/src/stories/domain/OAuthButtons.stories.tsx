@@ -6,13 +6,7 @@ const meta = {
   component: OAuthButtons,
   parameters: {
     layout: "centered",
-    backgrounds: {
-      default: "dark",
-      values: [
-        { name: "dark",  value: "#0e0e10" },
-        { name: "light", value: "#ebfdfc" },
-      ],
-    },
+    nextjs: { appDirectory: true },
   },
   tags: ["autodocs"],
 } satisfies Meta<typeof OAuthButtons>;
@@ -20,34 +14,30 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {
+export const Dark: Story = {
   decorators: [
-    (Story) => (
-      <div className="w-80 p-8">
-        <Story />
-      </div>
-    ),
+    (Story) => {
+      document.documentElement.classList.add("dark");
+      return <div className="bg-surface p-8 w-80"><Story /></div>;
+    },
+  ],
+};
+
+export const Light: Story = {
+  decorators: [
+    (Story) => {
+      document.documentElement.classList.remove("dark");
+      return <div className="bg-[#ebfdfc] p-8 w-80"><Story /></div>;
+    },
   ],
 };
 
 export const Disabled: Story = {
   args: { disabled: true },
   decorators: [
-    (Story) => (
-      <div className="w-80 p-8">
-        <Story />
-      </div>
-    ),
-  ],
-};
-
-export const OnLightBackground: Story = {
-  parameters: { backgrounds: { default: "light" } },
-  decorators: [
-    (Story) => (
-      <div className="w-80 p-8">
-        <Story />
-      </div>
-    ),
+    (Story) => {
+      document.documentElement.classList.add("dark");
+      return <div className="bg-surface p-8 w-80"><Story /></div>;
+    },
   ],
 };

@@ -77,8 +77,8 @@ export default function RootLayout({
           ${spaceGrotesk.variable}
           ${newsreader.variable}
           font-body
-          bg-background
-          text-on-surface
+          bg-background dark:bg-[#0e0e10]
+          text-on-surface dark:text-on-surface-dark
           antialiased
           min-h-screen
         `}

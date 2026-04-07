@@ -38,19 +38,31 @@ const config: Config = {
     extend: {
       colors: {
         // ─── Surface scale (dark) ───────────────────────────────────────────────
-        // Use these for backgrounds, containers, borders in dark mode.
-        // Maps: surface-container-lowest → surface-container-highest (darkest → lightest dark surface)
         surface: {
-          DEFAULT:     "#0e0e10",   // page background
-          dim:         "#0e0e10",   // same as DEFAULT — use for recessed areas
-          bright:      "#2c2c2f",   // elevated surfaces (popovers, tooltips)
-          lowest:      "#000000",   // deepest wells (code blocks, input backgrounds)
+          DEFAULT:     "#ebfdfc",   // light mode page background
+          dim:         "#ccdedd",   // light mode dimmed surface
+          bright:      "#ebfdfc",   // light mode bright surface
+          lowest:      "#ffffff",   // light mode lowest surface
+          low:         "#e5f7f6",   // light mode low surface
+          high:        "#daeceb",   // light mode high surface
+          highest:     "#d4e6e5",   // light mode highest surface
+          variant:     "#d4e6e5",
+          tint:        "#00687a",
+        },
+
+        // ─── Dark surface scale — used via dark: prefix ──────────────────────
+        // Access in JSX as: dark:bg-surface-dark, dark:bg-container-dark etc.
+        // Or use the semantic aliases below which handle both modes.
+        "surface-dark": {
+          DEFAULT:     "#0e0e10",
+          dim:         "#0e0e10",
+          bright:      "#2c2c2f",
+          lowest:      "#000000",
           low:         "#131315",
-          DEFAULT_:    "#19191c",   // alias — use `surface-container` in JSX
           high:        "#1f1f22",
-          highest:     "#262528",   // borders, avatars, selected states
-          variant:     "#262528",   // same as highest — used by MD3 for surface variants
-          tint:        "#53ddfc",   // primary-tinted surface (use rarely)
+          highest:     "#262528",
+          variant:     "#262528",
+          tint:        "#53ddfc",
         },
 
         // ─── Semantic surface aliases ────────────────────────────────────────
@@ -108,17 +120,20 @@ const config: Config = {
         },
 
         // ─── On-surface text scale ───────────────────────────────────────────
-        // Use these for ALL text — never use raw gray-* classes for text.
-        "on-surface":          "#f9f5f8",   // primary text
-        "on-surface-variant":  "#adaaad",   // secondary/muted text
-        "on-background":       "#f9f5f8",
+        "on-surface":          "#0e1e1e",   // light mode primary text (dark teal)
+        "on-surface-variant":  "#3d494c",   // light mode secondary text
+        "on-background":       "#0e1e1e",
+
+        // Dark mode text — used via dark: prefix
+        "on-surface-dark":         "#f9f5f8",
+        "on-surface-variant-dark": "#adaaad",
 
         // ─── Borders / outlines ──────────────────────────────────────────────
         outline:          "#767577",   // visible borders
         "outline-variant": "#48474a",  // subtle borders (cards, dividers)
 
         // ─── Background ──────────────────────────────────────────────────────
-        background: "#0e0e10",
+        background: "#ebfdfc",   // light mode — dark mode handled via dark:bg-[#0e0e10]
 
         // ─── Inverse (light mode) ────────────────────────────────────────────
         "inverse-surface":    "#fcf8fb",

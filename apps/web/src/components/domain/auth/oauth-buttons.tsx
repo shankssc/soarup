@@ -1,3 +1,5 @@
+"use client";
+
 "apps/web/src/components/domain/auth/oauth-buttons.tsx"
 
 import * as React from "react";

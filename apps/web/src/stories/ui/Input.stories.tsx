@@ -1,21 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Input } from "@/components/ui/input";
 
-// ─── Meta ─────────────────────────────────────────────────────────────────────
-
 const meta = {
   title: "UI/Input",
   component: Input,
-  parameters: {
-    layout: "centered",
-    backgrounds: {
-      default: "dark",
-      values: [
-        { name: "dark",  value: "#0e0e10" },
-        { name: "light", value: "#ebfdfc" },
-      ],
-    },
-  },
+  parameters: { layout: "centered" },
   tags: ["autodocs"],
   argTypes: {
     label:    { control: "text" },
@@ -32,153 +21,111 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+// ─── Decorators ───────────────────────────────────────────────────────────────
+
+const dark = (Story: React.ComponentType) => {
+  document.documentElement.classList.add("dark");
+  return (
+    <div className="bg-surface p-8 w-80">
+      <Story />
+    </div>
+  );
+};
+
+const light = (Story: React.ComponentType) => {
+  document.documentElement.classList.remove("dark");
+  return (
+    <div className="bg-[#ebfdfc] p-8 w-80">
+      <Story />
+    </div>
+  );
+};
+
 // ─── Playground ───────────────────────────────────────────────────────────────
 
 export const Playground: Story = {
   args: {
-    label:       "Email",
+    label: "Email",
     placeholder: "you@soarup.app",
-    type:        "email",
+    type: "email",
   },
-  decorators: [
-    (Story) => (
-      <div className="w-80 p-8">
-        <Story />
-      </div>
-    ),
-  ],
+  decorators: [dark],
 };
 
-// ─── All States ───────────────────────────────────────────────────────────────
+// ─── All states — dark ────────────────────────────────────────────────────────
 
-export const AllStates: Story = {
+export const AllStatesDark: Story = {
+  decorators: [dark],
   render: () => (
-    <div className="w-80 space-y-10 p-8">
-      <Input
-        label="Default"
-        placeholder="curator@soarup.app"
-        type="email"
-      />
-      <Input
-        label="With value"
-        defaultValue="suyash@soarup.app"
-        type="email"
-      />
-      <Input
-        label="With hint"
-        placeholder="curator@soarup.app"
-        hint="We'll never share your email with anyone."
-        type="email"
-      />
-      <Input
-        label="With error"
-        defaultValue="not-an-email"
-        error="Please enter a valid email address."
-        type="email"
-      />
-      <Input
-        label="Disabled"
-        defaultValue="suyash@soarup.app"
-        disabled
-        type="email"
-      />
+    <div className="space-y-8">
+      <Input label="Default" placeholder="you@soarup.app" type="email" />
+      <Input label="With value" defaultValue="suyash@soarup.app" type="email" />
+      <Input label="With hint" placeholder="you@soarup.app" hint="We'll never share your email." type="email" />
+      <Input label="With error" defaultValue="not-an-email" error="Please enter a valid email address." type="email" />
+      <Input label="Disabled" defaultValue="suyash@soarup.app" disabled type="email" />
     </div>
   ),
 };
 
-// ─── Password Field ───────────────────────────────────────────────────────────
-// Shows the built-in visibility toggle.
+// ─── All states — light ───────────────────────────────────────────────────────
 
-export const PasswordField: Story = {
+export const AllStatesLight: Story = {
+  decorators: [light],
   render: () => (
-    <div className="w-80 space-y-8 p-8">
-      <Input
-        label="Password"
-        placeholder="••••••••"
-        type="password"
-        hint="At least 8 characters."
-      />
-      <Input
-        label="Password (error)"
-        defaultValue="short"
-        type="password"
-        error="Password must be at least 8 characters."
-      />
+    <div className="space-y-8">
+      <Input label="Default" placeholder="you@soarup.app" type="email" />
+      <Input label="With value" defaultValue="suyash@soarup.app" type="email" />
+      <Input label="With hint" placeholder="you@soarup.app" hint="We'll never share your email." type="email" />
+      <Input label="With error" defaultValue="not-an-email" error="Please enter a valid email address." type="email" />
+      <Input label="Disabled" defaultValue="suyash@soarup.app" disabled type="email" />
     </div>
   ),
 };
 
-// ─── Auth Form Fields ─────────────────────────────────────────────────────────
-// Exactly as they appear on the login/signup pages.
+// ─── Password — dark ──────────────────────────────────────────────────────────
 
-export const AuthFormFields: Story = {
+export const PasswordDark: Story = {
+  decorators: [dark],
   render: () => (
-    <div className="w-80 space-y-6 p-8">
-      <p className="font-label text-[10px] uppercase tracking-widest text-outline">
-        Login form fields
-      </p>
-      <Input
-        label="Identity / Email"
-        placeholder="curator@soarup.app"
-        type="email"
-      />
-      <Input
-        label="Cipher / Password"
-        placeholder="••••••••"
-        type="password"
-      />
+    <div className="space-y-8">
+      <Input label="Password" placeholder="••••••••" type="password" hint="At least 8 characters." />
+      <Input label="Password error" defaultValue="short" type="password" error="Password must be at least 8 characters." />
     </div>
   ),
 };
 
-// ─── With Icons ───────────────────────────────────────────────────────────────
+// ─── Password — light ─────────────────────────────────────────────────────────
 
-export const WithIcons: Story = {
+export const PasswordLight: Story = {
+  decorators: [light],
   render: () => (
-    <div className="w-80 space-y-8 p-8">
-      <Input
-        label="Search"
-        placeholder="Search updates..."
-        leadingIcon={
-          <span className="material-symbols-outlined text-[18px]">search</span>
-        }
-      />
-      <Input
-        label="Workspace slug"
-        placeholder="my-team"
-        trailingIcon={
-          <span className="material-symbols-outlined text-[18px]">link</span>
-        }
-        hint="Used in invite links: soarup.app/join/my-team"
-      />
+    <div className="space-y-8">
+      <Input label="Password" placeholder="••••••••" type="password" hint="At least 8 characters." />
+      <Input label="Password error" defaultValue="short" type="password" error="Password must be at least 8 characters." />
     </div>
   ),
 };
 
-// ─── Light Background ─────────────────────────────────────────────────────────
+// ─── Auth fields — dark ───────────────────────────────────────────────────────
 
-export const OnLightBackground: Story = {
-  parameters: {
-    backgrounds: { default: "light" },
-  },
+export const AuthFieldsDark: Story = {
+  decorators: [dark],
   render: () => (
-    <div className="w-80 space-y-8 p-8">
-      <Input
-        label="Email"
-        placeholder="curator@soarup.app"
-        type="email"
-      />
-      <Input
-        label="Password"
-        placeholder="••••••••"
-        type="password"
-      />
-      <Input
-        label="Email (error)"
-        defaultValue="bad-email"
-        error="Please enter a valid email address."
-        type="email"
-      />
+    <div className="space-y-6">
+      <Input label="Identity / Email" placeholder="you@soarup.app" type="email" />
+      <Input label="Cipher / Password" placeholder="••••••••" type="password" />
+    </div>
+  ),
+};
+
+// ─── Auth fields — light ──────────────────────────────────────────────────────
+
+export const AuthFieldsLight: Story = {
+  decorators: [light],
+  render: () => (
+    <div className="space-y-6">
+      <Input label="Identity / Email" placeholder="you@soarup.app" type="email" />
+      <Input label="Cipher / Password" placeholder="••••••••" type="password" />
     </div>
   ),
 };

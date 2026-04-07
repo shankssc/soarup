@@ -1,3 +1,5 @@
+"apps/web/src/app/(auth)/login/login.tsx"
+
 import * as React from "react";
 import { LoginForm } from "@/components/domain/auth/login-form";
 

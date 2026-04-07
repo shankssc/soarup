@@ -1,3 +1,5 @@
+"use client";
+
 "apps/web/src/components/ui/label.tsx"
 
 import * as React from "react";
