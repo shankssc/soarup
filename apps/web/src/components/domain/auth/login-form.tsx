@@ -1,4 +1,4 @@
-"use client";
+"apps/web/src/components/domain/auth/login-form.tsx"
 
 import * as React from "react";
 import { useForm } from "react-hook-form";
