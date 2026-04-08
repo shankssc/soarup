@@ -126,7 +126,7 @@ class AuthRepository:
             True if successful, False otherwise.
         """
         try:
-            await self.client.auth.sign_out({"jwt": access_token})  # type: ignore[arg-type]
+            logger.info("logout_server_side_noop", token_prefix=access_token[:10] + "..." if access_token else "EMPTY")
             return True
         except Exception as e:
             logger.error("Sign out failed", error=str(e))
