@@ -84,3 +84,52 @@ class ApiVersionInfo(BaseModel):
     version: str = Field(default="v1", description="API version")
     deprecated: bool = Field(default=False, description="Whether this version is deprecated")
     sunset_date: str | None = Field(None, description="ISO 8601 date when version will be retired")
+
+
+# === Forgot/Reset Password Requests ===
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Request schema for POST /auth/forgot-password."""
+
+    email: EmailStr = Field(..., description="User email address", examples=["user@example.com"])
+    redirect_to: str | None = Field(
+        None,
+        description="URL to redirect user after clicking reset link (must be whitelisted)",
+        examples=["https://app.soarup.app/auth/reset-password"],
+    )
+
+
+class ResetPasswordRequest(BaseModel):
+    """Request schema for POST /auth/reset-password."""
+
+    token: str = Field(..., description="Recovery token from email link", min_length=32)
+    new_password: str = Field(..., description="New password", min_length=8, max_length=100, examples=["NewSecurePass123!"])
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        return v
+
+
+# === Forgot/Reset Password Responses ===
+
+
+class ForgotPasswordResponse(BaseModel):
+    """Response for successful forgot password request."""
+
+    message: str = Field(default="Password reset email sent if account exists", description="Generic success message for security")
+    email_sent: bool = Field(..., description="Whether email was dispatched (for logging, not exposed to client)")
+
+
+class ResetPasswordResponse(BaseModel):
+    """Response for successful password reset."""
+
+    message: str = Field(default="Password updated successfully", description="Confirmation message")
+    requires_login: bool = Field(default=True, description="Whether user must log in again")
