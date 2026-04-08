@@ -83,13 +83,8 @@ class StorageRepository:
                     },
                 )
 
-                # Construct public URL
-                if "localhost" in self.endpoint_url:
-                    # Minio local dev
-                    file_url = f"{self.endpoint_url}/{self.bucket_name}/{file_key}"
-                else:
-                    # Cloudflare R2 production
-                    file_url = f"https://{self.bucket_name}.r2.cloudflarestorage.com/{file_key}"
+                # Construct public URL, Minio for local dev and cloudflare R2 for production
+                file_url = f"{self.endpoint_url}/{self.bucket_name}/{file_key}" if "localhost" in self.endpoint_url else f"https://{self.bucket_name}.r2.cloudflarestorage.com/{file_key}"
 
                 logger.info(
                     "file_uploaded",

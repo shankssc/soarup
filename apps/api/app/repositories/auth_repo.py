@@ -1,7 +1,7 @@
 # apps/api/app/repositories/auth_repo.py
 # Repository pattern for Supabase Auth data access
 
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from supabase import AsyncClient
@@ -131,6 +131,54 @@ class AuthRepository:
         except Exception as e:
             logger.error("Sign out failed", error=str(e))
             return False
+
+    async def send_password_reset_email(self, email: str, redirect_to: str | None = None) -> bool:
+        """
+        Send password reset email via Supabase.
+
+        Args:
+            email: User's email address.
+            redirect_to: Optional URL to redirect after clicking reset link.
+
+        Returns:
+            True if request succeeded (note: Supabase always returns 200 even if email doesn't exist).
+        """
+        try:
+            options: dict[str, str] | None = {"redirect_to": redirect_to} if redirect_to else None
+
+            # Cast to Any to bypass type checking entirely
+            await self.client.auth.reset_password_for_email(email, cast(Any, options))
+            logger.info("password_reset_email_sent", email=email)
+            return True
+        except Exception as e:
+            # Supabase returns 200 even for non-existent emails (security by obscurity)
+            # Only log unexpected errors, don't expose to client
+            logger.error("password_reset_email_error", email=email, error=str(e))
+            return False
+
+    async def update_password(self, new_password: str) -> dict[str, Any]:
+        """
+        Update user password using authenticated session from recovery token.
+
+        Args:
+            access_token: Valid access token obtained after user clicks recovery link.
+                            This token should be used to create an authenticated client.
+            new_password: New password to set.
+
+        Returns:
+            Dict containing updated user info.
+
+        Note:
+            The client instance must be authenticated with the access_token before calling this method.
+            Typically, the service layer creates a new AuthRepository with a client that has the token set.
+        """
+        try:
+            response = await self.client.auth.update_user({"password": new_password})
+            logger.info("password_updated", user_id=response.user.id if response.user else "unknown")
+            return self._safe_dump(response)
+        except Exception as e:
+            logger.error("password_update_failed", error=str(e))
+            raise
 
     @staticmethod
     def _safe_dump(obj: Any) -> dict[str, Any]:

@@ -211,9 +211,7 @@ def add_deprecation_headers(response: Any, version_info: ApiVersionInfo) -> None
         response.headers["Deprecation"] = "true"
 
         # Link header: migration guide
-        response.headers["Link"] = (
-            f"<https://docs.soarup.app/migration/{version_info.version}-to-{CURRENT_API_VERSION}>; " 'rel="deprecation"; type="text/html"'
-        )
+        response.headers["Link"] = f"<https://docs.soarup.app/migration/{version_info.version}-to-{CURRENT_API_VERSION}>; " 'rel="deprecation"; type="text/html"'
 
         # Warning header (RFC 7234): 299 = miscellaneous persistent warning
         response.headers["Warning"] = f'299 - "API version {version_info.version} is deprecated and will be removed on {version_info.sunset_date}"'
