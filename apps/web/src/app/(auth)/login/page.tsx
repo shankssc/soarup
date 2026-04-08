@@ -22,7 +22,7 @@ export default async function LoginPage() {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-1">
+      <div className="space-y-1 mb-2">
         <h1 className="font-headline italic text-4xl md:text-5xl text-on-surface leading-tight">
           Welcome back
         </h1>

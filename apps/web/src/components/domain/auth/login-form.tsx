@@ -169,7 +169,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
           onClick={() => router.push("/signup")}
           className="hover:underline underline-offset-8 decoration-secondary"
         >
-          Create your workspace
+          New to SoarUp? Join here
         </button>
       </p>
     </div>

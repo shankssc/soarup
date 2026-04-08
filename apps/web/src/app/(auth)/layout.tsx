@@ -28,7 +28,7 @@ export default function AuthLayout({
       <main className="flex-1 flex items-center justify-center px-4 py-8">
         <div
           className={[
-            "w-full max-w-md",
+            "w-full max-w-lg",
             "bg-white dark:bg-[#1f1f22]",
             "border border-outline-variant/30",
             "px-8 py-10 md:px-12 md:py-12",
