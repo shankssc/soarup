@@ -23,8 +23,29 @@ interface ThemeToggleProps {
 // The tooltip via aria-label is sufficient — no visible text needed here.
 
 export function ThemeToggle({ className }: ThemeToggleProps) {
-  const { theme, toggleTheme } = useTheme();
+  const themeContext = useTheme();
 
+  // Render neutral icon if outside ThemeProvider (SSR, Storybook edge cases)
+  if (!themeContext) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Toggle theme"
+        className={cn("text-on-surface-variant", className)}
+      >
+        <span
+          className="material-symbols-outlined text-[20px]"
+          style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
+          aria-hidden="true"
+        >
+          contrast
+        </span>
+      </Button>
+    );
+  }
+
+  const { theme, toggleTheme } = themeContext;
   const isDark = theme === "dark";
 
   return (

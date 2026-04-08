@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { ThemeProvider } from "@/components/providers/theme-provider";
+import React from "react";
+import { LoginForm } from "@/components/domain/auth/login-form";
 import AuthLayout from "@/app/(auth)/layout";
-import LoginPage from "@/app/(auth)/login/page";
 
 const meta = {
   title: "Pages/Auth/Login",
-  component: LoginPage,
+  component: LoginForm,
   parameters: {
     layout: "fullscreen",
     nextjs: {
@@ -14,40 +14,61 @@ const meta = {
     },
   },
   tags: ["autodocs"],
-} satisfies Meta<typeof LoginPage>;
+} satisfies Meta<typeof LoginForm>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-function withProviders(Story: React.ComponentType, dark: boolean) {
-  if (dark) {
-    document.documentElement.classList.add("dark");
-  } else {
-    document.documentElement.classList.remove("dark");
-  }
-  return (
-    <ThemeProvider>
-      <AuthLayout>
-        <Story />
-      </AuthLayout>
-    </ThemeProvider>
+// Wraps the form in the real auth layout shell so the story
+// matches the actual page exactly — without importing the async page.tsx
+function PageShell(Story: React.ComponentType) {
+  return React.createElement(
+    AuthLayout,
+    null,
+    React.createElement(
+      "div",
+      { className: "space-y-8" },
+      React.createElement(
+        "div",
+        { className: "space-y-1 mb-2" },
+        React.createElement(
+          "h1",
+          { className: "font-headline italic text-4xl md:text-5xl text-on-surface leading-tight" },
+          "Welcome back"
+        ),
+        React.createElement(
+          "p",
+          { className: "font-label text-[10px] uppercase tracking-[0.2em] text-outline" },
+          "Sign in to your workspace"
+        )
+      ),
+      React.createElement(Story)
+    )
   );
 }
 
 export const Dark: Story = {
-  decorators: [(Story) => withProviders(Story, true)],
+  parameters: { theme: "dark" },
+  decorators: [PageShell],
 };
 
 export const Light: Story = {
-  decorators: [(Story) => withProviders(Story, false)],
+  parameters: { theme: "light" },
+  decorators: [PageShell],
 };
 
 export const MobileDark: Story = {
-  parameters: { viewport: { defaultViewport: "mobile1" } },
-  decorators: [(Story) => withProviders(Story, true)],
+  parameters: {
+    theme: "dark",
+    viewport: { defaultViewport: "mobile1" },
+  },
+  decorators: [PageShell],
 };
 
 export const MobileLight: Story = {
-  parameters: { viewport: { defaultViewport: "mobile1" } },
-  decorators: [(Story) => withProviders(Story, false)],
+  parameters: {
+    theme: "light",
+    viewport: { defaultViewport: "mobile1" },
+  },
+  decorators: [PageShell],
 };

@@ -22,27 +22,42 @@ const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = "soarup-theme";
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>("dark");
+interface ThemeProviderProps {
+  children?: React.ReactNode;
+  /**
+   * When provided, bypasses localStorage and system preference entirely.
+   * Used by Storybook to force a specific theme per story without
+   * ThemeProvider's useEffect overriding the decorator's class toggle.
+   */
+  forcedTheme?: Theme;
+}
+
+export function ThemeProvider({ children, forcedTheme }: ThemeProviderProps) {
+  const [theme, setThemeState] = React.useState<Theme>(forcedTheme ?? "dark");
   const [mounted, setMounted] = React.useState(false);
 
-  // On mount: read localStorage first, fall back to system preference
-  // This runs client-side only — avoids SSR mismatch
-  React.useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
+  // On mount: if forcedTheme is set, use it directly.
+  // Otherwise read localStorage, fall back to system preference.
+    React.useEffect(() => {
+    if (forcedTheme) {
+      setThemeState(forcedTheme);
+      setMounted(true);
+      return;
+    }
 
+    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
     if (stored === "light" || stored === "dark") {
       setThemeState(stored);
     } else {
-      // No stored preference — use system
       const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       setThemeState(systemDark ? "dark" : "light");
     }
-
     setMounted(true);
-  }, []);
+  }, [forcedTheme]);
 
   // Apply theme class to <html> whenever theme changes
+  // When forcedTheme is active, still apply the class — the html element
+  // needs the class for Tailwind dark: variants to work.
   React.useEffect(() => {
     if (!mounted) return;
 
@@ -53,8 +68,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.classList.remove("dark");
     }
 
-    localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme, mounted]);
+    // Only persist to localStorage if not forced — forced theme is
+    // Storybook-only and should never pollute the user's stored preference.
+    if (!forcedTheme) {
+      localStorage.setItem(STORAGE_KEY, theme);
+    }
+  }, [theme, mounted, forcedTheme]);
 
   function setTheme(next: Theme) {
     setThemeState(next);
@@ -79,10 +98,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useTheme(): ThemeContextValue {
-  const ctx = React.useContext(ThemeContext);
-  if (!ctx) {
-    throw new Error("useTheme must be used inside <ThemeProvider>");
-  }
-  return ctx;
+export function useTheme(): ThemeContextValue | null {
+  return React.useContext(ThemeContext);
 }
