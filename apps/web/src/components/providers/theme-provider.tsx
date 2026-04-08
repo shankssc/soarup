@@ -1,6 +1,6 @@
 "use client";
 
-"apps/web/src/components/providers/theme-provider.tsx"
+// apps/web/src/components/providers/theme-provider.tsx
 
 import * as React from "react";
 

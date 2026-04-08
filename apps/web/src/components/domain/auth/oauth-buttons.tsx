@@ -1,6 +1,6 @@
 "use client";
 
-"apps/web/src/components/domain/auth/oauth-buttons.tsx"
+// apps/web/src/components/domain/auth/oauth-buttons.tsx
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";

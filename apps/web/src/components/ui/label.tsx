@@ -1,6 +1,6 @@
 "use client";
 
-"apps/web/src/components/ui/label.tsx"
+// apps/web/src/components/ui/label.tsx
 
 import * as React from "react";
 import * as LabelPrimitive from "@radix-ui/react-label";

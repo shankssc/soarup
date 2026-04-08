@@ -1,6 +1,6 @@
 "use client";
 
-"apps/web/src/components/ui/input.tsx"
+// apps/web/src/components/ui/input.tsx
 
 import * as React from "react";
 import { cn } from "@/lib/utils/cn";

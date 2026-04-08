@@ -1,6 +1,6 @@
 "use client";
 
-"apps/web/src/components/ui/checkbox.tsx"
+// apps/web/src/components/ui/checkbox.tsx
 
 import * as React from "react";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";

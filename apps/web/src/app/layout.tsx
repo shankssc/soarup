@@ -1,3 +1,5 @@
+//apps/web/src/app/layout.tsx
+
 import type { Metadata } from "next";
 import type { Viewport } from "next";
 import { Space_Grotesk, Newsreader } from "next/font/google";

@@ -1,6 +1,6 @@
 "use client";
 
-"apps/web/src/components/ui/theme-toggle.tsx"
+// apps/web/src/components/ui/theme-toggle.tsx
 
 import * as React from "react";
 import { useTheme } from "@/components/providers/theme-provider";

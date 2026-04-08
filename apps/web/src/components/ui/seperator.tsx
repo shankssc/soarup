@@ -1,4 +1,4 @@
-"apps/web/src/components/ui/seperator.tsx"
+// apps/web/src/components/ui/seperator.tsx
 
 import * as React from "react";
 import * as SeparatorPrimitive from "@radix-ui/react-separator";
