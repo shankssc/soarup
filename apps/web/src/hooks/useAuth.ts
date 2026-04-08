@@ -1,3 +1,5 @@
+"use client";
+
 // apps/web/hooks/useAuth.ts
 
 import { create } from "zustand";
@@ -10,9 +12,7 @@ export interface UserProfile {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  timezone: string;
-  email_notifications: boolean;
-  onboarded_at: string | null;
+  email_verified: boolean;
   created_at: string;
 }
 
@@ -234,7 +234,7 @@ export function useAuth() {
     store.tokens.expires_at > Date.now();
 
   const needsOnboarding =
-    isAuthenticated && store.user?.onboarded_at === null;
+    isAuthenticated && store.user?.full_name === null;
 
   return {
     user:             store.user,

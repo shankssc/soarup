@@ -1,18 +1,13 @@
-"apps/web/src/app/(auth)/login/page.tsx"
+"apps/web/src/app/(auth)/signup/page.tsx"
 
 export const dynamic = "force-dynamic";
 
-import * as React from "react";
-import { LoginForm } from "@/components/domain/auth/login-form";
+import { SignupForm } from "@/components/domain/auth/signup-form";
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-//
-// Server Component — no auth check needed here (handled by middleware).
-// The LoginForm inside is a Client Component that owns all interactivity.
-
-export default async function LoginPage() {
+export default async function SignupPage() {
+  // Redirect if already authenticated — no point showing signup to logged-in users
   const supabase = await createServerSupabaseClient();
   const { data: { session } } = await supabase.auth.getSession();
 
@@ -24,13 +19,14 @@ export default async function LoginPage() {
     <div className="space-y-8">
       <div className="space-y-1">
         <h1 className="font-headline italic text-4xl md:text-5xl text-on-surface leading-tight">
-          Welcome back
+          Create your account
         </h1>
         <p className="font-label text-[10px] uppercase tracking-[0.2em] text-outline">
-          Sign in to your workspace
+          Join SoarUp in under 60 seconds
         </p>
       </div>
-      <LoginForm />
+
+      <SignupForm />
     </div>
   );
 }

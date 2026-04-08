@@ -3,7 +3,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Cloudflare Pages compatibility
-  output: "export",
   images: {
     unoptimized: true, // Cloudflare Pages handles image optimization
   },
