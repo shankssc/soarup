@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createClient } from "@/lib/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,6 +111,28 @@ interface LoginResponse {
   user: UserProfile;
 }
 
+// ─── Supabase session sync ────────────────────────────────────────────────────
+// After FastAPI returns tokens, we sync them into the Supabase JS client so
+// the server-side cookie-based session is set correctly. This allows
+// createServerSupabaseClient() in Server Components to read the session.
+
+async function syncSupabaseSession(
+  accessToken: string,
+  refreshToken: string
+): Promise<void> {
+  try {
+    const supabase = createClient();
+    await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+  } catch {
+    // Non-fatal — Zustand store is the source of truth for client-side auth.
+    // Server-side session may not work until next page load.
+    console.warn("Failed to sync Supabase session cookie.");
+  }
+}
+
 // ─── Zustand store ────────────────────────────────────────────────────────────
 //
 // Persisted to localStorage under "soarup-auth".
@@ -146,6 +169,10 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isLoading: false,
             error: null,
           });
+
+          // Sync tokens into Supabase JS client so server-side cookie is set.
+          // This allows createServerSupabaseClient() to read the session.
+          await syncSupabaseSession(data.access_token, data.refresh_token ?? "");
         } catch (err) {
           set({
             isLoading: false,
@@ -174,6 +201,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isLoading: false,
             error: null,
           });
+
+          // Sync tokens into Supabase JS client so server-side cookie is set.
+          await syncSupabaseSession(data.access_token, data.refresh_token ?? "");
         } catch (err) {
           set({
             isLoading: false,
@@ -197,6 +227,14 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           } catch {
             // Swallow — local state is cleared regardless
           }
+        }
+
+        // Clear Supabase cookie session so server-side reads return null
+        try {
+          const supabase = createClient();
+          await supabase.auth.signOut();
+        } catch {
+          // Swallow — local state cleared regardless
         }
 
         set({ user: null, tokens: null, isLoading: false, error: null });
