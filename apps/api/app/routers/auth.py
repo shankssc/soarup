@@ -18,9 +18,13 @@ from app.api import (
     handle_profile_error,
 )
 from app.schemas.auth import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     LoginResponse,
     RefreshTokenRequest,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
     SignupRequest,
 )
 from app.schemas.profile import ProfileResponse, UpdateProfileRequest, UploadResponse
@@ -214,6 +218,102 @@ async def logout(
         # Idempotent: still return 204 even on error
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/forgot-password",
+    response_model=ForgotPasswordResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Request password reset email",
+    description="""
+    Send a password reset email to the user.
+
+    **Security**:
+    - Always returns generic success message to prevent email enumeration
+    - `redirect_to` validated against allowed domains in service layer
+    - Rate limiting should be enforced at gateway/infrastructure layer
+    """,
+)
+async def forgot_password(
+    api_version: ApiVersionDep,
+    request: ForgotPasswordRequest,
+    service: AuthService = Depends(get_auth_service),
+) -> Response:
+    """Request password reset email."""
+    logger.info("forgot_password_request", email=request.email, api_version=api_version.version)
+    try:
+        result = await service.request_password_reset(request)
+        return create_success_response(result, api_version=api_version)
+    except Exception as e:
+        # Always return generic response for security, even on failure
+        logger.exception("forgot_password_error", email=request.email, error=str(e))
+        return create_success_response(
+            ForgotPasswordResponse(message="Password reset email sent if account exists", email_sent=False),
+            api_version=api_version,
+        )
+
+
+@router.post(
+    "/reset-password",
+    response_model=ResetPasswordResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Complete password reset with new password",
+    description="""
+    Update user password after clicking recovery link.
+
+    **Authentication**:
+    - Requires valid access token from recovery session (obtained after clicking email link)
+    - Token passed in `Authorization: Bearer <recovery_access_token>` header
+
+    **Security**:
+    - Password validated against strength requirements (schema + service layer)
+    - Token expiration handled by Supabase
+    - Forces re-login after successful reset
+    """,
+)
+async def reset_password(
+    api_version: ApiVersionDep,
+    request: ResetPasswordRequest,
+    raw_request: Request,
+    service: AuthService = Depends(get_auth_service),
+) -> Response:
+    """Complete password reset."""
+    # Extract and validate recovery token
+    auth_header = raw_request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return create_error_response(
+            error_code="missing_token",
+            message="Authorization header with Bearer token required",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            api_version=api_version,
+        )
+
+    recovery_token = auth_header[7:]
+    if not recovery_token or len(recovery_token) < 32:
+        return create_error_response(
+            error_code="invalid_token",
+            message="Recovery token is invalid or malformed",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            api_version=api_version,
+        )
+
+    logger.info("reset_password_attempt", token_prefix=recovery_token[:10] + "...", api_version=api_version.version)
+
+    try:
+        result = await service.complete_password_reset(
+            recovery_access_token=recovery_token,
+            new_password=request.new_password,
+        )
+        return create_success_response(result, api_version=api_version)
+    except AuthError as e:
+        logger.warning("reset_password_failed", error_code=e.error_code)
+        return handle_auth_error(e, api_version=api_version)
+    except Exception as e:
+        logger.exception("reset_password_error", error=str(e))
+        return handle_auth_error(
+            AuthError("internal_error", "An unexpected error occurred"),
+            api_version=api_version,
+        )
 
 
 # === Protected Endpoints (Require Valid JWT) ===
