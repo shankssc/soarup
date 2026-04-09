@@ -21,6 +21,7 @@ const newsreader = Newsreader({
   style: ["normal", "italic"],
   variable: "--font-newsreader",
   display: "swap",
+  adjustFontFallback: false,
 });
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
@@ -56,7 +57,7 @@ export default function RootLayout({
           FOUC prevention — runs synchronously before paint.
           Reads localStorage and applies dark class before React hydrates.
         */}
-        <script
+                <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -69,9 +70,25 @@ export default function RootLayout({
                     if (systemDark) document.documentElement.classList.add('dark');
                   }
                 } catch (e) {}
+
+                if (document.fonts && document.fonts.ready) {
+                  document.fonts.ready.then(function() {
+                    document.documentElement.classList.add('fonts-loaded');
+                  });
+                } else {
+                  setTimeout(function() {
+                    document.documentElement.classList.add('fonts-loaded');
+                  }, 1000);
+                }
               })();
             `,
           }}
+        />
+
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=optional"
         />
       </head>
       <body

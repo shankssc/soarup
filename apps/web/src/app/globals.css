@@ -118,6 +118,12 @@
     white-space: nowrap;
     direction: ltr;
     user-select: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .fonts-loaded .material-symbols-outlined {
+    opacity: 1;
   }
 
   .asymmetric-btn {
