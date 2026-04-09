@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     # Sensitive: require from .env, no default
     supabase_jwt_secret: SecretStr | None = None
     supabase_anon_key: SecretStr | None = None
+    supabase_jwt_aud: str = "authenticated"
 
     # === AI Services ===
     openai_api_key: SecretStr | None = None
