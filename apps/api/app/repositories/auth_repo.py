@@ -3,9 +3,11 @@
 
 from typing import Any, cast
 
+import httpx
 import structlog
 from supabase import AsyncClient
 
+from app.config import settings
 from app.lib.supabase import get_supabase_client
 
 logger = structlog.get_logger(__name__)
@@ -156,28 +158,57 @@ class AuthRepository:
             logger.error("password_reset_email_error", email=email, error=str(e))
             return False
 
-    async def update_password(self, new_password: str) -> dict[str, Any]:
+    async def update_password_with_recovery_token(
+        self,
+        recovery_access_token: str,
+        new_password: str,
+    ) -> dict[str, Any]:
         """
-        Update user password using authenticated session from recovery token.
+        Update user password using a recovery session token via direct REST call.
 
         Args:
-            access_token: Valid access token obtained after user clicks recovery link.
-                            This token should be used to create an authenticated client.
+            recovery_access_token: Valid access token from Supabase recovery email link.
             new_password: New password to set.
 
         Returns:
-            Dict containing updated user info.
+            Dict containing updated user info from Supabase.
 
-        Note:
-            The client instance must be authenticated with the access_token before calling this method.
-            Typically, the service layer creates a new AuthRepository with a client that has the token set.
+        Raises:
+            httpx.HTTPStatusError: If token is invalid/expired or password update fails.
+            RuntimeError: If SUPABASE_ANON_KEY is not configured.
         """
         try:
-            response = await self.client.auth.update_user({"password": new_password})
-            logger.info("password_updated", user_id=response.user.id if response.user else "unknown")
-            return self._safe_dump(response)
+            if not settings.supabase_anon_key:
+                raise RuntimeError("SUPABASE_ANON_KEY is not configured")
+
+            url = f"{settings.supabase_url}/auth/v1/user"
+            headers = {
+                "Authorization": f"Bearer {recovery_access_token}",
+                "apikey": settings.supabase_anon_key.get_secret_value(),
+                "Content-Type": "application/json",
+            }
+            payload = {"password": new_password}
+
+            async with httpx.AsyncClient() as httpx_client:
+                response = await httpx_client.request(
+                    method="PUT",
+                    url=url,
+                    json=payload,
+                    headers=headers,
+                    timeout=30.0,  # Explicit timeout for safety
+                )
+                response.raise_for_status()
+
+                result = cast(dict[str, Any], response.json())
+
+            logger.info("password_updated_via_recovery", user_id=result.get("id"))
+            return result
+
+        except httpx.HTTPStatusError:
+            raise
+
         except Exception as e:
-            logger.error("password_update_failed", error=str(e))
+            logger.error("password_update_recovery_failed", error=str(e))
             raise
 
     @staticmethod

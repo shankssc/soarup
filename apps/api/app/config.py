@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     )
     # Sensitive: require from .env, no default
     supabase_jwt_secret: SecretStr | None = None
+    supabase_anon_key: SecretStr | None = None
 
     # === AI Services ===
     openai_api_key: SecretStr | None = None
@@ -74,6 +75,13 @@ class Settings(BaseSettings):
     def validate_supabase_secret(cls, v: SecretStr | None, info: ValidationInfo) -> SecretStr | None:
         if info.data.get("environment") == "production" and not v:
             raise ValueError("SUPABASE_JWT_SECRET is required in production")
+        return v
+
+    @field_validator("supabase_anon_key", mode="after")  # ← ADD THIS VALIDATOR
+    @classmethod
+    def validate_supabase_anon_key(cls, v: SecretStr | None, info: ValidationInfo) -> SecretStr | None:
+        if info.data.get("environment") == "production" and not v:
+            raise ValueError("SUPABASE_ANON_KEY is required in production")
         return v
 
 

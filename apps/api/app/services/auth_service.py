@@ -2,13 +2,15 @@
 # Async business logic layer for authentication
 
 from typing import Any
+from urllib.parse import urlparse
 
+import httpx
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.auth_repo import AuthRepository
 from app.repositories.profile_repo import ProfileRepository
-from app.schemas.auth import LoginRequest, LoginResponse, SignupRequest, UserResponse
+from app.schemas.auth import ForgotPasswordRequest, ForgotPasswordResponse, LoginRequest, LoginResponse, ResetPasswordResponse, SignupRequest, UserResponse
 from app.utils.circuit_breaker import CircuitBreakerError
 
 logger = structlog.get_logger(__name__)
@@ -292,7 +294,8 @@ class AuthService:
                 access_token=session["access_token"],
                 token_type=OAUTH2_BEARER_TOKEN_TYPE,
                 expires_in=session.get("expires_in", 3600),
-                refresh_token=session.get("refresh_token"),  # May rotate refresh tokens
+                # May rotate refresh tokens
+                refresh_token=session.get("refresh_token"),
                 user=user_response,
             )
 
@@ -345,6 +348,104 @@ class AuthService:
             logger.exception("logout_error", error=str(e))
             # Make logout idempotent — don't raise, just return False
             return False
+
+    async def request_password_reset(self, request: ForgotPasswordRequest) -> ForgotPasswordResponse:
+        """
+        Initiate password reset flow by sending recovery email.
+
+        Business rules:
+        - Always return generic success message (prevent email enumeration)
+        - Validate redirect_to against allowed domains if provided
+        - Log attempts for security monitoring
+
+        Returns:
+            Confirmation of request being sent if email exists
+        """
+        try:
+            logger.info("password_reset_requested", email=request.email)
+
+            auth_repo = await self._get_auth_repo()
+
+            # Validate redirect_to if provided (prevent open redirect)
+            if request.redirect_to:
+                allowed_domains = ["soarup.app", "localhost", "127.0.0.1"]
+                parsed = urlparse(request.redirect_to)
+                if parsed.netloc and not any(domain in parsed.netloc for domain in allowed_domains):
+                    logger.warning("password_reset_invalid_redirect", email=request.email, redirect=request.redirect_to)
+                    request.redirect_to = None  # Fallback to default
+
+            email_sent = await auth_repo.send_password_reset_email(email=request.email, redirect_to=request.redirect_to)
+
+            # Always return generic response for security
+            return ForgotPasswordResponse(message="Password reset email sent if account exists", email_sent=email_sent)
+
+        except Exception as e:
+            logger.exception("password_reset_request_error", email=request.email, error=str(e))
+            # Never leak internal errors
+            return ForgotPasswordResponse(message="Password reset email sent if account exists", email_sent=False)
+
+    async def complete_password_reset(self, recovery_access_token: str, new_password: str) -> ResetPasswordResponse:
+        """
+        Complete password reset after user clicks recovery link.
+
+        Key pattern: Create a NEW AuthRepository with a Supabase client
+        that's pre-authenticated with the recovery token.
+
+        Args:
+            recovery_access_token: Valid token from recovery session (extracted from URL after email click)
+            new_password: New password validated by schema
+
+        Returns:
+            Confirmation response
+
+        Raises:
+            AuthError: If token is invalid or password update fails
+        """
+        try:
+            logger.info("password_reset_completion_attempt", token_prefix=recovery_access_token[:10] + "...")
+
+            # Use existing lazy-loaded repo (no new client needed)
+            auth_repo = await self._get_auth_repo()
+
+            # Delegate to repository's recovery-aware method
+            result = await auth_repo.update_password_with_recovery_token(
+                recovery_access_token=recovery_access_token,
+                new_password=new_password,
+            )
+
+            if not result.get("id"):
+                raise AuthError(error_code="invalid_recovery_session", message="Recovery link expired or invalid. Please request a new one.")
+
+            logger.info("password_reset_completed", user_id=result["id"])
+
+            return ResetPasswordResponse(
+                message="Password updated successfully",
+                requires_login=True,  # Force re-auth for security
+            )
+
+        except httpx.HTTPStatusError as e:
+            # Map HTTP status codes to user-friendly AuthError
+            if e.response.status_code == 401:
+                raise AuthError(error_code="invalid_recovery_token", message="Recovery link expired or invalid. Please request a new one.") from e
+            elif e.response.status_code == 400:  # noqa: RET506
+                raise AuthError(error_code="invalid_password", message="New password does not meet requirements.") from e
+            else:
+                logger.warning("password_reset_http_error", status=e.response.status_code)
+                raise AuthError(error_code="password_update_failed", message="Could not update password. Please try again.") from e
+
+        except RuntimeError as e:
+            # Configuration errors
+            if "SUPABASE_ANON_KEY" in str(e):
+                logger.error("password_reset_config_error", error=str(e))
+                raise AuthError(error_code="configuration_error", message="Service configuration error. Please contact support.") from e
+            raise
+
+        except AuthError:
+            # Re-raise AuthError as-is (already properly formatted)
+            raise
+        except Exception as e:
+            logger.exception("password_reset_completion_error", error=str(e))
+            raise AuthError(error_code="password_update_failed", message="Could not update password. Please try again.") from e
 
     def _map_user_to_response(self, supabase_user: dict[str, Any], profile: Any | None) -> UserResponse:
         """
