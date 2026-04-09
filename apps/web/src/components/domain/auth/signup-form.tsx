@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator, FormMessage } from "@/components/ui/seperator";
+import { Separator, FormMessage } from "@/components/ui/separator";
 import { OAuthButtons } from "@/components/domain/auth/oauth-buttons";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils/cn";

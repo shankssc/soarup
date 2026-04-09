@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FormMessage } from "@/components/ui/seperator";
+import { FormMessage } from "@/components/ui/separator";
 import { cn } from "@/lib/utils/cn";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
