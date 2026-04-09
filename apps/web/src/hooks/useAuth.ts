@@ -52,11 +52,13 @@ interface ApiErrorEnvelope {
 
 // Maps FastAPI error codes to user-facing messages
 const ERROR_MESSAGES: Record<string, string> = {
-  invalid_credentials:    "Incorrect email or password.",
-  email_not_verified:     "Please verify your email before signing in.",
-  account_disabled:       "This account has been disabled. Contact support.",
-  email_already_exists:   "An account with this email already exists.",
-  weak_password:          "Password must be at least 8 characters.", // pragma: allowlist secret
+  authentication_failed:  "Incorrect email or password.",
+  user_already_exists:    "An account with this email already exists.",
+  registration_failed:    "Could not create your account. Please try again.",
+  service_unavailable:    "Service temporarily unavailable. Please try again shortly.",
+  invalid_refresh_token:  "Your session has expired. Please sign in again.",
+  missing_token:          "Authorization required.",
+  invalid_token:          "Your session is invalid. Please sign in again.",
   internal_error:         "Something went wrong. Please try again.",
   network_error:          "Unable to connect. Check your internet connection.",
 };
