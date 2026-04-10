@@ -16,6 +16,7 @@ class ProfileUpdateData(TypedDict, total=False):
     avatar_url: NotRequired[str | None]
     timezone: NotRequired[str]
     email_notifications: NotRequired[bool]
+    is_onboarded: NotRequired[bool]
 
 
 class UpdateProfileRequest(BaseModel):
@@ -25,11 +26,18 @@ class UpdateProfileRequest(BaseModel):
     avatar_url: str | None = Field(None, max_length=255, examples=["https://storage.example.com/avatars/abc123.jpg"])
     timezone: str | None = Field(None, max_length=50, examples=["America/New_York"])
     email_notifications: bool | None = Field(None, examples=[True])
+    is_onboarded: bool | None = Field(None, description="Whether user has completed onboarding")
 
     # Optional: Add method to convert to dict for repo layer
     def to_update_dict(self) -> dict[str, Any]:
         """Convert request to repository update payload."""
-        return {k: v for k, v in self.model_dump(exclude_unset=True).items() if v is not None}
+        result = {}
+        for k, v in self.model_dump(exclude_unset=True).items():
+            # Always include booleans even if False
+            # Include None only for nullable fields (full_name, avatar_url)
+            if isinstance(v, bool) or v is not None:
+                result[k] = v
+        return result
 
 
 class UploadAvatarRequest(BaseModel):
@@ -56,6 +64,7 @@ class ProfileResponse(BaseModel):
     timezone: str = Field(default="UTC", description="User's timezone")
     email_notifications: bool = Field(default=True, description="Whether email notifications are enabled")
     email_verified: bool = Field(..., description="Whether email has been verified")
+    is_onboarded: bool = Field(default=False, description="Whether user has completed onboarding")
     created_at: datetime = Field(..., description="Profile creation timestamp")
     updated_at: datetime = Field(..., description="Last profile update timestamp")
     last_login_at: datetime | None = Field(None, description="Last successful sign-in timestamp")

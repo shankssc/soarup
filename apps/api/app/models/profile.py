@@ -35,6 +35,8 @@ class Profile(Base):
 
     email_notifications: Mapped[bool] = mapped_column(Boolean, default=True, doc="Whether user receives email notifications")
 
+    is_onboarded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, doc="Whether user has completed onboarding flow")
+
     # === Timestamps ===
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, doc="Account creation timestamp")
 
@@ -62,6 +64,7 @@ class Profile(Base):
             "avatar_key": self.avatar_key,
             "timezone": self.timezone,
             "email_notifications": self.email_notifications,
+            "is_onboarded": self.is_onboarded,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "last_login_at": self.last_login_at.isoformat() if self.last_login_at else None,
