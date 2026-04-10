@@ -14,6 +14,7 @@ export interface UserProfile {
   full_name: string | null;
   avatar_url: string | null;
   email_verified: boolean;
+  is_onboarded: boolean;
   created_at: string;
 }
 
@@ -108,7 +109,7 @@ async function apiPost<T>(
 
 interface LoginResponse {
   access_token: string;
-  refresh_token: string;
+  refresh_token: string | null;
   expires_in: number; // seconds
   user: UserProfile;
 }
@@ -161,11 +162,17 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             password,
           });
 
+          const  refresh_token = data.refresh_token
+
+          if (!refresh_token) {
+            throw new Error('Refresh token was not sent by the server')
+          }
+
           set({
             user: data.user,
             tokens: {
               access_token:  data.access_token,
-              refresh_token: data.refresh_token,
+              refresh_token: refresh_token,
               expires_at:    Date.now() + data.expires_in * 1000,
             },
             isLoading: false,
@@ -193,11 +200,17 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             ...(fullName ? { full_name: fullName } : {}),
           });
 
+          const  refresh_token = data.refresh_token
+
+          if (!refresh_token) {
+            throw new Error('Refresh token was not sent by the server')
+          }
+
           set({
             user: data.user,
             tokens: {
               access_token:  data.access_token,
-              refresh_token: data.refresh_token,
+              refresh_token: refresh_token,
               expires_at:    Date.now() + data.expires_in * 1000,
             },
             isLoading: false,
@@ -274,7 +287,7 @@ export function useAuth() {
     store.tokens.expires_at > Date.now();
 
   const needsOnboarding =
-    isAuthenticated && store.user?.full_name === null;
+    isAuthenticated && store.user?.is_onboarded === false;
 
   return {
     user:             store.user,
