@@ -1,18 +1,20 @@
 # apps/api/app/api/dependencies.py
 # Reusable FastAPI dependencies — cross-cutting concerns
 
-from typing import Annotated
+from typing import Annotated, Any
 
 import structlog
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db_session
-from app.services.auth_service import AuthService
 from app.utils.api_versioning import ApiVersionInfo
 from app.utils.api_versioning import get_api_version as _get_api_version
+from app.utils.auth import security, validate_supabase_jwt
 
 logger = structlog.get_logger(__name__)
+
 
 # === Type Aliases for Cleaner Signatures ===
 DBSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
@@ -22,48 +24,36 @@ ApiVersionDep = Annotated[ApiVersionInfo, Depends(_get_api_version)]
 # === Authentication Dependencies ===
 
 
-async def get_current_user_token(request: Request) -> str | None:
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    payload: dict[str, Any] = Depends(validate_supabase_jwt),
+) -> dict[str, str]:
     """
-    Extract Bearer token from Authorization header.
-
-    Returns:
-        access_token string if valid header, None otherwise.
+    Extract user context from validated Supabase JWT.
+    Returns dict with user_id, email, and access_token.
+    401 is raised upstream by validate_supabase_jwt if token is invalid.
     """
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return None
-    return auth_header[7:]  # Remove "Bearer " prefix
+    return {
+        "user_id": payload["sub"],
+        "email": payload.get("email", ""),
+        "access_token": credentials.credentials,
+    }
 
 
 async def require_auth(
-    token: Annotated[str | None, Depends(get_current_user_token)],
-    service: Annotated[AuthService, Depends(lambda db: AuthService(db))],  # Lazy init
+    user_ctx: dict[str, str] = Depends(get_current_user),
 ) -> dict[str, str]:
     """
-    Dependency to require valid JWT and return user context.
-
-    Returns:
-        Dict with user_id and email for service layer use.
-
-    Raises:
-        HTTPException 401 if token is missing or invalid.
+    Backward-compatible alias for get_current_user.
+    Existing routers using UserContextDep keep working unchanged.
     """
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "missing_token", "message": "Authorization header required"},
-        )
-
-    user = await service.get_current_user(token)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "invalid_token", "message": "Token is invalid or expired"},
-        )
-
-    return {"user_id": user.id, "email": user.email, "access_token": token}
+    return user_ctx
 
 
 # === Convenience Aliases ===
-# Usage in router: async def my_route(user_ctx: UserContextDep = Depends(require_auth)):
+
+# New canonical alias — use in all new routers
+AuthDep = Annotated[dict[str, str], Depends(get_current_user)]
+
+# Legacy alias — existing routers keep working unchanged
 UserContextDep = Annotated[dict[str, str], Depends(require_auth)]

@@ -7,8 +7,8 @@ Usage:
         # Dependencies
         DBSessionDep,
         ApiVersionDep,
-        UserContextDep,
-
+        AuthDep,          # new canonical alias — use in new routers
+        UserContextDep,   # legacy alias — kept for backward compatibility
         # Error handling utilities
         create_error_response,
         create_success_response,
@@ -17,8 +17,6 @@ Usage:
     )
 """
 
-# Re-export dependencies
-# Re-export error handling utilities
 from app.api._utils import (
     create_error_response,
     create_success_response,
@@ -27,19 +25,21 @@ from app.api._utils import (
 )
 from app.api.dependencies import (
     ApiVersionDep,
+    AuthDep,
     DBSessionDep,
     UserContextDep,
-    get_current_user_token,
+    get_current_user,
     require_auth,
 )
 
-# Explicit __all__ for clarity and IDE autocomplete
 __all__ = [
-    # Dependencies
+    # Dependencies — canonical
     "DBSessionDep",
     "ApiVersionDep",
+    "AuthDep",
+    "get_current_user",
+    # Dependencies — legacy (kept for backward compatibility)
     "UserContextDep",
-    "get_current_user_token",
     "require_auth",
     # Error utilities
     "create_error_response",

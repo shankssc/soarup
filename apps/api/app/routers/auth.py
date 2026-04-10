@@ -1,6 +1,5 @@
 # apps/api/app/routers/auth.py
 # Async thin HTTP layer for auth + profile endpoints
-# Production-ready: versioning, dependencies, error handling, logging, OpenAPI docs
 
 from typing import Annotated, Any
 
@@ -10,6 +9,7 @@ from fastapi.responses import Response
 
 from app.api import (
     ApiVersionDep,
+    AuthDep,
     DBSessionDep,
     UserContextDep,
     create_error_response,
@@ -33,27 +33,23 @@ from app.services.profile_service import ProfileError, ProfileService
 
 logger = structlog.get_logger(__name__)
 
-# === Router Configuration ===
-
 router = APIRouter(
     prefix="/auth",
     tags=["authentication"],
 )
 
-# === Dependency Injectors (Simple, Colocated) ===
+# === Dependency Injectors ===
 
 
 def get_auth_service(db: DBSessionDep) -> AuthService:
-    """Dependency injector for AuthService."""
     return AuthService(db)
 
 
 def get_profile_service(db: DBSessionDep) -> ProfileService:
-    """Dependency injector for ProfileService."""
     return ProfileService(db)
 
 
-# === Public Auth Endpoints (No Auth Required) ===
+# === Public Endpoints (No Auth Required) ===
 
 
 @router.post(
@@ -61,26 +57,12 @@ def get_profile_service(db: DBSessionDep) -> ProfileService:
     response_model=LoginResponse,
     status_code=status.HTTP_200_OK,
     summary="Sign in with email and password",
-    description="""
-    Authenticate a user with email and password.
-
-    **Business Rules**:
-    - Email must be verified (configurable via Supabase)
-    - Account must not be banned/suspended
-    - Rate limiting applied at infrastructure layer (not here)
-
-    **Security**:
-    - Passwords are never logged or returned
-    - Failed attempts are logged for monitoring (not exposed to client)
-    """,
-    response_description="Authenticated session with JWT tokens and user profile",
 )
 async def login(
     api_version: ApiVersionDep,
     request: LoginRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> Response:
-    """Authenticate user and return tokens + profile."""
     try:
         logger.info("login_attempt", email=request.email, api_version=api_version.version)
         result = await service.login(request)
@@ -101,26 +83,12 @@ async def login(
     response_model=LoginResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register new user",
-    description="""
-    Create a new user account and return an authenticated session.
-
-    **Business Rules**:
-    - Email must not already exist in Supabase Auth
-    - Password must meet complexity requirements (validated by schema)
-    - Profile record is created in PostgreSQL (idempotent)
-
-    **Security**:
-    - Welcome email can be triggered here (future: integrate notifications service)
-    - Failed registrations are logged for monitoring
-    """,
-    response_description="Authenticated session with JWT tokens and user profile",
 )
 async def signup(
     api_version: ApiVersionDep,
     request: SignupRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> Response:
-    """Register new user and return authenticated session."""
     try:
         logger.info("signup_attempt", email=request.email, api_version=api_version.version)
         result = await service.signup(request)
@@ -141,26 +109,12 @@ async def signup(
     response_model=LoginResponse,
     status_code=status.HTTP_200_OK,
     summary="Refresh access token",
-    description="""
-    Issue a new access token using a valid refresh token.
-
-    **Business Rules**:
-    - Refresh token must be valid and not expired
-    - User account must still be active in Supabase
-    - Rate limiting applied at infrastructure layer
-
-    **Security**:
-    - Refresh tokens can be rotated (future enhancement)
-    - Failed refresh attempts are logged for monitoring
-    """,
-    response_description="New authenticated session with refreshed tokens",
 )
 async def refresh_token(
     api_version: ApiVersionDep,
     request: RefreshTokenRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> Response:
-    """Refresh access token using refresh token."""
     try:
         logger.info("token_refresh_attempt", refresh_token_prefix=request.refresh_token[:10] + "...")
         result = await service.refresh_tokens(request.refresh_token)
@@ -180,24 +134,13 @@ async def refresh_token(
     "/logout",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Sign out current session",
-    description="""
-    Invalidate the current session by revoking the refresh token.
-
-    **Note**: JWT access tokens cannot be revoked (stateless by design),
-    but refreshing will fail after logout. Clients should discard tokens locally.
-
-    **Idempotent**: Returns 204 even if token was already invalid.
-    """,
-    response_description="No content (session invalidated)",
 )
 async def logout(
     api_version: ApiVersionDep,
     request: Request,
     service: AuthService = Depends(get_auth_service),
 ) -> Response:
-    """Sign out current session by revoking refresh token."""
     auth_header = request.headers.get("Authorization", "")
-
     if not auth_header.startswith("Bearer "):
         logger.warning("logout_failed", reason="missing_bearer_token")
         return create_error_response(
@@ -208,14 +151,12 @@ async def logout(
         )
 
     access_token = auth_header[7:]
-
     try:
         logger.info("logout_attempt", token_prefix=access_token[:10] + "...")
         await service.logout(access_token)
         logger.info("logout_success")
     except Exception as e:
         logger.exception("logout_error", error=str(e))
-        # Idempotent: still return 204 even on error
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -225,30 +166,23 @@ async def logout(
     response_model=ForgotPasswordResponse,
     status_code=status.HTTP_200_OK,
     summary="Request password reset email",
-    description="""
-    Send a password reset email to the user.
-
-    **Security**:
-    - Always returns generic success message to prevent email enumeration
-    - `redirect_to` validated against allowed domains in service layer
-    - Rate limiting should be enforced at gateway/infrastructure layer
-    """,
 )
 async def forgot_password(
     api_version: ApiVersionDep,
     request: ForgotPasswordRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> Response:
-    """Request password reset email."""
     logger.info("forgot_password_request", email=request.email, api_version=api_version.version)
     try:
         result = await service.request_password_reset(request)
         return create_success_response(result, api_version=api_version)
     except Exception as e:
-        # Always return generic response for security, even on failure
         logger.exception("forgot_password_error", email=request.email, error=str(e))
         return create_success_response(
-            ForgotPasswordResponse(message="Password reset email sent if account exists", email_sent=False),
+            ForgotPasswordResponse(
+                message="Password reset email sent if account exists",
+                email_sent=False,
+            ),
             api_version=api_version,
         )
 
@@ -258,18 +192,6 @@ async def forgot_password(
     response_model=ResetPasswordResponse,
     status_code=status.HTTP_200_OK,
     summary="Complete password reset with new password",
-    description="""
-    Update user password after clicking recovery link.
-
-    **Authentication**:
-    - Requires valid access token from recovery session (obtained after clicking email link)
-    - Token passed in `Authorization: Bearer <recovery_access_token>` header
-
-    **Security**:
-    - Password validated against strength requirements (schema + service layer)
-    - Token expiration handled by Supabase
-    - Forces re-login after successful reset
-    """,
 )
 async def reset_password(
     api_version: ApiVersionDep,
@@ -277,8 +199,6 @@ async def reset_password(
     raw_request: Request,
     service: AuthService = Depends(get_auth_service),
 ) -> Response:
-    """Complete password reset."""
-    # Extract and validate recovery token
     auth_header = raw_request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return create_error_response(
@@ -324,37 +244,29 @@ async def reset_password(
     response_model=ProfileResponse,
     status_code=status.HTTP_200_OK,
     summary="Get current user profile",
-    description="""
-    Return the authenticated user's profile information.
-
-    **Authentication**: Requires valid Bearer token in Authorization header.
-    **Authorization**: Users can only access their own profile.
-
-    **Response**: Merges Supabase Auth data with app-specific profile data.
-    """,
-    response_description="User profile with app-specific fields",
 )
 async def get_current_user(
     api_version: ApiVersionDep,
-    user_ctx: UserContextDep,
-    service: AuthService = Depends(get_auth_service),
+    user_ctx: AuthDep,  # ← uses new canonical alias
+    service: ProfileService = Depends(get_profile_service),
 ) -> Response:
-    """Get current user profile (requires valid JWT)."""
+    """
+    Get current user profile.
+
+    Uses JWT claims (user_id, email) already validated by AuthDep —
+    no additional Supabase network call needed here.
+    Profile data comes from PostgreSQL via ProfileService.
+    """
     try:
         logger.info("get_profile_request", user_id=user_ctx["user_id"])
 
-        user = await service.get_current_user(user_ctx["access_token"])
+        # Fetch app-level profile from PostgreSQL — not from Supabase Auth
+        profile = await service.get_profile(
+            user_id=user_ctx["user_id"],
+            email=user_ctx["email"],
+        )
 
-        if not user:
-            logger.warning("profile_not_found", user_id=user_ctx["user_id"])
-            return create_error_response(
-                error_code="profile_not_found",
-                message="Profile not found for this user",
-                status_code=status.HTTP_404_NOT_FOUND,
-                api_version=api_version,
-            )
-
-        return create_success_response(user, api_version=api_version)
+        return create_success_response(profile, api_version=api_version)
 
     except Exception as e:
         logger.exception("get_profile_error", user_id=user_ctx["user_id"], error=str(e))
@@ -371,26 +283,13 @@ async def get_current_user(
     response_model=ProfileResponse,
     status_code=status.HTTP_200_OK,
     summary="Update user profile",
-    description="""
-    Update app-specific profile fields for the authenticated user.
-
-    **Updatable Fields**:
-    - `full_name`: Display name (max 100 chars)
-    - `avatar_url`: Profile picture URL (managed via /profile/avatar endpoint)
-    - `timezone`: IANA timezone string (e.g., "America/New_York")
-    - `email_notifications`: Opt-in for email updates
-
-    **Validation**: Only provided fields are updated (partial updates supported).
-    """,
-    response_description="Updated user profile",
 )
 async def update_profile(
     api_version: ApiVersionDep,
     request: UpdateProfileRequest,
-    user_ctx: UserContextDep,
+    user_ctx: AuthDep,  # ← uses new canonical alias
     service: ProfileService = Depends(get_profile_service),
 ) -> Response:
-    """Update user profile fields."""
     try:
         logger.info("profile_update_attempt", user_id=user_ctx["user_id"])
         result = await service.update_profile(user_ctx["user_id"], request)
@@ -411,29 +310,14 @@ async def update_profile(
     response_model=UploadResponse,
     status_code=status.HTTP_200_OK,
     summary="Upload profile avatar",
-    description="""
-    Upload a profile avatar image to object storage (Minio local / R2 production).
-
-    **File Requirements**:
-    - Max size: 5MB
-    - Allowed types: JPEG, PNG, WebP, GIF
-    - Images are stored with public-read ACL for direct browser access
-
-    **Storage**:
-    - Local dev: Minio at http://localhost:9000
-    - Production: Cloudflare R2 with public CDN URL
-
-    **Security**: File contents are validated before upload; metadata is sanitized.
-    """,
-    response_description="Public URL and metadata for uploaded avatar",
 )
 async def upload_avatar(
     api_version: ApiVersionDep,
     file: Annotated[UploadFile, File(description="Avatar image file (JPEG/PNG/WebP/GIF, max 5MB)")],
+    # ← kept as UserContextDep (no change needed)
     user_ctx: UserContextDep,
     service: ProfileService = Depends(get_profile_service),
 ) -> Response:
-    """Upload profile avatar to object storage."""
     try:
         logger.info("avatar_upload_attempt", user_id=user_ctx["user_id"], filename=file.filename)
         result = await service.upload_avatar(user_ctx["user_id"], file)
@@ -453,42 +337,32 @@ async def upload_avatar(
     "/profile/avatar",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete profile avatar",
-    description="""
-    Remove the user's avatar from object storage and clear the profile reference.
-
-    **Idempotent**: Returns 204 even if avatar didn't exist.
-    **Cleanup**: File is deleted from Minio/R2; profile.avatar_url is set to null.
-    """,
-    response_description="No content (avatar deleted)",
 )
 async def delete_avatar(
     api_version: ApiVersionDep,
+    # ← kept as UserContextDep (no change needed)
     user_ctx: UserContextDep,
     service: ProfileService = Depends(get_profile_service),
 ) -> Response:
-    """Delete user's avatar from storage and profile."""
     try:
         logger.info("avatar_delete_attempt", user_id=user_ctx["user_id"])
         await service.delete_avatar(user_ctx["user_id"])
         logger.info("avatar_delete_success")
     except Exception as e:
         logger.exception("avatar_delete_error", user_id=user_ctx["user_id"], error=str(e))
-        # Idempotent: still return 204
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-# === Health & Metadata Endpoints ===
+# === Health & Metadata ===
 
 
 @router.get(
     "/versions",
     status_code=status.HTTP_200_OK,
     summary="Get supported API versions",
-    description="Return metadata about supported and deprecated API versions.",
 )
 async def get_supported_versions() -> dict[str, Any]:
-    """Return supported API version metadata."""
     from app.utils.api_versioning import CURRENT_API_VERSION, DEPRECATED_VERSIONS
 
     return {
