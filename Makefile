@@ -68,6 +68,14 @@ test-web:
 test-e2e:
 	cd apps/web && npx playwright test $(args)
 
+migrate-test:
+	DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/soarup_test \
+	  docker compose exec api alembic upgrade head
+
+test-cov:
+	docker compose -f docker-compose.test.yml exec api \
+	  pytest --cov=app --cov-report=html --cov-report=term-missing
+
 # --- Quality ---
 lint: lint-api lint-web
 
