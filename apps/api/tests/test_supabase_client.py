@@ -1,8 +1,10 @@
 # apps/api/tests/test_supabase_client.py
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from supabase import AsyncClient
+
 from app.lib.supabase import get_supabase_client
 
 
