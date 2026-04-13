@@ -43,7 +43,7 @@ interface LoginFormProps {
 
 export function LoginForm({ onSuccess, className }: LoginFormProps) {
   const router = useRouter();
-  const { login, isLoading, error, clearError } = useAuth();
+  const { login, isLoading, error, clearError, needsOnboarding } = useAuth();
   const [oauthLoading, setOAuthLoading] = React.useState(false);
 
   const {
@@ -71,7 +71,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
             if (onSuccess) {
         onSuccess();
       } else {
-        router.push("/dashboard");
+        router.push(needsOnboarding ? "/onboarding" : "/dashboard");
       }
     } catch {
       // Error is already set in useAuth store — no need to handle here

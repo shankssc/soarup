@@ -14,17 +14,6 @@ class LoginRequest(BaseModel):
     email: EmailStr = Field(..., description="User email address", examples=["user@example.com"])
     password: str = Field(..., description="User password", min_length=8, max_length=100, examples=["SecurePass123!"])
 
-    @field_validator("password")
-    @classmethod
-    def validate_password_strength(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        if not any(c.isupper() for c in v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not any(c.isdigit() for c in v):
-            raise ValueError("Password must contain at least one digit")
-        return v
-
 
 class SignupRequest(BaseModel):
     """Request schema for POST /auth/signup."""

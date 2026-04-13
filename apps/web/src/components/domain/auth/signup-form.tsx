@@ -69,6 +69,7 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
     formState: { errors },
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
+    mode: "onTouched",
     defaultValues: {
       full_name: "",
       email: "",
