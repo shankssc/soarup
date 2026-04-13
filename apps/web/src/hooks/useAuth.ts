@@ -44,11 +44,9 @@ export interface AuthActions {
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
 interface ApiErrorEnvelope {
-  error: {
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
-  };
+  error: string;
+  message: string;
+  details?: Record<string, unknown>;
 }
 
 // Maps FastAPI error codes to user-facing messages
@@ -98,7 +96,7 @@ async function apiPost<T>(
     } catch {
       throw new Error(friendlyError("internal_error"));
     }
-    const code = envelope?.error?.code ?? "internal_error";
+    const code = envelope?.error ?? "internal_error";
     throw new Error(friendlyError(code));
   }
 
