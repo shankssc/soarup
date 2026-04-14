@@ -4,6 +4,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 import pytest_asyncio
@@ -11,7 +12,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.config import Settings
-from app.db import get_db_session
+from app.db.session import get_db_session
 from app.main import create_app
 from app.models.base import Base  # use shared Base, not model-specific metadata
 
@@ -35,6 +36,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6380/1")
 # ---------------------------------------------------------------------------
 # Settings
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def test_settings():
@@ -67,6 +69,7 @@ def test_settings():
 # ---------------------------------------------------------------------------
 # Database
 # ---------------------------------------------------------------------------
+
 
 @pytest_asyncio.fixture(scope="session")
 async def test_engine(test_settings):
@@ -106,8 +109,8 @@ async def db_session(test_engine):
     can always undo, regardless of inner commits.
     """
     async_session = async_sessionmaker(test_engine, expire_on_commit=False)
-    async with async_session() as session:
-        async with session.begin():
+    async with async_session() as session:  # Noqa: SIM117
+        async with session.begin():  # Noqa: SIM117
             nested = await session.begin_nested()
             yield session
             await nested.rollback()
@@ -117,6 +120,7 @@ async def db_session(test_engine):
 # HTTP client
 # ---------------------------------------------------------------------------
 
+
 @pytest_asyncio.fixture
 async def api_client(db_session, test_settings):
     """
@@ -124,10 +128,10 @@ async def api_client(db_session, test_settings):
     Auth dependencies are NOT overridden here — override them per-test
     when you need to bypass JWT validation (see: mock_auth_dep below).
     """
-    app = create_app(test_settings)
+    app = create_app()
     app.dependency_overrides[get_db_session] = lambda: db_session
     async with AsyncClient(
-        transport=ASGITransport(app=app),
+        transport=ASGITransport(app=cast(Any, app)),
         base_url="http://test",
     ) as client:
         yield client
@@ -138,10 +142,11 @@ async def api_client(db_session, test_settings):
 # JWT / auth helpers
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="session")
 def jwt_secret(test_settings):
     """Expose the JWT secret for test token signing."""
-    return test_settings.supabase_jwt_secret
+    return test_settings.supabase_jwt_secret.get_secret_value()
 
 
 @pytest.fixture
@@ -157,7 +162,7 @@ def make_jwt(jwt_secret):
         user_id: str,
         email: str = "test@example.com",
         exp_offset: int = 3600,
-        extra_claims: dict | None = None,
+        extra_claims: dict[str, Any] | None = None,
     ) -> str:
         payload = {
             "sub": user_id,
@@ -196,6 +201,8 @@ def auth_headers(make_jwt):
     Convenience: return Authorization headers for a given user_id.
     Usage: headers = auth_headers("some-uuid")
     """
-    def _headers(user_id: str, email: str = "test@example.com") -> dict:
+
+    def _headers(user_id: str, email: str = "test@example.com") -> dict[str, Any]:
         return {"Authorization": f"Bearer {make_jwt(user_id, email)}"}
+
     return _headers
