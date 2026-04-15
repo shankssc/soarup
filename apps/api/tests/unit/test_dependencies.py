@@ -12,25 +12,27 @@
 #     - payload: dict  (the already-decoded JWT payload from validate_supabase_jwt)
 #   Both are injected directly here — no mocking of validate_supabase_jwt needed.
 
+from typing import Any
+
 import pytest
 from fastapi.security import HTTPAuthorizationCredentials
 
 from app.api.dependencies import get_current_user, require_auth
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _credentials(token: str = "some-access-token") -> HTTPAuthorizationCredentials:
+
+def _credentials(token: str = "some-access-token") -> HTTPAuthorizationCredentials:  # Noqa: S107
     return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
 
 def _payload(
     user_id: str = "user-abc",
     email: str = "test@example.com",
-    extra: dict | None = None,
-) -> dict:
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     base = {"sub": user_id, "email": email, "aud": "authenticated"}
     if extra:
         base.update(extra)
@@ -40,6 +42,7 @@ def _payload(
 # ---------------------------------------------------------------------------
 # get_current_user()
 # ---------------------------------------------------------------------------
+
 
 class TestGetCurrentUser:
     @pytest.mark.asyncio
@@ -81,7 +84,7 @@ class TestGetCurrentUser:
             payload=_payload(),
         )
 
-        assert result["access_token"] == "raw-bearer-token"
+        assert result["access_token"] == "raw-bearer-token"  # Noqa: S105
 
     @pytest.mark.asyncio
     async def test_missing_email_in_payload_defaults_to_empty_string(self):
@@ -124,6 +127,7 @@ class TestGetCurrentUser:
 # require_auth()
 # ---------------------------------------------------------------------------
 
+
 class TestRequireAuth:
     @pytest.mark.asyncio
     async def test_require_auth_passes_through_user_context(self):
@@ -164,17 +168,19 @@ class TestRequireAuth:
 
         assert result["user_id"] == "user-xyz"
         assert result["email"] == "xyz@example.com"
-        assert result["access_token"] == "xyz-token"
+        assert result["access_token"] == "xyz-token"  # Noqa: S105
 
 
 # ---------------------------------------------------------------------------
 # Type alias sanity checks (AuthDep / UserContextDep)
 # ---------------------------------------------------------------------------
 
+
 def test_auth_dep_alias_points_to_get_current_user():
     """AuthDep annotation wraps get_current_user."""
-    from app.api.dependencies import AuthDep
     import typing
+
+    from app.api.dependencies import AuthDep
 
     args = typing.get_args(AuthDep)
     # args[1] is the Depends(...) instance
@@ -183,8 +189,9 @@ def test_auth_dep_alias_points_to_get_current_user():
 
 def test_user_context_dep_alias_points_to_require_auth():
     """UserContextDep annotation wraps require_auth (legacy alias)."""
-    from app.api.dependencies import UserContextDep
     import typing
+
+    from app.api.dependencies import UserContextDep
 
     args = typing.get_args(UserContextDep)
     assert args[1].dependency is require_auth
