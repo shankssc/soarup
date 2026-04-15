@@ -65,8 +65,8 @@ class ProfileResponse(BaseModel):
     email_notifications: bool = Field(default=True, description="Whether email notifications are enabled")
     email_verified: bool = Field(..., description="Whether email has been verified")
     is_onboarded: bool = Field(default=False, description="Whether user has completed onboarding")
-    created_at: datetime = Field(..., description="Profile creation timestamp")
-    updated_at: datetime = Field(..., description="Last profile update timestamp")
+    created_at: datetime | None = Field(..., description="Profile creation timestamp")
+    updated_at: datetime | None = Field(..., description="Last profile update timestamp")
     last_login_at: datetime | None = Field(None, description="Last successful sign-in timestamp")
 
     # Pydantic v2: Use model_config instead of Config class

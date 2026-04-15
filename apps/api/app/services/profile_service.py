@@ -70,6 +70,7 @@ class ProfileService:
                 timezone="UTC",
                 email_notifications=True,
                 email_verified=True,  # Assume verified if coming from Supabase
+                is_onboarded=False,
                 created_at=None,  # Will be set on creation
                 updated_at=None,
                 last_login_at=None,
@@ -83,6 +84,7 @@ class ProfileService:
             timezone=profile.timezone,
             email_notifications=profile.email_notifications,
             email_verified=True,
+            is_onboarded=profile.is_onboarded,
             created_at=profile.created_at,
             updated_at=profile.updated_at,
             last_login_at=profile.last_login_at,
@@ -110,7 +112,8 @@ class ProfileService:
         logger.info("profile_updated", user_id=user_id, fields=list(data.keys()))
 
         # Return full profile (email should be passed from auth context)
-        return await self.get_profile(user_id, "")  # Email placeholder — should come from JWT
+        # Email placeholder — should come from JWT
+        return await self.get_profile(user_id, "")
 
     async def upload_avatar(
         self,
