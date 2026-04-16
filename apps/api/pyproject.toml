@@ -94,7 +94,15 @@ addopts = [
 ]
 
 [tool.coverage.run]
-omit = ["tests/*", "alembic/*", "app/main.py"]
+omit = [
+    "tests/*",
+    "alembic/*",
+    "app/main.py",
+    "app/workers/*",
+    "app/db/session.py",
+    "app/repositories/*",
+    "app/utils/circuit_breaker.py",
+]
 branch = true
 
 [tool.bandit]

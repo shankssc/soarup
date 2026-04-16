@@ -299,6 +299,40 @@ async def test_issuer_validation_enforced_in_production(monkeypatch):
     assert exc_info.value.status_code == 401
 
 
+@pytest.mark.asyncio
+async def test_missing_jwt_secret_raises_401(monkeypatch):
+    """HS256 path raises 401 when supabase_jwt_secret is None."""
+    from app.utils.auth import validate_supabase_jwt
+
+    monkeypatch.setattr("app.utils.auth.settings.environment", "local")
+    monkeypatch.setattr("app.utils.auth.settings.supabase_jwt_secret", None)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await validate_supabase_jwt(_credentials("any.token.here"))
+
+    assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_rs256_path_invalid_token_raises_401(monkeypatch):
+    """RS256 path (production) raises 401 on decode failure."""
+    from app.utils.auth import validate_supabase_jwt
+
+    monkeypatch.setattr("app.utils.auth.settings.environment", "production")
+
+    good_key = MagicMock()
+    good_key.key = "wrong-key"
+
+    client_mock = MagicMock()
+    client_mock.get_signing_key_from_jwt.return_value = good_key
+
+    with patch(JWKS_CLIENT_PATH, return_value=client_mock):  # Noqa: SIM117
+        with pytest.raises(HTTPException) as exc_info:
+            await validate_supabase_jwt(_credentials(_make_token(_base_payload())))
+
+    assert exc_info.value.status_code == 401
+
+
 # ---------------------------------------------------------------------------
 # get_jwks_client caching
 # ---------------------------------------------------------------------------

@@ -35,8 +35,7 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL,
-                  "password": "password123"},  # pragma: allowlist secret
+            json={"email": EMAIL, "password": "password123"},  # pragma: allowlist secret
         )
 
         assert response.status_code == 200
@@ -48,8 +47,7 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL,
-                  "password": "password123"},  # pragma: allowlist secret
+            json={"email": EMAIL, "password": "password123"},  # pragma: allowlist secret
         )
 
         body = response.json()
@@ -64,8 +62,7 @@ class TestLogin:
 
         await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL,
-                  "password": "mypassword"},  # pragma: allowlist secret
+            json={"email": EMAIL, "password": "mypassword"},  # pragma: allowlist secret
         )
 
         auth_svc.login.assert_awaited_once()
@@ -83,8 +80,7 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL,
-                  "password": "wrongpassword"},  # pragma: allowlist secret
+            json={"email": EMAIL, "password": "wrongpassword"},  # pragma: allowlist secret
         )
 
         assert response.status_code == 401
@@ -100,8 +96,7 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL,
-                  "password": "Password123"},  # pragma: allowlist secret
+            json={"email": EMAIL, "password": "Password123"},  # pragma: allowlist secret
         )
 
         assert response.status_code == 503
@@ -213,8 +208,11 @@ class TestSignup:
 
         await client.post(
             "/api/v1/auth/signup",
-            json={"email": EMAIL, "password": "Password1",  # pragma: allowlist secret
-                  "full_name": "Test User"},
+            json={
+                "email": EMAIL,
+                "password": "Password1",  # pragma: allowlist secret
+                "full_name": "Test User",
+            },
         )
 
         call_arg = auth_svc.signup.call_args[0][0]
@@ -423,8 +421,7 @@ class TestForgotPassword:
     async def test_forgot_password_service_error_still_returns_200(self, client_with_mocks):
         """Even on service exception, router returns 200 — never leaks error state."""
         client, auth_svc, _ = client_with_mocks
-        auth_svc.request_password_reset.side_effect = Exception(
-            "supabase down")
+        auth_svc.request_password_reset.side_effect = Exception("supabase down")
 
         response = await client.post(
             "/api/v1/auth/forgot-password",
@@ -454,8 +451,10 @@ class TestResetPassword:
 
         response = await client.post(
             "/api/v1/auth/reset-password",
-            json={"new_password": "NewPassword1",  # pragma: allowlist secret
-                  "token": recovery_token},  # pragma: allowlist secret
+            json={
+                "new_password": "NewPassword1",  # pragma: allowlist secret
+                "token": recovery_token,
+            },  # pragma: allowlist secret
             headers={"Authorization": f"Bearer {recovery_token}"},
         )
 
@@ -467,8 +466,10 @@ class TestResetPassword:
 
         response = await client.post(
             "/api/v1/auth/reset-password",
-            json={"new_password": "NewPassword1",  # pragma: allowlist secret
-                  "token": "a" * 32},  # pragma: allowlist secret
+            json={
+                "new_password": "NewPassword1",  # pragma: allowlist secret
+                "token": "a" * 32,
+            },  # pragma: allowlist secret
         )
 
         assert response.status_code == 401
@@ -481,8 +482,10 @@ class TestResetPassword:
 
         response = await client.post(
             "/api/v1/auth/reset-password",
-            json={"new_password": "NewPassword1",  # pragma: allowlist secret
-                  "token": "a" * 32},  # pragma: allowlist secret
+            json={
+                "new_password": "NewPassword1",  # pragma: allowlist secret
+                "token": "a" * 32,
+            },  # pragma: allowlist secret
             headers={"Authorization": "Bearer short"},
         )
 
@@ -499,8 +502,10 @@ class TestResetPassword:
 
         response = await client.post(
             "/api/v1/auth/reset-password",
-            json={"new_password": "NewPassword1",  # pragma: allowlist secret
-                  "token": "a" * 32},  # pragma: allowlist secret
+            json={
+                "new_password": "NewPassword1",  # pragma: allowlist secret
+                "token": "a" * 32,
+            },  # pragma: allowlist secret
             headers={"Authorization": f"Bearer {'a' * 32}"},
         )
 
@@ -704,6 +709,18 @@ class TestDeleteAvatar:
             headers=auth_headers(USER_ID),
         )
 
+        assert response.status_code == 204
+
+    @pytest.mark.asyncio
+    async def test_delete_avatar_exception_still_returns_204(self, client_with_mocks, auth_headers):
+        """Exception during delete is swallowed — always 204."""
+        client, _, profile_svc = client_with_mocks
+        profile_svc.delete_avatar.side_effect = Exception("storage timeout")
+
+        response = await client.delete(
+            "/api/v1/auth/profile/avatar",
+            headers=auth_headers(USER_ID),
+        )
         assert response.status_code == 204
 
 
