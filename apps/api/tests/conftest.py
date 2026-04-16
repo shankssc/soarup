@@ -5,11 +5,12 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, cast
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.config import Settings
@@ -350,10 +351,8 @@ async def unauthenticated_client(db_session):
 
     app = create_app()
     app.dependency_overrides[get_db_session] = lambda: db_session
-    app.dependency_overrides[get_auth_service] = lambda: _make_mock_auth_service(
-    )
-    app.dependency_overrides[get_profile_service] = lambda: _make_mock_profile_service(
-    )
+    app.dependency_overrides[get_auth_service] = lambda: _make_mock_auth_service()
+    app.dependency_overrides[get_profile_service] = lambda: _make_mock_profile_service()
 
     async with AsyncClient(
         transport=ASGITransport(app=cast(Any, app)),
@@ -362,6 +361,23 @@ async def unauthenticated_client(db_session):
         yield client
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def patch_auth_settings():
+    """
+    Patch the module-level settings singleton used by validate_supabase_jwt
+    so JWT tokens minted in tests verify correctly against the test secret.
+    Must match the secret used in conftest.py's make_jwt fixture.
+    """
+    with (
+        patch("app.utils.auth.settings.environment", "local"),
+        patch(
+            "app.utils.auth.settings.supabase_jwt_secret",
+            SecretStr("super-secret-jwt-token-with-at-least-32-characters-long"),
+        ),
+    ):
+        yield
 
 
 # Expose helpers for use in test files

@@ -101,6 +101,10 @@ def handle_auth_error(
     status_map = {
         "authentication_failed": status.HTTP_401_UNAUTHORIZED,
         "invalid_refresh_token": status.HTTP_401_UNAUTHORIZED,
+        "invalid_recovery_token": status.HTTP_401_UNAUTHORIZED,
+        "invalid_recovery_session": status.HTTP_401_UNAUTHORIZED,
+        "missing_token": status.HTTP_401_UNAUTHORIZED,
+        "invalid_token": status.HTTP_401_UNAUTHORIZED,
         "user_already_exists": status.HTTP_409_CONFLICT,
         "registration_failed": status.HTTP_400_BAD_REQUEST,
         "service_unavailable": status.HTTP_503_SERVICE_UNAVAILABLE,
