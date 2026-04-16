@@ -5,6 +5,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
@@ -15,6 +16,7 @@ from app.config import Settings
 from app.db.session import get_db_session
 from app.main import create_app
 from app.models.base import Base  # use shared Base, not model-specific metadata
+from app.routers.auth import get_auth_service, get_profile_service
 
 sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 
@@ -206,3 +208,162 @@ def auth_headers(make_jwt):
         return {"Authorization": f"Bearer {make_jwt(user_id, email)}"}
 
     return _headers
+
+
+# ---------------------------------------------------------------------------
+# Mock service factories
+# ---------------------------------------------------------------------------
+
+
+def _make_mock_auth_service() -> MagicMock:
+    """
+    MagicMock standing in for AuthService.
+    All async methods are pre-configured as AsyncMocks returning sensible
+    defaults — override per-test as needed.
+    """
+    svc = MagicMock()
+    svc.login = AsyncMock()
+    svc.signup = AsyncMock()
+    svc.logout = AsyncMock(return_value=True)
+    svc.refresh_tokens = AsyncMock()
+    svc.request_password_reset = AsyncMock()
+    svc.complete_password_reset = AsyncMock()
+    return svc
+
+
+def _make_mock_profile_service() -> MagicMock:
+    svc = MagicMock()
+    svc.get_profile = AsyncMock()
+    svc.update_profile = AsyncMock()
+    svc.upload_avatar = AsyncMock()
+    svc.delete_avatar = AsyncMock(return_value=True)
+    return svc
+
+
+# ---------------------------------------------------------------------------
+# Shared response builders (keep tests DRY)
+# ---------------------------------------------------------------------------
+
+
+def _login_response_dict(
+    user_id: str = "user-abc",
+    email: str = "test@example.com",
+    is_onboarded: bool = False,
+) -> dict[str, Any] | Any:
+    """Minimal LoginResponse-shaped dict for mock returns."""
+    from datetime import UTC, datetime
+
+    from app.schemas.auth import LoginResponse, UserResponse
+
+    user = UserResponse(
+        id=user_id,
+        email=email,
+        full_name="Test User",
+        avatar_url=None,
+        email_verified=True,
+        is_onboarded=is_onboarded,
+        created_at=datetime.now(UTC).isoformat(),
+    )
+    return LoginResponse(
+        access_token="access-token",  # Noqa: S106
+        token_type="bearer",  # Noqa: S106
+        expires_in=3600,
+        refresh_token="refresh-token",  # Noqa: S106
+        user=user,
+    )
+
+
+def _profile_response(
+    user_id: str = "user-abc",
+    email: str = "test@example.com",
+    is_onboarded: bool = False,
+) -> Any:
+    from datetime import UTC, datetime
+
+    from app.schemas.profile import ProfileResponse
+
+    now = datetime.now(UTC)
+    return ProfileResponse(
+        user_id=user_id,
+        email=email,
+        full_name="Test User",
+        avatar_url=None,
+        timezone="UTC",
+        email_notifications=True,
+        email_verified=True,
+        is_onboarded=is_onboarded,
+        created_at=now,
+        updated_at=now,
+        last_login_at=None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def mock_auth_service():
+    """Yields a fresh mock AuthService per test."""
+    return _make_mock_auth_service()
+
+
+@pytest_asyncio.fixture
+async def mock_profile_service():
+    """Yields a fresh mock ProfileService per test."""
+    return _make_mock_profile_service()
+
+
+@pytest_asyncio.fixture
+async def client_with_mocks(db_session, mock_auth_service, mock_profile_service):
+    """
+    AsyncClient with both service dependencies mocked out.
+    Use this for all router integration tests — no real Supabase/DB calls.
+
+    Auth dependency (JWT validation) is still active — pass valid tokens
+    using the make_jwt / auth_headers fixtures from root conftest.
+    """
+    from typing import cast
+
+    app = create_app()
+    app.dependency_overrides[get_db_session] = lambda: db_session
+    app.dependency_overrides[get_auth_service] = lambda: mock_auth_service
+    app.dependency_overrides[get_profile_service] = lambda: mock_profile_service
+
+    async with AsyncClient(
+        transport=ASGITransport(app=cast(Any, app)),
+        base_url="http://test",
+    ) as client:
+        yield client, mock_auth_service, mock_profile_service
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def unauthenticated_client(db_session):
+    """
+    Client with service mocks but NO auth headers.
+    Used for testing 401 responses on protected endpoints.
+    """
+    from typing import cast
+
+    app = create_app()
+    app.dependency_overrides[get_db_session] = lambda: db_session
+    app.dependency_overrides[get_auth_service] = lambda: _make_mock_auth_service(
+    )
+    app.dependency_overrides[get_profile_service] = lambda: _make_mock_profile_service(
+    )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=cast(Any, app)),
+        base_url="http://test",
+    ) as client:
+        yield client
+
+    app.dependency_overrides.clear()
+
+
+# Expose helpers for use in test files
+login_response = _login_response_dict
+profile_response = _profile_response

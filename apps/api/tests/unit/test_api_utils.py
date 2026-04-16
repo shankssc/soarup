@@ -186,14 +186,12 @@ class TestCreateSuccessResponse:
 
 class TestHandleAuthError:
     def test_authentication_failed_returns_401(self):
-        e = AuthError(error_code="authentication_failed",
-                      message="Bad credentials")
+        e = AuthError(error_code="authentication_failed", message="Bad credentials")
         response = handle_auth_error(e)
         assert response.status_code == 401
 
     def test_invalid_refresh_token_returns_401(self):
-        e = AuthError(error_code="invalid_refresh_token",
-                      message="Token expired")
+        e = AuthError(error_code="invalid_refresh_token", message="Token expired")
         response = handle_auth_error(e)
         assert response.status_code == 401
 
@@ -203,8 +201,7 @@ class TestHandleAuthError:
         assert response.status_code == 409
 
     def test_registration_failed_returns_400(self):
-        e = AuthError(error_code="registration_failed",
-                      message="Could not register")
+        e = AuthError(error_code="registration_failed", message="Could not register")
         response = handle_auth_error(e)
         assert response.status_code == 400
 
@@ -219,15 +216,13 @@ class TestHandleAuthError:
         assert response.status_code == 400
 
     def test_error_code_in_response_body(self):
-        e = AuthError(error_code="authentication_failed",
-                      message="Bad credentials")
+        e = AuthError(error_code="authentication_failed", message="Bad credentials")
         response = handle_auth_error(e)
         body = _parse_body(response)
         assert body["error"] == "authentication_failed"
 
     def test_message_in_response_body(self):
-        e = AuthError(error_code="authentication_failed",
-                      message="Bad credentials")
+        e = AuthError(error_code="authentication_failed", message="Bad credentials")
         response = handle_auth_error(e)
         body = _parse_body(response)
         assert body["message"] == "Bad credentials"
@@ -271,8 +266,7 @@ class TestHandleProfileError:
         assert response.status_code == 404
 
     def test_no_fields_to_update_returns_400(self):
-        e = ProfileError(error_code="no_fields_to_update",
-                         message="Nothing to update")
+        e = ProfileError(error_code="no_fields_to_update", message="Nothing to update")
         response = handle_profile_error(e)
         assert response.status_code == 400
 
@@ -345,8 +339,7 @@ class TestHandleProfileError:
 class TestErrorResponseShape:
     def test_auth_error_response_has_all_required_fields(self):
         """Every error response must have error, message, details keys."""
-        e = AuthError(error_code="authentication_failed",
-                      message="Bad credentials")
+        e = AuthError(error_code="authentication_failed", message="Bad credentials")
         body = _parse_body(handle_auth_error(e))
         assert "error" in body
         assert "message" in body
