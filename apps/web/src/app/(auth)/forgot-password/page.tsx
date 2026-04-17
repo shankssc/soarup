@@ -1,12 +1,12 @@
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
-import { ForgotPasswordForm } from "@/components/domain/auth/forgot-password-form";
+import { ForgotPasswordForm } from '@/components/domain/auth/forgot-password-form';
 
 export default function ForgotPasswordPage() {
   return (
     <div className="space-y-8">
-      <div className="space-y-1 mb-2">
-        <h1 className="font-headline italic text-3xl md:text-4xl text-on-surface leading-tight">
+      <div className="mb-2 space-y-1">
+        <h1 className="font-headline text-3xl italic leading-tight text-on-surface md:text-4xl">
           Forgot password?
         </h1>
         <p className="font-label text-[10px] uppercase tracking-[0.2em] text-outline">

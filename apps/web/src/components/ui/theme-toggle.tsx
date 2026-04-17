@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
 // apps/web/src/components/ui/theme-toggle.tsx
 
-import * as React from "react";
-import { useTheme } from "@/components/providers/theme-provider";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils/cn";
+import * as React from 'react';
+import { useTheme } from '@/components/providers/theme-provider';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils/cn';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
         variant="ghost"
         size="icon"
         aria-label="Toggle theme"
-        className={cn("text-on-surface-variant", className)}
+        className={cn('text-on-surface-variant', className)}
       >
         <span
           className="material-symbols-outlined text-[20px]"
@@ -46,19 +46,19 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   }
 
   const { theme, toggleTheme } = themeContext;
-  const isDark = theme === "dark";
+  const isDark = theme === 'dark';
 
   return (
     <Button
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       className={cn(
         // Slightly muted at rest, full color on hover
-        "text-on-surface-variant hover:text-primary",
-        "transition-all duration-200",
-        className
+        'text-on-surface-variant hover:text-primary',
+        'transition-all duration-200',
+        className,
       )}
     >
       <span
@@ -68,7 +68,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
         }}
         aria-hidden="true"
       >
-        {isDark ? "light_mode" : "dark_mode"}
+        {isDark ? 'light_mode' : 'dark_mode'}
       </span>
     </Button>
   );

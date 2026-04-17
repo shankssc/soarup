@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
 // apps/web/src/components/domain/auth/reset-password-form.tsx
 
-import * as React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useRouter, useSearchParams } from "next/navigation";
+import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { FormMessage } from "@/components/ui/separator";
-import { cn } from "@/lib/utils/cn";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { FormMessage } from '@/components/ui/separator';
+import { cn } from '@/lib/utils/cn';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 // Password rules match backend ResetPasswordRequest validator exactly.
@@ -20,15 +20,15 @@ const resetPasswordSchema = z
   .object({
     new_password: z
       .string()
-      .min(1, "Password is required.")
-      .min(8, "Password must be at least 8 characters.")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter.")
-      .regex(/[0-9]/, "Password must contain at least one digit."),
-    confirm_password: z.string().min(1, "Please confirm your password."),
+      .min(1, 'Password is required.')
+      .min(8, 'Password must be at least 8 characters.')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter.')
+      .regex(/[0-9]/, 'Password must contain at least one digit.'),
+    confirm_password: z.string().min(1, 'Please confirm your password.'),
   })
   .refine((data) => data.new_password === data.confirm_password, {
-    message: "Passwords do not match.",
-    path: ["confirm_password"],
+    message: 'Passwords do not match.',
+    path: ['confirm_password'],
   });
 
 type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
@@ -41,16 +41,16 @@ interface ResetPasswordFormProps {
 
 // ─── Server action ────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1';
 
 async function resetPassword(
   recoveryToken: string,
-  newPassword: string
+  newPassword: string,
 ): Promise<void> {
   const res = await fetch(`${API_BASE}/auth/reset-password`, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       // Token sent as Authorization header — backend extracts it there
       Authorization: `Bearer ${recoveryToken}`,
     },
@@ -60,7 +60,7 @@ async function resetPassword(
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(
-      data?.message ?? "Failed to reset password. The link may have expired."
+      data?.message ?? 'Failed to reset password. The link may have expired.',
     );
   }
 }
@@ -81,13 +81,11 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
   // Supabase delivers it either in the query string or the URL hash.
   // Token lives in React state only — never written to localStorage.
   React.useEffect(() => {
-    const fromQuery = searchParams.get("access_token");
+    const fromQuery = searchParams.get('access_token');
 
     // Hash params (#access_token=xxx) — Supabase default for some flows
-    const hashParams = new URLSearchParams(
-      window.location.hash.substring(1)
-    );
-    const fromHash = hashParams.get("access_token");
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const fromHash = hashParams.get('access_token');
 
     const token = fromQuery ?? fromHash;
 
@@ -95,7 +93,7 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
       setRecoveryToken(token);
     } else {
       setTokenError(
-        "Invalid or missing recovery token. Please request a new reset link."
+        'Invalid or missing recovery token. Please request a new reset link.',
       );
     }
   }, [searchParams]);
@@ -106,7 +104,7 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
     formState: { errors },
   } = useForm<ResetPasswordValues>({
     resolver: zodResolver(resetPasswordSchema),
-    defaultValues: { new_password: "", confirm_password: "" },
+    defaultValues: { new_password: '', confirm_password: '' },
   });
 
   async function onSubmit(values: ResetPasswordValues) {
@@ -119,10 +117,10 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
       await resetPassword(recoveryToken, values.new_password);
       setSuccess(true);
       // Redirect to login after short delay so user can read success message
-      setTimeout(() => router.push("/login?reset=success"), 2500);
+      setTimeout(() => router.push('/login?reset=success'), 2500);
     } catch (err) {
       setApiError(
-        err instanceof Error ? err.message : "Something went wrong. Please try again."
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.',
       );
     } finally {
       setIsLoading(false);
@@ -133,10 +131,10 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
 
   if (success) {
     return (
-      <div className={cn("w-full space-y-6 text-center", className)}>
+      <div className={cn('w-full space-y-6 text-center', className)}>
         <div className="flex flex-col items-center gap-3">
           <span
-            className="material-symbols-outlined text-primary text-[40px]"
+            className="material-symbols-outlined text-[40px] text-primary"
             style={{ fontVariationSettings: "'FILL' 1" }}
             aria-hidden="true"
           >
@@ -154,14 +152,14 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
 
   if (tokenError) {
     return (
-      <div className={cn("w-full space-y-6", className)}>
+      <div className={cn('w-full space-y-6', className)}>
         <FormMessage message={tokenError} variant="error" />
         <Button
           variant="primary"
           size="lg"
           asymmetric
           className="w-full"
-          onClick={() => router.push("/forgot-password")}
+          onClick={() => router.push('/forgot-password')}
         >
           Request new reset link
         </Button>
@@ -172,16 +170,12 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
   // ── Form state ─────────────────────────────────────────────────────────────
 
   return (
-    <div className={cn("w-full space-y-6", className)}>
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-        className="space-y-6"
-      >
+    <div className={cn('w-full space-y-6', className)}>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
         <FormMessage message={apiError} variant="error" />
 
         <Input
-          {...register("new_password")}
+          {...register('new_password')}
           label="New password"
           type="password"
           placeholder="••••••••"
@@ -193,7 +187,7 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
         />
 
         <Input
-          {...register("confirm_password")}
+          {...register('confirm_password')}
           label="Confirm new password"
           type="password"
           placeholder="••••••••"
@@ -212,9 +206,7 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
           className="w-full"
         >
           Update password
-          <span className="material-symbols-outlined text-[18px]">
-            arrow_forward
-          </span>
+          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
         </Button>
       </form>
     </div>

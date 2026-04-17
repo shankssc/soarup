@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
 // apps/web/src/components/ui/checkbox.tsx
 
-import * as React from "react";
-import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
-import { cn } from "@/lib/utils/cn";
+import * as React from 'react';
+import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
+import { cn } from '@/lib/utils/cn';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 //
@@ -27,25 +27,25 @@ const Checkbox = React.forwardRef<
     ref={ref}
     className={cn(
       // Size + shape
-      "h-4 w-4 shrink-0",
+      'h-4 w-4 shrink-0',
       // Border — square, no radius
-      "border border-outline-variant",
+      'border border-outline-variant',
       // Background transitions
-      "bg-transparent",
-      "data-[state=checked]:bg-primary-container data-[state=checked]:border-primary-container",
+      'bg-transparent',
+      'data-[state=checked]:border-primary-container data-[state=checked]:bg-primary-container',
       // Focus ring
-      "focus-visible:outline-none focus-visible:ring-2",
-      "focus-visible:ring-primary-container focus-visible:ring-offset-2",
-      "focus-visible:ring-offset-background",
+      'focus-visible:outline-none focus-visible:ring-2',
+      'focus-visible:ring-primary-container focus-visible:ring-offset-2',
+      'focus-visible:ring-offset-background',
       // Disabled
-      "disabled:cursor-not-allowed disabled:opacity-40",
+      'disabled:cursor-not-allowed disabled:opacity-40',
       // Transition
-      "transition-colors duration-150",
-      className
+      'transition-colors duration-150',
+      className,
     )}
     {...props}
   >
-    <CheckboxPrimitive.Indicator className="flex items-center justify-center text-on-primary-container">
+    <CheckboxPrimitive.Indicator className="text-on-primary-container flex items-center justify-center">
       {/* Checkmark icon */}
       <svg
         className="h-3 w-3"
@@ -74,8 +74,9 @@ Checkbox.displayName = CheckboxPrimitive.Root.displayName;
 // Use this for form fields like "Remember me", "Accept terms".
 // The label is always clickable (htmlFor wired automatically).
 
-interface CheckboxFieldProps
-  extends React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root> {
+interface CheckboxFieldProps extends React.ComponentPropsWithoutRef<
+  typeof CheckboxPrimitive.Root
+> {
   label: string;
   id?: string;
 }
@@ -89,15 +90,15 @@ const CheckboxField = React.forwardRef<
   const fieldId = id ?? generatedId;
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn('flex items-center gap-2', className)}>
       <Checkbox ref={ref} id={fieldId} {...props} />
       <label
         htmlFor={fieldId}
         className={cn(
-          "font-label text-xs text-on-surface-variant",
-          "cursor-pointer select-none",
-          "hover:text-on-surface transition-colors duration-150",
-          props.disabled && "cursor-not-allowed opacity-40"
+          'font-label text-xs text-on-surface-variant',
+          'cursor-pointer select-none',
+          'transition-colors duration-150 hover:text-on-surface',
+          props.disabled && 'cursor-not-allowed opacity-40',
         )}
       >
         {label}
@@ -106,6 +107,6 @@ const CheckboxField = React.forwardRef<
   );
 });
 
-CheckboxField.displayName = "CheckboxField";
+CheckboxField.displayName = 'CheckboxField';
 
 export { Checkbox, CheckboxField };

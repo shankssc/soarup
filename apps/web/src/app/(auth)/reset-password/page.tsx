@@ -1,15 +1,15 @@
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
-import { Suspense } from "react";
-import { ResetPasswordForm } from "@/components/domain/auth/reset-password-form";
+import { Suspense } from 'react';
+import { ResetPasswordForm } from '@/components/domain/auth/reset-password-form';
 
 // Suspense boundary is required because ResetPasswordForm uses
 // useSearchParams() — Next.js requires this for static rendering compatibility.
 function ResetPasswordContent() {
   return (
     <div className="space-y-8">
-      <div className="space-y-1 mb-2">
-        <h1 className="font-headline italic text-3xl md:text-4xl text-on-surface leading-tight">
+      <div className="mb-2 space-y-1">
+        <h1 className="font-headline text-3xl italic leading-tight text-on-surface md:text-4xl">
           Reset password
         </h1>
         <p className="font-label text-[10px] uppercase tracking-[0.2em] text-outline">
@@ -27,8 +27,8 @@ export default function ResetPasswordPage() {
     <Suspense
       fallback={
         <div className="space-y-8">
-          <div className="space-y-1 mb-2">
-            <h1 className="font-headline italic text-3xl md:text-4xl text-on-surface leading-tight">
+          <div className="mb-2 space-y-1">
+            <h1 className="font-headline text-3xl italic leading-tight text-on-surface md:text-4xl">
               Reset password
             </h1>
             <p className="font-label text-[10px] uppercase tracking-[0.2em] text-outline">

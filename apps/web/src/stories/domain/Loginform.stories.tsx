@@ -1,30 +1,30 @@
-import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { LoginForm } from "@/components/domain/auth/login-form";
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { LoginForm } from '@/components/domain/auth/login-form';
 
 // next/navigation is automatically mocked by @storybook/nextjs-vite
 // useAuth reads from Zustand store — initial state has no error, not loading
 
 const meta = {
-  title: "Domain/Auth/LoginForm",
+  title: 'Domain/Auth/LoginForm',
   component: LoginForm,
   parameters: {
-    layout: "centered",
+    layout: 'centered',
     backgrounds: {
-      default: "dark",
+      default: 'dark',
       values: [
-        { name: "dark",  value: "#0e0e10" },
-        { name: "light", value: "#ebfdfc" },
+        { name: 'dark', value: '#0e0e10' },
+        { name: 'light', value: '#ebfdfc' },
       ],
     },
     // Prevent actual navigation in stories
     nextjs: {
       appDirectory: true,
       navigation: {
-        pathname: "/login",
+        pathname: '/login',
       },
     },
   },
-  tags: ["autodocs"],
+  tags: ['autodocs'],
   decorators: [
     (Story) => (
       <div className="w-[420px] p-10">
@@ -45,6 +45,6 @@ export const Default: Story = {};
 
 export const OnLightBackground: Story = {
   parameters: {
-    backgrounds: { default: "light" },
+    backgrounds: { default: 'light' },
   },
 };

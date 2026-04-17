@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
 // apps/web/src/components/ui/label.tsx
 
-import * as React from "react";
-import * as LabelPrimitive from "@radix-ui/react-label";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@/lib/utils/cn";
+import * as React from 'react';
+import * as LabelPrimitive from '@radix-ui/react-label';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils/cn';
 
 // ─── Variants ─────────────────────────────────────────────────────────────────
 //
@@ -21,37 +21,34 @@ import { cn } from "@/lib/utils/cn";
 const labelVariants = cva(
   // Base: always Space Grotesk, cursor respects disabled peer
   [
-    "font-label",
-    "leading-none",
-    "peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-    "select-none",
+    'font-label',
+    'leading-none',
+    'peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
+    'select-none',
   ],
   {
     variants: {
       variant: {
         field: [
-          "block",
-          "text-[10px] uppercase tracking-[0.15em]",
-          "text-outline",
-          "mb-1",
+          'block',
+          'text-[10px] uppercase tracking-[0.15em]',
+          'text-outline',
+          'mb-1',
         ],
-        inline: [
-          "text-sm",
-          "text-on-surface-variant",
-          "cursor-pointer",
-        ],
+        inline: ['text-sm', 'text-on-surface-variant', 'cursor-pointer'],
       },
     },
     defaultVariants: {
-      variant: "field",
+      variant: 'field',
     },
-  }
+  },
 );
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface LabelProps
-  extends React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>,
+  extends
+    React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>,
     VariantProps<typeof labelVariants> {}
 
 // ─── Component ────────────────────────────────────────────────────────────────

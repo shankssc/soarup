@@ -1,24 +1,32 @@
-import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { Checkbox, CheckboxField } from "@/components/ui/checkbox";
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { Checkbox, CheckboxField } from '@/components/ui/checkbox';
 
 const meta = {
-  title: "UI/Checkbox",
+  title: 'UI/Checkbox',
   component: Checkbox,
-  parameters: { layout: "centered" },
-  tags: ["autodocs"],
+  parameters: { layout: 'centered' },
+  tags: ['autodocs'],
 } satisfies Meta<typeof Checkbox>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 const dark = (Story: React.ComponentType) => {
-  document.documentElement.classList.add("dark");
-  return <div className="bg-surface p-8"><Story /></div>;
+  document.documentElement.classList.add('dark');
+  return (
+    <div className="bg-surface p-8">
+      <Story />
+    </div>
+  );
 };
 
 const light = (Story: React.ComponentType) => {
-  document.documentElement.classList.remove("dark");
-  return <div className="bg-[#ebfdfc] p-8"><Story /></div>;
+  document.documentElement.classList.remove('dark');
+  return (
+    <div className="bg-[#ebfdfc] p-8">
+      <Story />
+    </div>
+  );
 };
 
 export const Playground: Story = {
@@ -30,10 +38,18 @@ export const AllStatesDark: Story = {
   decorators: [dark],
   render: () => (
     <div className="space-y-5">
-      <Row label="unchecked"><Checkbox /></Row>
-      <Row label="checked"><Checkbox defaultChecked /></Row>
-      <Row label="disabled"><Checkbox disabled /></Row>
-      <Row label="disabled checked"><Checkbox disabled defaultChecked /></Row>
+      <Row label="unchecked">
+        <Checkbox />
+      </Row>
+      <Row label="checked">
+        <Checkbox defaultChecked />
+      </Row>
+      <Row label="disabled">
+        <Checkbox disabled />
+      </Row>
+      <Row label="disabled checked">
+        <Checkbox disabled defaultChecked />
+      </Row>
     </div>
   ),
 };
@@ -42,10 +58,18 @@ export const AllStatesLight: Story = {
   decorators: [light],
   render: () => (
     <div className="space-y-5">
-      <Row label="unchecked"><Checkbox /></Row>
-      <Row label="checked"><Checkbox defaultChecked /></Row>
-      <Row label="disabled"><Checkbox disabled /></Row>
-      <Row label="disabled checked"><Checkbox disabled defaultChecked /></Row>
+      <Row label="unchecked">
+        <Checkbox />
+      </Row>
+      <Row label="checked">
+        <Checkbox defaultChecked />
+      </Row>
+      <Row label="disabled">
+        <Checkbox disabled />
+      </Row>
+      <Row label="disabled checked">
+        <Checkbox disabled defaultChecked />
+      </Row>
     </div>
   ),
 };
@@ -77,7 +101,9 @@ export const CheckboxFieldsLight: Story = {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-4">
-      <span className="font-label text-[10px] uppercase tracking-widest text-outline w-32 shrink-0">{label}</span>
+      <span className="w-32 shrink-0 font-label text-[10px] uppercase tracking-widest text-outline">
+        {label}
+      </span>
       {children}
     </div>
   );

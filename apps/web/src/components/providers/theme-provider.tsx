@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
 // apps/web/src/components/providers/theme-provider.tsx
 
-import * as React from "react";
+import * as React from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Theme = "light" | "dark";
+type Theme = 'light' | 'dark';
 
 interface ThemeContextValue {
   theme: Theme;
@@ -20,7 +20,7 @@ const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "soarup-theme";
+const STORAGE_KEY = 'soarup-theme';
 
 interface ThemeProviderProps {
   children?: React.ReactNode;
@@ -33,12 +33,12 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, forcedTheme }: ThemeProviderProps) {
-  const [theme, setThemeState] = React.useState<Theme>(forcedTheme ?? "dark");
+  const [theme, setThemeState] = React.useState<Theme>(forcedTheme ?? 'dark');
   const [mounted, setMounted] = React.useState(false);
 
   // On mount: if forcedTheme is set, use it directly.
   // Otherwise read localStorage, fall back to system preference.
-    React.useEffect(() => {
+  React.useEffect(() => {
     if (forcedTheme) {
       setThemeState(forcedTheme);
       setMounted(true);
@@ -46,11 +46,11 @@ export function ThemeProvider({ children, forcedTheme }: ThemeProviderProps) {
     }
 
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    if (stored === "light" || stored === "dark") {
+    if (stored === 'light' || stored === 'dark') {
       setThemeState(stored);
     } else {
-      const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setThemeState(systemDark ? "dark" : "light");
+      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setThemeState(systemDark ? 'dark' : 'light');
     }
     setMounted(true);
   }, [forcedTheme]);
@@ -62,10 +62,10 @@ export function ThemeProvider({ children, forcedTheme }: ThemeProviderProps) {
     if (!mounted) return;
 
     const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
+    if (theme === 'dark') {
+      root.classList.add('dark');
     } else {
-      root.classList.remove("dark");
+      root.classList.remove('dark');
     }
 
     // Only persist to localStorage if not forced — forced theme is
@@ -80,16 +80,14 @@ export function ThemeProvider({ children, forcedTheme }: ThemeProviderProps) {
   }
 
   function toggleTheme() {
-    setThemeState((prev) => (prev === "dark" ? "light" : "dark"));
+    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
   }
 
   // Prevent rendering children until theme is resolved to avoid flash
   // We render with opacity-0 briefly rather than null to avoid layout shift
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
-      <div
-        style={{ opacity: mounted ? 1 : 0, transition: "opacity 0.15s ease" }}
-      >
+      <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity 0.15s ease' }}>
         {children}
       </div>
     </ThemeContext.Provider>

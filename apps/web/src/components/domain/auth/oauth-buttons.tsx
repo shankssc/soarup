@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
 // apps/web/src/components/domain/auth/oauth-buttons.tsx
 
-import * as React from "react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils/cn";
+import * as React from 'react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils/cn';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,9 +20,9 @@ interface OAuthButtonsProps {
 // These hit your FastAPI backend which handles the Supabase OAuth redirect.
 // The backend sets the session cookie and redirects back to /dashboard.
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1';
 
-function getOAuthUrl(provider: "google" | "github"): string {
+function getOAuthUrl(provider: 'google' | 'github'): string {
   return `${API_BASE}/auth/oauth/${provider}`;
 }
 
@@ -34,10 +34,10 @@ export function OAuthButtons({
   className,
 }: OAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = React.useState<
-    "google" | "github" | null
+    'google' | 'github' | null
   >(null);
 
-  function handleOAuth(provider: "google" | "github") {
+  function handleOAuth(provider: 'google' | 'github') {
     setLoadingProvider(provider);
     onLoadingChange?.(true);
     // Full page redirect — Supabase OAuth flow handles the rest
@@ -45,16 +45,16 @@ export function OAuthButtons({
   }
 
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
+    <div className={cn('flex flex-col gap-3', className)}>
       <Button
         variant="oauth"
         size="lg"
         disabled={disabled || loadingProvider !== null}
-        loading={loadingProvider === "google"}
-        onClick={() => handleOAuth("google")}
+        loading={loadingProvider === 'google'}
+        onClick={() => handleOAuth('google')}
         className="w-full"
       >
-        {loadingProvider !== "google" && <GoogleIcon />}
+        {loadingProvider !== 'google' && <GoogleIcon />}
         Continue with Google
       </Button>
 
@@ -62,11 +62,11 @@ export function OAuthButtons({
         variant="oauth"
         size="lg"
         disabled={disabled || loadingProvider !== null}
-        loading={loadingProvider === "github"}
-        onClick={() => handleOAuth("github")}
+        loading={loadingProvider === 'github'}
+        onClick={() => handleOAuth('github')}
         className="w-full"
       >
-        {loadingProvider !== "github" && <GitHubIcon />}
+        {loadingProvider !== 'github' && <GitHubIcon />}
         Continue with GitHub
       </Button>
     </div>

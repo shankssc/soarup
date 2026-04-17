@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
 // apps/web/hooks/useAuth.ts
 
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { createClient } from "@/lib/supabase/client";
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { createClient } from '@/lib/supabase/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ export interface AuthActions {
 
 // ─── API client helpers ───────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1';
 
 interface ApiErrorEnvelope {
   error: string;
@@ -51,42 +51,42 @@ interface ApiErrorEnvelope {
 
 // Maps FastAPI error codes to user-facing messages
 const ERROR_MESSAGES: Record<string, string> = {
-  authentication_failed:  "Incorrect email or password.",
-  user_already_exists:    "An account with this email already exists.",
-  registration_failed:    "Could not create your account. Please try again.",
-  service_unavailable:    "Service temporarily unavailable. Please try again shortly.",
-  invalid_refresh_token:  "Your session has expired. Please sign in again.",
-  missing_token:          "Authorization required.",
-  invalid_token:          "Your session is invalid. Please sign in again.",
-  internal_error:         "Something went wrong. Please try again.",
-  network_error:          "Unable to connect. Check your internet connection.",
+  authentication_failed: 'Incorrect email or password.',
+  user_already_exists: 'An account with this email already exists.',
+  registration_failed: 'Could not create your account. Please try again.',
+  service_unavailable: 'Service temporarily unavailable. Please try again shortly.',
+  invalid_refresh_token: 'Your session has expired. Please sign in again.',
+  missing_token: 'Authorization required.',
+  invalid_token: 'Your session is invalid. Please sign in again.',
+  internal_error: 'Something went wrong. Please try again.',
+  network_error: 'Unable to connect. Check your internet connection.',
 };
 
 function friendlyError(code: string): string {
-  return ERROR_MESSAGES[code] ?? "An unexpected error occurred.";
+  return ERROR_MESSAGES[code] ?? 'An unexpected error occurred.';
 }
 
 async function apiPost<T>(
   path: string,
   body: Record<string, unknown>,
-  accessToken?: string
+  accessToken?: string,
 ): Promise<T> {
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   };
   if (accessToken) {
-    headers["Authorization"] = `Bearer ${accessToken}`;
+    headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error(friendlyError("network_error"));
+    throw new Error(friendlyError('network_error'));
   }
 
   if (!res.ok) {
@@ -94,9 +94,9 @@ async function apiPost<T>(
     try {
       envelope = await res.json();
     } catch {
-      throw new Error(friendlyError("internal_error"));
+      throw new Error(friendlyError('internal_error'));
     }
-    const code = envelope?.error ?? "internal_error";
+    const code = envelope?.error ?? 'internal_error';
     throw new Error(friendlyError(code));
   }
 
@@ -119,7 +119,7 @@ interface LoginResponse {
 
 async function syncSupabaseSession(
   accessToken: string,
-  refreshToken: string
+  refreshToken: string,
 ): Promise<void> {
   try {
     const supabase = createClient();
@@ -130,7 +130,7 @@ async function syncSupabaseSession(
   } catch {
     // Non-fatal — Zustand store is the source of truth for client-side auth.
     // Server-side session may not work until next page load.
-    console.warn("Failed to sync Supabase session cookie.");
+    console.warn('Failed to sync Supabase session cookie.');
   }
 }
 
@@ -155,23 +155,23 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const data = await apiPost<LoginResponse>("/auth/login", {
+          const data = await apiPost<LoginResponse>('/auth/login', {
             email,
             password,
           });
 
-          const  refresh_token = data.refresh_token
+          const refresh_token = data.refresh_token;
 
           if (!refresh_token) {
-            throw new Error('Refresh token was not sent by the server')
+            throw new Error('Refresh token was not sent by the server');
           }
 
           set({
             user: data.user,
             tokens: {
-              access_token:  data.access_token,
+              access_token: data.access_token,
               refresh_token: refresh_token,
-              expires_at:    Date.now() + data.expires_in * 1000,
+              expires_at: Date.now() + data.expires_in * 1000,
             },
             isLoading: false,
             error: null,
@@ -179,11 +179,11 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
           // Sync tokens into Supabase JS client so server-side cookie is set.
           // This allows createServerSupabaseClient() to read the session.
-          await syncSupabaseSession(data.access_token, data.refresh_token ?? "");
+          await syncSupabaseSession(data.access_token, data.refresh_token ?? '');
         } catch (err) {
           set({
             isLoading: false,
-            error: err instanceof Error ? err.message : friendlyError("internal_error"),
+            error: err instanceof Error ? err.message : friendlyError('internal_error'),
           });
           throw err; // re-throw so form can catch it too if needed
         }
@@ -192,35 +192,35 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       signup: async (email, password, fullName) => {
         set({ isLoading: true, error: null });
         try {
-          const data = await apiPost<LoginResponse>("/auth/signup", {
+          const data = await apiPost<LoginResponse>('/auth/signup', {
             email,
             password,
             ...(fullName ? { full_name: fullName } : {}),
           });
 
-          const  refresh_token = data.refresh_token
+          const refresh_token = data.refresh_token;
 
           if (!refresh_token) {
-            throw new Error('Refresh token was not sent by the server')
+            throw new Error('Refresh token was not sent by the server');
           }
 
           set({
             user: data.user,
             tokens: {
-              access_token:  data.access_token,
+              access_token: data.access_token,
               refresh_token: refresh_token,
-              expires_at:    Date.now() + data.expires_in * 1000,
+              expires_at: Date.now() + data.expires_in * 1000,
             },
             isLoading: false,
             error: null,
           });
 
           // Sync tokens into Supabase JS client so server-side cookie is set.
-          await syncSupabaseSession(data.access_token, data.refresh_token ?? "");
+          await syncSupabaseSession(data.access_token, data.refresh_token ?? '');
         } catch (err) {
           set({
             isLoading: false,
-            error: err instanceof Error ? err.message : friendlyError("internal_error"),
+            error: err instanceof Error ? err.message : friendlyError('internal_error'),
           });
           throw err;
         }
@@ -234,7 +234,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         if (tokens?.access_token) {
           try {
             await fetch(`${API_BASE}/auth/logout`, {
-              method: "POST",
+              method: 'POST',
               headers: { Authorization: `Bearer ${tokens.access_token}` },
             });
           } catch {
@@ -258,14 +258,14 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       setUser: (user) => set({ user }),
     }),
     {
-      name: "soarup-auth",
+      name: 'soarup-auth',
       // Only persist user + tokens, not loading/error state
       partialize: (state) => ({
-        user:   state.user,
+        user: state.user,
         tokens: state.tokens,
       }),
-    }
-  )
+    },
+  ),
 );
 
 // ─── Convenience hook ─────────────────────────────────────────────────────────
@@ -284,20 +284,19 @@ export function useAuth() {
     store.tokens !== null &&
     store.tokens.expires_at > Date.now();
 
-  const needsOnboarding =
-    isAuthenticated && store.user?.is_onboarded === false;
+  const needsOnboarding = isAuthenticated && store.user?.is_onboarded === false;
 
   return {
-    user:             store.user,
-    tokens:           store.tokens,
-    isLoading:        store.isLoading,
-    error:            store.error,
+    user: store.user,
+    tokens: store.tokens,
+    isLoading: store.isLoading,
+    error: store.error,
     isAuthenticated,
     needsOnboarding,
-    login:            store.login,
-    signup:           store.signup,
-    logout:           store.logout,
-    clearError:       store.clearError,
-    setUser:          store.setUser,
+    login: store.login,
+    signup: store.signup,
+    logout: store.logout,
+    clearError: store.clearError,
+    setUser: store.setUser,
   };
 }

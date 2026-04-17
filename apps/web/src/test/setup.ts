@@ -9,7 +9,7 @@ afterEach(() => {
   cleanup();
 });
 
-vi.mock("@/lib/supabase/client", () => ({
+vi.mock('@/lib/supabase/client', () => ({
   createClient: vi.fn(() => ({
     auth: {
       setSession: vi.fn().mockResolvedValue({ error: null }),
@@ -18,8 +18,8 @@ vi.mock("@/lib/supabase/client", () => ({
   })),
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
-  usePathname: () => "/",
+  usePathname: () => '/',
 }));

@@ -2,16 +2,22 @@
 // Route protection for all (app) routes.
 // Reads Supabase session from cookies — set by syncSupabaseSession in useAuth.
 
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
 // ─── Route configuration ──────────────────────────────────────────────────────
 
 // Routes that require authentication
-const PROTECTED_ROUTES = ["/dashboard", "/onboarding", "/submit", "/history", "/settings"];
+const PROTECTED_ROUTES = [
+  '/dashboard',
+  '/onboarding',
+  '/submit',
+  '/history',
+  '/settings',
+];
 
 // Routes that should redirect to dashboard if already authenticated
-const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
+const AUTH_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password'];
 
 function isProtectedRoute(pathname: string): boolean {
   return PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
@@ -40,19 +46,19 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
+        setAll(
+          cookiesToSet: { name: string; value: string; options: CookieOptions }[],
+        ) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({
             request: { headers: request.headers },
           });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, options),
           );
         },
       },
-    }
+    },
   );
 
   // Refresh session — this also sets updated cookies on the response
@@ -64,15 +70,15 @@ export async function middleware(request: NextRequest) {
 
   // ── Protected route: redirect to login if not authenticated ───────────────
   if (isProtectedRoute(pathname) && !isAuthenticated) {
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = new URL('/login', request.url);
     // Preserve the intended destination so we can redirect back after login
-    loginUrl.searchParams.set("next", pathname);
+    loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // ── Auth route: redirect to dashboard if already authenticated ────────────
   if (isAuthRoute(pathname) && isAuthenticated) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   return response;
@@ -84,6 +90,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

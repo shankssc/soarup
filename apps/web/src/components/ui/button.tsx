@@ -1,23 +1,23 @@
-"use client";
+'use client';
 
 // apps/web/src/components/ui/button.tsx
 
-import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@/lib/utils/cn";
+import * as React from 'react';
+import { Slot } from '@radix-ui/react-slot';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils/cn';
 
 const buttonVariants = cva(
   [
-    "relative inline-flex items-center justify-center gap-2",
-    "font-label font-bold uppercase tracking-[0.12em]",
-    "border border-transparent",
-    "transition-all duration-200",
+    'relative inline-flex items-center justify-center gap-2',
+    'font-label font-bold uppercase tracking-[0.12em]',
+    'border border-transparent',
+    'transition-all duration-200',
     // primary-container exists in config → ring uses the CSS var automatically
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    "disabled:pointer-events-none disabled:opacity-40",
-    "active:scale-[0.97]",
-    "select-none",
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+    'disabled:pointer-events-none disabled:opacity-40',
+    'active:scale-[0.97]',
+    'select-none',
   ],
   {
     variants: {
@@ -29,37 +29,34 @@ const buttonVariants = cva(
         //   light: #00424f (dark teal)  dark: #00343e (darker teal)
         // Both values switch automatically via CSS variables — no dark: needed.
         primary: [
-          "bg-primary-container text-primary-on-container",
-          "hover:shadow-electric hover:brightness-105",
+          'bg-primary-container text-primary-on-container',
+          'hover:shadow-electric hover:brightness-105',
         ],
 
         // ── Secondary ──────────────────────────────────────────────────────
         // text-on-surface and border-outline-variant both switch via CSS vars.
         secondary: [
-          "bg-transparent text-on-surface",
-          "border-outline-variant",
-          "hover:bg-surface-high hover:border-outline",
+          'bg-transparent text-on-surface',
+          'border-outline-variant',
+          'hover:bg-surface-high hover:border-outline',
         ],
 
         // ── Ghost ──────────────────────────────────────────────────────────
         ghost: [
-          "bg-transparent text-on-surface-variant",
-          "hover:bg-surface-high hover:text-on-surface",
+          'bg-transparent text-on-surface-variant',
+          'hover:bg-surface-high hover:text-on-surface',
         ],
 
         // ── Danger ─────────────────────────────────────────────────────────
         // error.on → text-error-on
-        danger: [
-          "bg-error text-error-on",
-          "hover:brightness-90",
-        ],
+        danger: ['bg-error text-error-on', 'hover:brightness-90'],
 
         // ── Link ───────────────────────────────────────────────────────────
         link: [
-          "bg-transparent text-primary",
-          "underline-offset-4 hover:underline",
-          "border-none tracking-normal normal-case font-body font-normal",
-          "active:scale-100",
+          'bg-transparent text-primary',
+          'underline-offset-4 hover:underline',
+          'border-none tracking-normal normal-case font-body font-normal',
+          'active:scale-100',
         ],
 
         // ── OAuth ──────────────────────────────────────────────────────────
@@ -67,32 +64,33 @@ const buttonVariants = cva(
         // surface-highest: light=#d4e6e5  dark=#262528  — hover state
         // text-on-surface switches automatically light/dark via CSS var
         oauth: [
-          "bg-surface-high text-on-surface",
-          "border border-outline-variant",
-          "hover:bg-surface-highest hover:border-outline",
-          "normal-case tracking-normal font-body font-medium",
+          'bg-surface-high text-on-surface',
+          'border border-outline-variant',
+          'hover:bg-surface-highest hover:border-outline',
+          'normal-case tracking-normal font-body font-medium',
         ],
       },
 
       size: {
-        sm:        "h-8  px-4  text-[10px]",
-        md:        "h-10 px-6  text-xs",
-        lg:        "h-14 px-8  text-sm",
-        icon:      "h-10 w-10  p-0 text-base",
-        "icon-sm": "h-8  w-8   p-0 text-sm",
-        "icon-lg": "h-14 w-14  p-0 text-lg",
+        sm: 'h-8  px-4  text-[10px]',
+        md: 'h-10 px-6  text-xs',
+        lg: 'h-14 px-8  text-sm',
+        icon: 'h-10 w-10  p-0 text-base',
+        'icon-sm': 'h-8  w-8   p-0 text-sm',
+        'icon-lg': 'h-14 w-14  p-0 text-lg',
       },
     },
 
     defaultVariants: {
-      variant: "primary",
-      size: "md",
+      variant: 'primary',
+      size: 'md',
     },
-  }
+  },
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   /**
    * When true, renders the button's child element directly using Radix Slot.
@@ -131,9 +129,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       children,
       ...props
     },
-    ref
+    ref,
   ) => {
-    const Comp = asChild ? Slot : "button";
+    const Comp = asChild ? Slot : 'button';
 
     return (
       <Comp
@@ -141,8 +139,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         className={cn(
           buttonVariants({ variant, size }),
-          asymmetric && "asymmetric-btn",
-          className
+          asymmetric && 'asymmetric-btn',
+          className,
         )}
         {...props}
       >
@@ -156,15 +154,15 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         )}
       </Comp>
     );
-  }
+  },
 );
 
-Button.displayName = "Button";
+Button.displayName = 'Button';
 
 function LoadingSpinner() {
   return (
     <svg
-      className="animate-spin h-4 w-4"
+      className="h-4 w-4 animate-spin"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"

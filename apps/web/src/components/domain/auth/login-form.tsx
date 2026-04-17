@@ -1,31 +1,29 @@
-"use client";
+'use client';
 
 // apps/web/src/components/domain/auth/login-form.tsx
 
-import * as React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useRouter } from "next/navigation";
+import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useRouter } from 'next/navigation';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { CheckboxField } from "@/components/ui/checkbox";
-import { Separator, FormMessage } from "@/components/ui/separator";
-import { OAuthButtons } from "@/components/domain/auth/oauth-buttons";
-import { useAuth } from "@/hooks/useAuth";
-import { cn } from "@/lib/utils/cn";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { CheckboxField } from '@/components/ui/checkbox';
+import { Separator, FormMessage } from '@/components/ui/separator';
+import { OAuthButtons } from '@/components/domain/auth/oauth-buttons';
+import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils/cn';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
   email: z
     .string()
-    .min(1, "Email is required.")
-    .email("Please enter a valid email address."),
-  password: z
-    .string()
-    .min(1, "Password is required."),
+    .min(1, 'Email is required.')
+    .email('Please enter a valid email address.'),
+  password: z.string().min(1, 'Password is required.'),
   rememberMe: z.boolean(),
 });
 
@@ -52,10 +50,10 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    mode: "onTouched",
+    mode: 'onTouched',
     defaultValues: {
-      email: "",
-      password: "",
+      email: '',
+      password: '',
       rememberMe: false,
     },
   });
@@ -68,10 +66,10 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
   async function onSubmit(values: LoginFormValues) {
     try {
       await login(values.email, values.password);
-            if (onSuccess) {
+      if (onSuccess) {
         onSuccess();
       } else {
-        router.push(needsOnboarding ? "/onboarding" : "/dashboard");
+        router.push(needsOnboarding ? '/onboarding' : '/dashboard');
       }
     } catch {
       // Error is already set in useAuth store — no need to handle here
@@ -81,28 +79,21 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
   const isSubmitting = isLoading || oauthLoading;
 
   return (
-    <div className={cn("w-full space-y-8", className)}>
+    <div className={cn('w-full space-y-8', className)}>
       {/* OAuth buttons */}
-      <OAuthButtons
-        disabled={isSubmitting}
-        onLoadingChange={setOAuthLoading}
-      />
+      <OAuthButtons disabled={isSubmitting} onLoadingChange={setOAuthLoading} />
 
       {/* Divider */}
       <Separator label="or" />
 
       {/* Email/password form */}
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-        className="space-y-6"
-      >
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
         {/* API-level error — shown above fields */}
         <FormMessage message={error} variant="error" />
 
         {/* Email */}
         <Input
-          {...register("email", { onChange: handleFieldChange })}
+          {...register('email', { onChange: handleFieldChange })}
           label="Email"
           type="email"
           placeholder="you@soarup.app"
@@ -115,7 +106,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
         {/* Password */}
         <div className="space-y-2">
           <Input
-            {...register("password", { onChange: handleFieldChange })}
+            {...register('password', { onChange: handleFieldChange })}
             label="Password"
             type="password"
             placeholder="••••••••"
@@ -130,7 +121,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
               variant="link"
               size="sm"
               type="button"
-              onClick={() => router.push("/forgot-password")}
+              onClick={() => router.push('/forgot-password')}
               className="text-[10px] uppercase tracking-widest"
             >
               Forgot password?
@@ -140,7 +131,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
 
         {/* Remember me */}
         <CheckboxField
-          {...register("rememberMe")}
+          {...register('rememberMe')}
           label="Remember me"
           disabled={isSubmitting}
         />
@@ -156,18 +147,16 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
           className="w-full"
         >
           Sign in
-          <span className="material-symbols-outlined text-[18px]">
-            arrow_forward
-          </span>
+          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
         </Button>
       </form>
 
       {/* Sign up link */}
-      <p className="text-center font-headline italic text-lg text-primary">
+      <p className="text-center font-headline text-lg italic text-primary">
         <button
           type="button"
-          onClick={() => router.push("/signup")}
-          className="hover:underline underline-offset-8 decoration-secondary"
+          onClick={() => router.push('/signup')}
+          className="decoration-secondary underline-offset-8 hover:underline"
         >
           New to SoarUp? Join here
         </button>

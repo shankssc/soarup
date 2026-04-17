@@ -20,7 +20,7 @@ export default defineWorkspace([
       globals: true,
       environment: "jsdom",
       setupFiles: "./src/test/setup.ts",
-      include: ["src/**/*.{test,spec}.{ts,tsx}"],
+      include: ["src/**/*.{test,spec}.{ts,tsx}", "tests/**/*.{test,spec}.{ts,tsx}"],
       exclude: ["**/node_modules/**", "**/.next/**", "**/e2e/**"],
     },
   },

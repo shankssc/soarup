@@ -1,28 +1,28 @@
-import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { Button } from "@/components/ui/button";
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { Button } from '@/components/ui/button';
 
 // ─── Meta ─────────────────────────────────────────────────────────────────────
 
 const meta = {
-  title: "UI/Button",
+  title: 'UI/Button',
   component: Button,
   parameters: {
-    layout: "centered",
+    layout: 'centered',
   },
-  tags: ["autodocs"],
+  tags: ['autodocs'],
   argTypes: {
     variant: {
-      control: "select",
-      options: ["primary", "secondary", "ghost", "danger", "link", "oauth"],
+      control: 'select',
+      options: ['primary', 'secondary', 'ghost', 'danger', 'link', 'oauth'],
     },
     size: {
-      control: "select",
-      options: ["sm", "md", "lg", "icon", "icon-sm", "icon-lg"],
+      control: 'select',
+      options: ['sm', 'md', 'lg', 'icon', 'icon-sm', 'icon-lg'],
     },
-    loading:    { control: "boolean" },
-    disabled:   { control: "boolean" },
-    asymmetric: { control: "boolean" },
-    asChild:    { table: { disable: true } },
+    loading: { control: 'boolean' },
+    disabled: { control: 'boolean' },
+    asymmetric: { control: 'boolean' },
+    asChild: { table: { disable: true } },
   },
 } satisfies Meta<typeof Button>;
 
@@ -32,18 +32,18 @@ type Story = StoryObj<typeof meta>;
 // ─── Decorators ───────────────────────────────────────────────────────────────
 
 const dark = (Story: React.ComponentType) => {
-  document.documentElement.classList.add("dark");
+  document.documentElement.classList.add('dark');
   return (
-    <div className="bg-surface p-8 min-w-[400px]">
+    <div className="min-w-[400px] bg-surface p-8">
       <Story />
     </div>
   );
 };
 
 const light = (Story: React.ComponentType) => {
-  document.documentElement.classList.remove("dark");
+  document.documentElement.classList.remove('dark');
   return (
-    <div className="bg-[#ebfdfc] p-8 min-w-[400px]">
+    <div className="min-w-[400px] bg-[#ebfdfc] p-8">
       <Story />
     </div>
   );
@@ -53,9 +53,9 @@ const light = (Story: React.ComponentType) => {
 
 export const Playground: Story = {
   args: {
-    variant: "primary",
-    size: "md",
-    children: "Primary Action",
+    variant: 'primary',
+    size: 'md',
+    children: 'Primary Action',
     loading: false,
     disabled: false,
     asymmetric: false,
@@ -128,7 +128,7 @@ export const AllVariantsLight: Story = {
 export const AsymmetricDark: Story = {
   decorators: [dark],
   render: () => (
-    <div className="flex flex-col gap-4 w-80">
+    <div className="flex w-80 flex-col gap-4">
       <Button variant="primary" size="lg" asymmetric className="w-full">
         Sign in to workspace
         <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
@@ -145,7 +145,7 @@ export const AsymmetricDark: Story = {
 export const AsymmetricLight: Story = {
   decorators: [light],
   render: () => (
-    <div className="flex flex-col gap-4 w-80">
+    <div className="flex w-80 flex-col gap-4">
       <Button variant="primary" size="lg" asymmetric className="w-full">
         Sign in to workspace
         <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
@@ -164,16 +164,24 @@ export const StatesDark: Story = {
   render: () => (
     <div className="flex flex-col gap-5">
       <Row label="loading">
-        <Button variant="primary" loading>Signing in</Button>
+        <Button variant="primary" loading>
+          Signing in
+        </Button>
       </Row>
       <Row label="disabled">
-        <Button variant="primary" disabled>Submit</Button>
+        <Button variant="primary" disabled>
+          Submit
+        </Button>
       </Row>
       <Row label="loading secondary">
-        <Button variant="secondary" loading>Saving</Button>
+        <Button variant="secondary" loading>
+          Saving
+        </Button>
       </Row>
       <Row label="loading danger">
-        <Button variant="danger" loading>Deleting</Button>
+        <Button variant="danger" loading>
+          Deleting
+        </Button>
       </Row>
     </div>
   ),
@@ -186,16 +194,24 @@ export const StatesLight: Story = {
   render: () => (
     <div className="flex flex-col gap-5">
       <Row label="loading">
-        <Button variant="primary" loading>Signing in</Button>
+        <Button variant="primary" loading>
+          Signing in
+        </Button>
       </Row>
       <Row label="disabled">
-        <Button variant="primary" disabled>Submit</Button>
+        <Button variant="primary" disabled>
+          Submit
+        </Button>
       </Row>
       <Row label="loading secondary">
-        <Button variant="secondary" loading>Saving</Button>
+        <Button variant="secondary" loading>
+          Saving
+        </Button>
       </Row>
       <Row label="loading danger">
-        <Button variant="danger" loading>Deleting</Button>
+        <Button variant="danger" loading>
+          Deleting
+        </Button>
       </Row>
     </div>
   ),
@@ -222,16 +238,10 @@ export const IconsDark: Story = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function Row({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-6">
-      <span className="font-label text-[10px] uppercase tracking-widest text-outline w-32 shrink-0">
+      <span className="w-32 shrink-0 font-label text-[10px] uppercase tracking-widest text-outline">
         {label}
       </span>
       {children}

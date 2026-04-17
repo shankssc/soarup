@@ -1,15 +1,14 @@
-"use client";
+'use client';
 
 // apps/web/src/components/ui/input.tsx
 
-import * as React from "react";
-import { cn } from "@/lib/utils/cn";
-import { Label } from "@/components/ui/label";
+import * as React from 'react';
+import { cn } from '@/lib/utils/cn';
+import { Label } from '@/components/ui/label';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /** Label text rendered above the input using the field Label variant */
   label?: string;
 
@@ -66,7 +65,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       disabled,
       ...props
     },
-    ref
+    ref,
   ) => {
     // All hooks unconditionally at the top — no conditionals before this block
     const generatedId = React.useId();
@@ -76,8 +75,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputId = id ?? generatedId;
     const errorId = `${inputId}-error`;
     const hintId = `${inputId}-hint`;
-    const isPassword = type === "password";
-    const resolvedType = isPassword ? (showPassword ? "text" : "password") : type;
+    const isPassword = type === 'password';
+    const resolvedType = isPassword ? (showPassword ? 'text' : 'password') : type;
     const hasError = Boolean(error);
     const hasHint = Boolean(hint) && !hasError;
 
@@ -91,10 +90,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         )}
 
         {/* Input wrapper — group for focus-within underline animation */}
-        <div className="relative group">
+        <div className="group relative">
           {/* Leading icon */}
           {leadingIcon && (
-            <div className="absolute left-0 bottom-3 text-outline pointer-events-none">
+            <div className="pointer-events-none absolute bottom-3 left-0 text-outline">
               {leadingIcon}
             </div>
           )}
@@ -106,34 +105,32 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={resolvedType}
             disabled={disabled}
             aria-invalid={hasError}
-            aria-describedby={
-              hasError ? errorId : hasHint ? hintId : undefined
-            }
+            aria-describedby={hasError ? errorId : hasHint ? hintId : undefined}
             className={cn(
               // Layout
-              "w-full bg-transparent",
-              "py-3 px-0",
-              leadingIcon && "pl-6",
-              (trailingIcon || isPassword) && "pr-8",
+              'w-full bg-transparent',
+              'px-0 py-3',
+              leadingIcon && 'pl-6',
+              (trailingIcon || isPassword) && 'pr-8',
 
               // Typography
-              "font-body text-base text-on-surface",
-              "placeholder:text-outline-variant/50",
+              'font-body text-base text-on-surface',
+              'placeholder:text-outline-variant/50',
 
               // Border — bottom only, no box
-              "border-0 border-b",
-              hasError ? "border-error" : "border-outline-variant",
+              'border-0 border-b',
+              hasError ? 'border-error' : 'border-outline-variant',
 
               // Remove browser focus ring — we handle focus ourselves
-              "focus:outline-none focus:ring-0",
+              'focus:outline-none focus:ring-0',
 
               // Transition for border color
-              "transition-colors duration-200",
+              'transition-colors duration-200',
 
               // Disabled
-              "disabled:cursor-not-allowed disabled:opacity-40",
+              'disabled:cursor-not-allowed disabled:opacity-40',
 
-              className
+              className,
             )}
             {...props}
           />
@@ -141,10 +138,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {/* Animated focus underline — slides in from left on focus */}
           <div
             className={cn(
-              "absolute bottom-0 left-0 h-[2px]",
-              "w-0 group-focus-within:w-full",
-              "transition-all duration-500 ease-out",
-              hasError ? "bg-error" : "bg-primary-container",
+              'absolute bottom-0 left-0 h-[2px]',
+              'w-0 group-focus-within:w-full',
+              'transition-all duration-500 ease-out',
+              hasError ? 'bg-error' : 'bg-primary-container',
             )}
             aria-hidden="true"
           />
@@ -156,22 +153,22 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               tabIndex={-1}
               onClick={() => setShowPassword((v) => !v)}
               className={cn(
-                "absolute right-0 bottom-2.5",
-                "text-outline hover:text-on-surface",
-                "transition-colors duration-150",
-                "focus:outline-none",
+                'absolute bottom-2.5 right-0',
+                'text-outline hover:text-on-surface',
+                'transition-colors duration-150',
+                'focus:outline-none',
               )}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               <span
                 className="material-symbols-outlined text-[18px]"
                 style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
               >
-                {showPassword ? "visibility_off" : "visibility"}
+                {showPassword ? 'visibility_off' : 'visibility'}
               </span>
             </button>
           ) : trailingIcon ? (
-            <div className="absolute right-0 bottom-3 text-outline pointer-events-none">
+            <div className="pointer-events-none absolute bottom-3 right-0 text-outline">
               {trailingIcon}
             </div>
           ) : null}
@@ -182,7 +179,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <p
             id={errorId}
             role="alert"
-            className="font-label text-[10px] uppercase tracking-[0.1em] text-error mt-1"
+            className="mt-1 font-label text-[10px] uppercase tracking-[0.1em] text-error"
           >
             {error}
           </p>
@@ -190,18 +187,15 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 
         {/* Hint text */}
         {hasHint && (
-          <p
-            id={hintId}
-            className="font-label text-[10px] text-outline mt-1"
-          >
+          <p id={hintId} className="mt-1 font-label text-[10px] text-outline">
             {hint}
           </p>
         )}
       </div>
     );
-  }
+  },
 );
 
-Input.displayName = "Input";
+Input.displayName = 'Input';
 
 export { Input };
