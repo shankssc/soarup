@@ -1,4 +1,4 @@
-// apps/web/src/hooks/useAuth.test.ts
+// apps/web/tests/unit/useAuth.test.ts
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, renderHook } from "@testing-library/react";
