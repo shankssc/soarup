@@ -4,6 +4,13 @@ import '@testing-library/jest-dom';
 import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
+// Polyfill ResizeObserver — not implemented in jsdom but used by Radix UI primitives
+global.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 // Runs after each test case
 afterEach(() => {
   cleanup();

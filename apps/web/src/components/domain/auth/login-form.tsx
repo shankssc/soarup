@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { CheckboxField } from '@/components/ui/checkbox';
 import { Separator, FormMessage } from '@/components/ui/separator';
 import { OAuthButtons } from '@/components/domain/auth/oauth-buttons';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, useAuthStore } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ interface LoginFormProps {
 
 export function LoginForm({ onSuccess, className }: LoginFormProps) {
   const router = useRouter();
-  const { login, isLoading, error, clearError, needsOnboarding } = useAuth();
+  const { login, isLoading, error, clearError } = useAuth();
   const [oauthLoading, setOAuthLoading] = React.useState(false);
 
   const {
@@ -69,7 +69,8 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push(needsOnboarding ? '/onboarding' : '/dashboard');
+        const { user } = useAuthStore.getState();
+        router.push(user?.is_onboarded === false ? '/onboarding' : '/dashboard');
       }
     } catch {
       // Error is already set in useAuth store — no need to handle here
