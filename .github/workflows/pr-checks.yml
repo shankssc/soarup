@@ -50,7 +50,16 @@ jobs:
         run: bandit -r app -c pyproject.toml -ll
 
       - name: Run dependency audit (pip-audit)
-        run: pip-audit -r requirements.txt -r requirements-dev.txt --ignore-vuln CVE-2026-4539 --ignore-vuln GHSA-2c2j-9gv5-cj73
+        run: |
+          pip-audit -r requirements.txt -r requirements-dev.txt \
+            --ignore-vuln CVE-2026-4539 \
+            --ignore-vuln GHSA-6w46-j5rx-g56g \
+            --ignore-vuln GHSA-2c2j-9gv5-cj73
+        # Suppressed CVEs:
+        # GHSA-6w46-j5rx-g56g: pytest 9.x fix conflicts with pytest-asyncio 0.23.x
+        #   Revisit when pytest-asyncio ships pytest 9 compatible release
+        # GHSA-2c2j-9gv5-cj73: Starlette fix requires 0.47.2, not yet compatible
+        #   with fastapi 0.115.x — revisit when FastAPI upgrades Starlette
 
       - name: Run tests with coverage
         run: |
