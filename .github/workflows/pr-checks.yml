@@ -1,7 +1,7 @@
 # .github/workflows/pr-checks.yml
-# 🚀 SoarUp CI/CD Pipeline — Monorepo Quality Gates
+# SoarUp CI/CD Pipeline — Monorepo Quality Gates
 
-name: 🚀 SoarUp CI
+name: SoarUp CI
 
 on:
   push:
@@ -21,225 +21,204 @@ permissions:
   actions: read
 
 jobs:
-  # ===== 🔧 SETUP: Warm caches (runs from repo root) =====
-  setup:
-    name: 🔧 Setup Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🐍 Setup Python 3.12 (Backend)
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: apps/api/requirements*.txt
-
-      - name: 📦 Setup Node.js 20 (Frontend)
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: apps/web/package-lock.json
-
-      # Install backend deps from root (paths relative to repo root)
-      - name: 📦 Install backend dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r apps/api/requirements.txt
-          pip install -r apps/api/requirements-dev.txt
-
-      # Install frontend deps from root
-      - name: 📦 Install frontend dependencies
-        run: npm ci --prefix apps/web
-
-  # ===== 🐍 BACKEND: Quality + Tests (Linux) =====
+  # ===== BACKEND: Quality + Tests (Linux) =====
   api-quality:
-    name: 🐍 Backend Quality (Linux)
+    name: Backend Quality (Linux)
     runs-on: ubuntu-latest
-    needs: [setup]
     defaults:
       run:
-        working-directory: apps/api # ← All commands run from here
+        working-directory: apps/api
+
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.12
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
           cache-dependency-path: apps/api/requirements*.txt
 
-      - name: 📦 Install dependencies (relative paths now work)
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: 🔐 Run security scan (Bandit)
+      - name: Run security scan (Bandit)
         run: bandit -r app -c pyproject.toml -ll
 
-      - name: 🔍 Run dependency audit (pip-audit)
+      - name: Run dependency audit (pip-audit)
         run: pip-audit -r requirements.txt -r requirements-dev.txt --ignore-vuln CVE-2026-4539
 
-      - name: 🧪 Run tests with coverage
+      - name: Run tests with coverage
         run: |
-          cat > .env << EOF
+          cat > .env << EOF2
           ENVIRONMENT=test
           DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/soarup_test
           REDIS_URL=redis://localhost:6379/0
-          EOF
+          SUPABASE_URL=http://localhost:54321
+          SUPABASE_ANON_KEY=test-anon-key
+          SUPABASE_JWT_SECRET=test-jwt-secret
+          EOF2
           pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=80
 
-      - name: 📊 Upload coverage to Codecov
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
+        if: success()
         with:
           file: ./coverage.xml
           flags: backend
           name: backend-coverage
           fail_ci_if_error: false
-        if: success()
 
-  # ===== 🪟 BACKEND: Windows Compatibility Check =====
+  # ===== BACKEND: Windows Compatibility Check =====
   api-windows:
-    name: 🪟 Backend (Windows)
+    name: Backend (Windows)
     runs-on: windows-latest
-    needs: [setup]
     defaults:
       run:
-        working-directory: apps/api # ← Consistent with api-quality
+        working-directory: apps/api
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.12
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: 🧪 Run basic tests (Windows)
+      - name: Run basic tests (Windows)
+        # Fix 2: Removed continue-on-error — failures now block the merge
+        # If Windows compat is genuinely optional, document it explicitly
+        # rather than silently swallowing failures
         run: |
           echo ENVIRONMENT=test > .env
           pytest tests/ -v --tb=short -m "not slow"
-        continue-on-error: true
 
-  # ===== 🌐 FRONTEND: Quality + Tests =====
+  # ===== FRONTEND: Quality + Tests =====
   web-quality:
-    name: 🌐 Frontend Quality
+    name: Frontend Quality
     runs-on: ubuntu-latest
-    needs: [setup]
     defaults:
       run:
-        working-directory: apps/web # ← All frontend commands run from here
+        working-directory: apps/web
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 📦 Setup Node.js 20
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
           cache-dependency-path: apps/web/package-lock.json
 
-      - name: 📦 Install dependencies
-        run: npm ci # ← Relative path works because of working-directory
+      - name: Install dependencies
+        run: npm ci
 
-      - name: 🧹 Run ESLint
+      - name: Run ESLint
         run: npm run lint
 
-      - name: ✨ Run Prettier check
+      - name: Run Prettier check
         run: npm run format:check
 
-      - name: 🔎 Run TypeScript check
+      - name: Run TypeScript check
         run: npm run type-check
 
-      - name: 🧪 Run unit tests with coverage
+      - name: Run unit tests with coverage
         run: npm run test:coverage
 
-      - name: 📊 Upload coverage to Codecov
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
+        if: success()
         with:
           file: ./coverage/coverage-final.json
           flags: frontend
           name: frontend-coverage
           fail_ci_if_error: false
-        if: success()
 
-  # ===== 🔐 SECURITY: CodeQL + Dependency Review =====
+  # ===== SECURITY: CodeQL + Dependency Review =====
   security-scan:
-    name: 🔐 Security Scan
+    name: Security Scan
     runs-on: ubuntu-latest
-    needs: [setup]
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: [api-quality, web-quality]
+    # Fix 3: Added develop to the condition so security scan runs on
+    # feature branch → develop merges, not just PRs to main
+    if: >
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/develop'
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: 🔍 Dependency Review (PRs only)
+      - name: Dependency Review (PRs only)
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
           deny-licenses: GPL-3.0, AGPL-3.0
 
-      - name: 🐍 Setup Python for CodeQL
+      - name: Setup Python for CodeQL
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: 📦 Install backend deps for analysis
-        run: pip install -r apps/api/requirements.txt # ← Root path for security job
+      - name: Install backend deps for analysis
+        run: pip install -r apps/api/requirements.txt
 
-      - name: 🧪 Initialize CodeQL
+      - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: python, javascript
           queries: +security-and-quality
 
-      - name: 🔨 Autobuild
+      - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
-      - name: 📊 Perform CodeQL Analysis
+      - name: Perform CodeQL Analysis (Python)
         uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:python-javascript"
+        # Fix 4: Removed malformed category field — let CodeQL default it
+        # "/language:python-javascript" is not a valid category value
 
-  # ===== 🐳 DOCKER: Build Validation =====
+  # ===== DOCKER: Build Validation =====
   docker-build:
-    name: 🐳 Docker Build Check
+    name: Docker Build Check
     runs-on: ubuntu-latest
     needs: [api-quality, web-quality]
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    # Fix 5: Same condition fix as security-scan — include develop
+    if: >
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/develop'
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐳 Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🏗️ Build backend image (dry run)
+      - name: Build backend image (dry run)
         uses: docker/build-push-action@v5
         with:
-          context: apps/api # ← Context path, not working-directory
+          context: apps/api
           file: apps/api/Dockerfile
           load: true
           tags: soarup-api:ci-check
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: 🏗️ Build frontend image (dry run)
+      - name: Build frontend image (dry run)
         uses: docker/build-push-action@v5
         with:
           context: apps/web
@@ -249,28 +228,30 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ===== 📊 SUMMARY: Report Status =====
+  # ===== SUMMARY: Report Status =====
   summary:
-    name: 📋 CI Summary
+    name: CI Summary
     runs-on: ubuntu-latest
     needs: [api-quality, api-windows, web-quality, security-scan, docker-build]
-    if: always()
+    # Fix 6: !cancelled() ensures summary runs even when upstream jobs
+    # are skipped (e.g. security-scan skipped on non-PR/main/develop)
+    if: always() && !cancelled()
     steps:
-      - name: 📊 Report final status
+      - name: Report final status
         run: |
-          echo "## 🚀 SoarUp CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## SoarUp CI Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🐍 Backend (Linux) | ${{ needs.api-quality.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🪟 Backend (Windows) | ${{ needs.api-windows.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🌐 Frontend | ${{ needs.web-quality.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔐 Security | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🐳 Docker | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend (Linux) | ${{ needs.api-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend (Windows) | ${{ needs.api-windows.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.web-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ needs.api-quality.result }}" = "success" ] && \
              [ "${{ needs.web-quality.result }}" = "success" ]; then
-            echo "✅ **All critical checks passed!** Ready to merge." >> $GITHUB_STEP_SUMMARY
+            echo "All critical checks passed. Ready to merge." >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ Some checks failed. Review logs above." >> $GITHUB_STEP_SUMMARY
+            echo "Some checks failed. Review logs above." >> $GITHUB_STEP_SUMMARY
           fi
