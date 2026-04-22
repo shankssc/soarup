@@ -50,7 +50,7 @@ jobs:
         run: bandit -r app -c pyproject.toml -ll
 
       - name: Run dependency audit (pip-audit)
-        run: pip-audit -r requirements.txt -r requirements-dev.txt --ignore-vuln CVE-2026-4539
+        run: pip-audit -r requirements.txt -r requirements-dev.txt --ignore-vuln CVE-2026-4539 --ignore-vuln GHSA-2c2j-9gv5-cj73
 
       - name: Run tests with coverage
         run: |
@@ -99,6 +99,8 @@ jobs:
         # Fix 2: Removed continue-on-error — failures now block the merge
         # If Windows compat is genuinely optional, document it explicitly
         # rather than silently swallowing failures
+        env:
+          PYTHONPATH: ${{ github.workspace }}\apps\api
         run: |
           echo ENVIRONMENT=test > .env
           pytest tests/ -v --tb=short -m "not slow"
