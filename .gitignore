@@ -31,7 +31,7 @@ venv/
 ENV/
 env/
 *.log
-alembic.ini
+alembic/__pycache__/
 *.db
 sqlite.db
 
@@ -104,3 +104,12 @@ specs/*.draft.md
 !specs/
 !apps/
 !.github/
+
+*storybook.log
+
+# --- Supabase CLI files
+supabase/.env
+supabase/logs/
+supabase/storage/
+supabase/.temp/
+supabase/studio/dist/

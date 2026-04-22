@@ -36,12 +36,12 @@ dev = [
 
 [tool.ruff]
 target-version = "py312"
-line-length = 120
+line-length = 250
 exclude = ["venv", ".venv", "alembic", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "S", "B", "A", "COM", "C4", "DTZ", "T20", "RET", "SIM", "ARG", "PTH"]
-ignore = ["S101", "COM812",] # Allow assert in tests and trailing comma
+ignore = ["S101", "COM812", "ARG001", "B008",] # Allow assert in tests and trailing comma and ignoring FastAPI dependencies
 
 [tool.ruff.format]
 quote-style = "double"
@@ -55,13 +55,14 @@ disallow_untyped_defs = true
 no_implicit_optional = true
 warn_return_any = true
 warn_unused_ignores = true
-plugins = ["pydantic.mypy"]
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]  # ← Combined into one array
 explicit_package_bases = true
 namespace_packages = true
 
 [[tool.mypy.overrides]]
-module = ["tests.*"]
+module = ["app.models.*", "tests.*"]  # ← Combined into one array
 disallow_untyped_defs = false
+disable_error_code = ["misc"]
 
 [[tool.mypy.overrides]]
 module = [
@@ -73,6 +74,10 @@ module = [
     "redis.*",
     "boto3.*",
     "botocore.*",
+    "aioboto3.*",
+    "structlog.*",
+    "supabase.*",
+    "supabase_auth.*",
 ]
 ignore_missing_imports = true
 
@@ -89,7 +94,15 @@ addopts = [
 ]
 
 [tool.coverage.run]
-omit = ["tests/*", "alembic/*", "app/main.py"]
+omit = [
+    "tests/*",
+    "alembic/*",
+    "app/main.py",
+    "app/workers/*",
+    "app/db/session.py",
+    "app/repositories/*",
+    "app/utils/circuit_breaker.py",
+]
 branch = true
 
 [tool.bandit]

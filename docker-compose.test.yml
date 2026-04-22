@@ -1,0 +1,33 @@
+# docker-compose.test.yml
+# Only spins up services not covered by Supabase CLI local stack.
+# Prerequisite: `supabase start` must be running (provides Postgres on 54322 + GoTrue on 54321)
+# Usage: docker compose -f docker-compose.test.yml up -d
+name: soarup-test
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: soarup-test-redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
+
+  minio:
+    image: minio/minio:latest
+    container_name: soarup-test-minio
+    ports:
+      - "9001:9000"       # Avoid conflict with dev Minio on 9000
+      - "9002:9090"       # Console, avoid conflict with dev console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin # pragma: allowlist secret
+    command: server /data --console-address ":9090"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 3

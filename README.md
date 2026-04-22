@@ -41,6 +41,7 @@ All architecture, specs, and decisions live in [`/specs`](./specs/):
 - Python 3.12 (for local backend dev)
 - Node.js 20+ (for local frontend dev)
 - `make` (optional but recommended)
+- [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started) v1.x (`brew install supabase/tap/supabase` or see link)
 
 ### Quick Start
 
@@ -121,3 +122,77 @@ soarup/
 3. Ensure all checks pass: <kbd>make lint && make test</kbd>
 
 4. Open a PR against <kbd>develop</kbd>
+
+## 🧪 Running Tests
+
+### Prerequisites
+
+Tests require two services running locally before you invoke pytest:
+
+1. **Supabase local stack** (provides Postgres + GoTrue auth):
+
+```bash
+   supabase start
+```
+
+This spins up Postgres on port **54322** and the Auth server on **54321**.
+Run it once; it persists across terminal sessions until you call `supabase stop`.
+
+2. **Test Redis container**:
+
+```bash
+   docker compose -f docker-compose.test.yml up -d
+```
+
+This starts an isolated Redis instance on port **6380** (separate from dev Redis on 6379).
+
+### One-Time Test Database Setup
+
+The test suite uses a dedicated `soarup_test` database inside the Supabase local
+Postgres instance. Create it once after your first `supabase start`:
+
+```bash
+psql postgresql://postgres:postgres@localhost:54322/postgres \
+  -c "CREATE DATABASE soarup_test;"
+```
+
+Then apply migrations to it:
+
+```bash
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/soarup_test \
+  alembic upgrade head
+```
+
+Or via Make:
+
+```bash
+make migrate-test
+```
+
+### Running the Suite
+
+```bash
+make test          # Full suite (API + web)
+make test-api      # Backend (pytest) only
+make test-web      # Frontend (Vitest) only
+make test-cov      # Backend with HTML coverage report → htmlcov/
+```
+
+### CI vs Local
+
+| Concern    | Local                           | CI (GitHub Actions)          |
+| ---------- | ------------------------------- | ---------------------------- |
+| Postgres   | Supabase CLI local (port 54322) | `supabase/setup-cli` action  |
+| Redis      | docker-compose.test.yml         | `redis` service container    |
+| JWT secret | Supabase CLI default            | Secret injected via `env:`   |
+| Migrations | Run manually once               | Run as CI step before pytest |
+
+### Notes
+
+- `ENVIRONMENT=local` is set automatically by the test config — this skips JWT
+  issuer validation so tests don't need to match Supabase's exact `iss` claim.
+- The Supabase CLI default JWT secret is:
+  `super-secret-jwt-token-with-at-least-32-characters-long`
+  This is intentional for local dev. Never use it in staging or production.
+- Each test runs in a nested transaction (SAVEPOINT) that is always rolled back —
+  no test data persists between runs.
