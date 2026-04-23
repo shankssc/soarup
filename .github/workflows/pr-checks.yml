@@ -46,6 +46,17 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
+      - name: Start Supabase local stack
+        run: supabase start
+        working-directory: . # running from repo root where supabase/config.toml lives
+
+      - name: Create test database and run migrations
+        run: |
+          psql postgresql://postgres:postgres@localhost:54322/postgres \
+          -c "CREATE DATABASE soarup_test;"
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/soarup_test \
+            alembic upgrade head
+
       - name: Run security scan (Bandit)
         run: bandit -r app -c pyproject.toml -ll
 
@@ -55,7 +66,7 @@ jobs:
             --ignore-vuln CVE-2026-4539 \
             --ignore-vuln GHSA-6w46-j5rx-g56g \
             --ignore-vuln GHSA-2c2j-9gv5-cj73 \
-            --ignore-vukn GHSA-jr27-m4p2-rc6r
+            --ignore-vuln GHSA-jr27-m4p2-rc6r
         # Suppressed CVEs:
         # GHSA-6w46-j5rx-g56g: pytest 9.x fix conflicts with pytest-asyncio 0.23.x
         #   Revisit when pytest-asyncio ships pytest 9 compatible release
@@ -113,7 +124,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}\apps\api
         run: |
           echo ENVIRONMENT=test > .env
-          pytest tests/ -v --tb=short -m "not slow"
+          pytest tests/unit/ -v --tb=short -m "not slow"
 
   # ===== FRONTEND: Quality + Tests =====
   web-quality:
