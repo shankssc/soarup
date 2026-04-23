@@ -46,9 +46,14 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
       - name: Start Supabase local stack
         run: supabase start
-        working-directory: . # running from repo root where supabase/config.toml lives
+        working-directory: ${{ github.workspace }} # running from repo root where supabase/config.toml lives
 
       - name: Create test database and run migrations
         run: |
@@ -124,7 +129,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}\apps\api
         run: |
           echo ENVIRONMENT=test > .env
-          pytest tests/unit/ -v --tb=short -m "not slow"
+          pytest tests/unit/ -v --tb=short --no-cov
 
   # ===== FRONTEND: Quality + Tests =====
   web-quality:
