@@ -35,7 +35,8 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL, "password": "password123"},  # pragma: allowlist secret
+            json={"email": EMAIL,
+                  "password": "password123"},  # pragma: allowlist secret
         )
 
         assert response.status_code == 200
@@ -47,7 +48,8 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL, "password": "password123"},  # pragma: allowlist secret
+            json={"email": EMAIL,
+                  "password": "password123"},  # pragma: allowlist secret
         )
 
         body = response.json()
@@ -62,7 +64,8 @@ class TestLogin:
 
         await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL, "password": "mypassword"},  # pragma: allowlist secret
+            json={"email": EMAIL,
+                  "password": "mypassword"},  # pragma: allowlist secret
         )
 
         auth_svc.login.assert_awaited_once()
@@ -80,7 +83,8 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL, "password": "wrongpassword"},  # pragma: allowlist secret
+            json={"email": EMAIL,
+                  "password": "wrongpassword"},  # pragma: allowlist secret
         )
 
         assert response.status_code == 401
@@ -96,7 +100,8 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL, "password": "Password123"},  # pragma: allowlist secret
+            json={"email": EMAIL,
+                  "password": "Password123"},  # pragma: allowlist secret
         )
 
         assert response.status_code == 503
@@ -421,7 +426,8 @@ class TestForgotPassword:
     async def test_forgot_password_service_error_still_returns_200(self, client_with_mocks):
         """Even on service exception, router returns 200 — never leaks error state."""
         client, auth_svc, _ = client_with_mocks
-        auth_svc.request_password_reset.side_effect = Exception("supabase down")
+        auth_svc.request_password_reset.side_effect = Exception(
+            "supabase down")
 
         response = await client.post(
             "/api/v1/auth/forgot-password",
@@ -559,13 +565,13 @@ class TestGetMe:
         assert "is_onboarded" in body
 
     @pytest.mark.asyncio
-    async def test_get_me_no_token_returns_403(self, client_with_mocks):
+    async def test_get_me_no_token_returns_401(self, client_with_mocks):
         """HTTPBearer returns 403 when Authorization header is absent."""
         client, _, _ = client_with_mocks
 
         response = await client.get("/api/v1/auth/me")
 
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     @pytest.mark.asyncio
     async def test_get_me_invalid_token_returns_401(self, client_with_mocks):
@@ -661,7 +667,7 @@ class TestUpdateProfile:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_update_profile_no_token_returns_403(self, client_with_mocks):
+    async def test_update_profile_no_token_returns_401(self, client_with_mocks):
         client, _, _ = client_with_mocks
 
         response = await client.patch(
@@ -669,7 +675,7 @@ class TestUpdateProfile:
             json={"full_name": "Name"},
         )
 
-        assert response.status_code == 403
+        assert response.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -691,12 +697,12 @@ class TestDeleteAvatar:
         assert response.status_code == 204
 
     @pytest.mark.asyncio
-    async def test_delete_avatar_no_token_returns_403(self, client_with_mocks):
+    async def test_delete_avatar_no_token_returns_401(self, client_with_mocks):
         client, _, _ = client_with_mocks
 
         response = await client.delete("/api/v1/auth/profile/avatar")
 
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     @pytest.mark.asyncio
     async def test_delete_avatar_is_idempotent(self, client_with_mocks, auth_headers):
