@@ -4,9 +4,9 @@
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface Timezone {
-  value: string;   // IANA string e.g. "America/New_York"
-  label: string;   // Display label e.g. "New York"
-  region: string;  // Group label e.g. "Americas"
+  value: string; // IANA string e.g. "America/New_York"
+  label: string; // Display label e.g. "New York"
+  region: string; // Group label e.g. "Americas"
 }
 
 export interface TimezoneGroup {
@@ -19,7 +19,11 @@ export interface TimezoneGroup {
 export const TIMEZONES: Timezone[] = [
   // Americas
   { value: 'America/Anchorage', label: 'Anchorage', region: 'Americas' },
-  { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires', region: 'Americas' },
+  {
+    value: 'America/Argentina/Buenos_Aires',
+    label: 'Buenos Aires',
+    region: 'Americas',
+  },
   { value: 'America/Bogota', label: 'Bogota', region: 'Americas' },
   { value: 'America/Caracas', label: 'Caracas', region: 'Americas' },
   { value: 'America/Chicago', label: 'Chicago', region: 'Americas' },
@@ -37,7 +41,7 @@ export const TIMEZONES: Timezone[] = [
   { value: 'America/Puerto_Rico', label: 'Puerto Rico', region: 'Americas' },
   { value: 'America/Santiago', label: 'Santiago', region: 'Americas' },
   { value: 'America/Sao_Paulo', label: 'São Paulo', region: 'Americas' },
-  { value: 'America/St_Johns', label: 'St. John\'s', region: 'Americas' },
+  { value: 'America/St_Johns', label: "St. John's", region: 'Americas' },
   { value: 'America/Toronto', label: 'Toronto', region: 'Americas' },
   { value: 'America/Vancouver', label: 'Vancouver', region: 'Americas' },
   { value: 'Pacific/Honolulu', label: 'Honolulu', region: 'Americas' },

@@ -1,8 +1,8 @@
 'use client';
 
-// apps/web/src/app/onboarding/page.tsx
-// Session guard + onboarding form page.
-// Redirects to /login if unauthenticated, /dashboard if already onboarded.
+// apps/web/src/app/(auth)/onboarding/page.tsx
+// Session guard + onboarding form.
+// AuthLayout provides header, background, dot-grid, footer.
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
@@ -27,7 +27,7 @@ export default function OnboardingPage() {
     }
   }, [isAuthenticated, needsOnboarding, isLoading, router]);
 
-  // While auth state is resolving, show nothing (avoids flash)
+  // Render nothing while auth resolves or redirect is pending
   if (isLoading || !isAuthenticated || !needsOnboarding) {
     return null;
   }

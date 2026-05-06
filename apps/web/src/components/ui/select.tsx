@@ -27,27 +27,22 @@ export const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={[
-      // Layout
       'flex w-full items-center justify-between',
       'bg-transparent px-0 py-2',
       // Bottom-border only — Electric Atelier input style
-      'border-0 border-b border-[var(--color-border-default)]',
-      // Typography
-      'font-[Space_Grotesk] text-[15px] text-[var(--color-text-primary)]',
-      // Placeholder
-      'data-[placeholder]:text-[var(--color-text-muted)]',
-      // Focus — cyan underline, no ring
-      'focus:outline-none focus:border-[var(--color-cyan)]',
-      'transition-colors duration-150',
-      // Sharp corners
-      'rounded-none',
+      'border-0 border-b border-outline-variant',
+      'font-label text-[15px] text-on-surface',
+      'data-[placeholder]:text-on-surface-variant',
+      // Focus — primary (cyan) underline, no ring
+      'focus:border-primary focus:outline-none',
+      'rounded-none transition-colors duration-150',
       className,
     ].join(' ')}
     {...props}
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDownIcon className="h-4 w-4 text-[var(--color-text-muted)] shrink-0" />
+      <ChevronDownIcon className="h-4 w-4 shrink-0 text-on-surface-variant" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -81,15 +76,10 @@ export const SelectContent = React.forwardRef<
       <SelectPrimitive.Content
         ref={ref}
         className={[
-          // Background + border — Electric Atelier surface
-          'bg-[var(--color-surface-high)] border border-[var(--color-border-default)]',
-          // Sharp corners
+          'border border-outline-variant bg-surface-high',
           'rounded-none',
-          // Sizing
-          'w-[var(--radix-select-trigger-width)] max-h-[280px]',
-          // Elevation — no shadow per design rules
+          'max-h-[280px] w-[var(--radix-select-trigger-width)]',
           'z-50 overflow-hidden',
-          // Animation
           'data-[state=open]:animate-in data-[state=closed]:animate-out',
           'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
           'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -104,24 +94,23 @@ export const SelectContent = React.forwardRef<
       >
         {/* Optional search input at top of dropdown */}
         {searchable && (
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-border-default)]">
-            <SearchIcon className="h-3.5 w-3.5 text-[var(--color-text-muted)] shrink-0" />
+          <div className="flex items-center gap-2 border-b border-outline-variant px-3 py-2">
+            <SearchIcon className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
             <input
               autoFocus
               className={[
-                'flex-1 bg-transparent text-[13px] font-[Space_Grotesk]',
-                'text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]',
+                'flex-1 bg-transparent font-label text-[13px]',
+                'text-on-surface placeholder:text-on-surface-variant',
                 'border-none outline-none',
               ].join(' ')}
               placeholder={searchPlaceholder}
               value={searchValue}
               onChange={(e) => onSearchChange?.(e.target.value)}
-              // Prevent Radix from capturing keystrokes meant for the search input
               onKeyDown={(e) => e.stopPropagation()}
             />
           </div>
         )}
-        <SelectPrimitive.Viewport className="overflow-y-auto max-h-[230px] p-1">
+        <SelectPrimitive.Viewport className="max-h-[230px] overflow-y-auto p-1">
           {children}
         </SelectPrimitive.Viewport>
       </SelectPrimitive.Content>
@@ -140,8 +129,8 @@ export const SelectLabel = React.forwardRef<
     ref={ref}
     className={[
       'px-3 py-1.5',
-      'font-[Space_Grotesk] text-[10px] font-medium tracking-[0.08em] uppercase',
-      'text-[var(--color-text-muted)]',
+      'font-label text-[10px] font-medium uppercase tracking-[0.08em]',
+      'text-on-surface-variant',
       className,
     ].join(' ')}
     {...props}
@@ -159,14 +148,12 @@ export const SelectItem = React.forwardRef<
     ref={ref}
     className={[
       'relative flex w-full cursor-pointer select-none items-center',
-      'px-3 py-2 rounded-none',
-      'font-[Space_Grotesk] text-[14px] text-[var(--color-text-primary)]',
-      // Hover / focus state
+      'rounded-none px-3 py-2',
+      'font-label text-[14px] text-on-surface',
       'outline-none',
-      'hover:bg-[var(--color-surface-highest)] focus:bg-[var(--color-surface-highest)]',
-      // Selected state — cyan text
-      'data-[state=checked]:text-[var(--color-cyan)]',
-      // Disabled
+      'hover:bg-surface-highest focus:bg-surface-highest',
+      // Selected — primary (cyan) text
+      'data-[state=checked]:text-primary',
       'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
     ].join(' ')}
@@ -185,7 +172,7 @@ export const SelectSeparator = React.forwardRef<
 >(({ className = '', ...props }, ref) => (
   <SelectPrimitive.Separator
     ref={ref}
-    className={['h-px bg-[var(--color-border-default)] my-1', className].join(' ')}
+    className={['my-1 h-px bg-outline-variant', className].join(' ')}
     {...props}
   />
 ));
@@ -244,31 +231,24 @@ export function SelectField({
   };
 
   return (
-    <div className="flex flex-col gap-[4px]">
+    <div className="flex flex-col gap-1">
       {/* Label */}
       <span
         className={[
-          'font-[Space_Grotesk] text-[10px] font-medium tracking-[0.08em] uppercase',
-          error
-            ? 'text-[var(--color-error)]'
-            : 'text-[var(--color-text-primary)]',
+          'font-label text-[10px] font-medium uppercase tracking-[0.08em]',
+          error ? 'text-error' : 'text-on-surface',
         ].join(' ')}
       >
         {label}
       </span>
 
-      {/* Select */}
       <Select
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
         onOpenChange={handleOpenChange}
       >
-        <SelectTrigger
-          className={
-            error ? 'border-[var(--color-error)]' : ''
-          }
-        >
+        <SelectTrigger className={error ? 'border-error' : ''}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
 
@@ -279,7 +259,7 @@ export function SelectField({
           onSearchChange={setSearch}
         >
           {filteredGroups.length === 0 ? (
-            <div className="px-3 py-4 text-center font-[Space_Grotesk] text-[13px] text-[var(--color-text-muted)]">
+            <div className="px-3 py-4 text-center font-label text-[13px] text-on-surface-variant">
               No results found
             </div>
           ) : (
@@ -298,12 +278,7 @@ export function SelectField({
         </SelectContent>
       </Select>
 
-      {/* Error message */}
-      {error && (
-        <span className="font-[Space_Grotesk] text-[12px] text-[var(--color-error)]">
-          {error}
-        </span>
-      )}
+      {error && <span className="font-label text-[12px] text-error">{error}</span>}
     </div>
   );
 }

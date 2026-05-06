@@ -3,20 +3,20 @@
 // apps/web/src/components/domain/auth/onboarding-form.tsx
 // Two-step onboarding form: Step 1 — profile, Step 2 — workspace.
 // Wired to PATCH /auth/profile and POST /workspaces/.
+//
+// This component renders card content only — no page chrome.
+// Page chrome (header, background, footer) is provided by AuthLayout
+// via src/app/(auth)/onboarding/page.tsx.
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { SelectField } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
-import {
-  detectBrowserTimezone,
-  getGroupedTimezones,
-} from '@/lib/utils/timezones';
+import { detectBrowserTimezone, getGroupedTimezones } from '@/lib/utils/timezones';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1';
 
 const TIMEZONE_GROUPS = getGroupedTimezones().map((g) => ({
   label: g.region,
@@ -71,7 +71,6 @@ async function patchProfile(
     },
     body: JSON.stringify(data),
   });
-
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(
@@ -93,7 +92,6 @@ async function createWorkspace(
     },
     body: JSON.stringify({ name, slug }),
   });
-
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const code = (err as { error?: string }).error ?? '';
@@ -110,10 +108,7 @@ async function createWorkspace(
   }
 }
 
-async function joinWorkspace(
-  accessToken: string,
-  inviteCode: string,
-): Promise<void> {
+async function joinWorkspace(accessToken: string, inviteCode: string): Promise<void> {
   const res = await fetch(`${API_BASE}/workspaces/join`, {
     method: 'POST',
     headers: {
@@ -122,12 +117,10 @@ async function joinWorkspace(
     },
     body: JSON.stringify({ invite_code: inviteCode }),
   });
-
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(
-      (err as { message?: string }).message ??
-        'Invite code is invalid or has expired.',
+      (err as { message?: string }).message ?? 'Invite code is invalid or has expired.',
     );
   }
 }
@@ -136,28 +129,24 @@ async function joinWorkspace(
 
 function ProgressBar({ step }: { step: Step }) {
   return (
-    <div className="flex items-center gap-4 mb-8">
-      <div className="flex-1 flex gap-1 h-[3px]">
-        {/* Segment 1 — always filled */}
-        <div className="flex-1 bg-[var(--color-cyan)]" />
-        {/* Segment 2 — filled on step 2 */}
+    <div className="mb-8 flex items-center gap-4">
+      <div className="flex h-[3px] flex-1 gap-1">
+        <div className="flex-1 bg-primary" />
         <div
           className={[
             'flex-1 transition-colors duration-300',
-            step === 2
-              ? 'bg-[var(--color-cyan)]'
-              : 'bg-[var(--color-border-default)]',
+            step === 2 ? 'bg-primary' : 'bg-outline-variant',
           ].join(' ')}
         />
       </div>
-      <span className="font-[Space_Grotesk] text-[12px] text-[var(--color-text-muted)] shrink-0">
+      <span className="shrink-0 font-label text-[12px] text-on-surface-variant">
         {step} / 2
       </span>
     </div>
   );
 }
 
-// ─── Input field (bottom-border only) ─────────────────────────────────────────
+// ─── Input field ──────────────────────────────────────────────────────────────
 
 interface InputFieldProps {
   label: string;
@@ -181,14 +170,12 @@ function InputField({
   id,
 }: InputFieldProps) {
   return (
-    <div className="flex flex-col gap-[4px]">
+    <div className="flex flex-col gap-1">
       <label
         htmlFor={id}
         className={[
-          'font-[Space_Grotesk] text-[10px] font-medium tracking-[0.08em] uppercase',
-          error
-            ? 'text-[var(--color-error)]'
-            : 'text-[var(--color-text-primary)]',
+          'font-label text-[10px] font-medium uppercase tracking-[0.08em]',
+          error ? 'text-error' : 'text-on-surface',
         ].join(' ')}
       >
         {label}
@@ -203,26 +190,19 @@ function InputField({
         className={[
           'w-full bg-transparent px-0 py-2',
           'border-0 border-b',
-          error
-            ? 'border-[var(--color-error)]'
-            : 'border-[var(--color-border-default)]',
-          'font-[Space_Grotesk] text-[15px] text-[var(--color-text-primary)]',
-          'placeholder:text-[var(--color-text-muted)]',
-          // Cyan underline on focus
-          'focus:outline-none focus:border-[var(--color-cyan)]',
-          'transition-colors duration-150 rounded-none',
+          error ? 'border-error' : 'border-outline-variant',
+          'font-body text-[15px] text-on-surface',
+          'placeholder:text-on-surface-variant',
+          'focus:border-primary focus:outline-none',
+          'rounded-none transition-colors duration-150',
         ].join(' ')}
       />
       {hint && (
-        <span className="font-[Space_Grotesk] text-[13px] text-[var(--color-text-muted)] mt-[2px]">
+        <span className="mt-0.5 font-label text-[13px] text-on-surface-variant">
           {hint}
         </span>
       )}
-      {error && (
-        <span className="font-[Space_Grotesk] text-[12px] text-[var(--color-error)]">
-          {error}
-        </span>
-      )}
+      {error && <span className="font-label text-[12px] text-error">{error}</span>}
     </div>
   );
 }
@@ -249,20 +229,15 @@ function CtaButton({
       onClick={onClick}
       disabled={isLoading}
       className={[
-        'w-full h-12 px-6',
+        'h-12 w-full px-6',
         'flex items-center justify-between',
-        'font-[Space_Grotesk] text-[14px] font-bold tracking-[0.06em] uppercase',
-        // Asymmetric radius — Electric Atelier CTA
-        'rounded-tl-[1.5rem] rounded-br-[1.5rem] rounded-tr-[0.5rem] rounded-bl-[0.5rem]',
+        'font-label text-[14px] font-bold uppercase tracking-[0.06em]',
+        'asymmetric-btn',
         isPrimary
-          ? [
-              'bg-[var(--color-cyan)] text-[#0e0e10]',
-              'shadow-[0_0_16px_rgba(83,221,252,0.25)]',
-              'hover:shadow-[0_0_24px_rgba(83,221,252,0.4)]',
-            ].join(' ')
-          : 'bg-[var(--color-magenta)] text-[#0e0e10]',
+          ? 'bg-primary text-primary-on shadow-electric-sm hover:shadow-electric'
+          : 'bg-secondary text-secondary-on',
         'transition-all duration-150',
-        'disabled:opacity-60 disabled:cursor-not-allowed',
+        'disabled:cursor-not-allowed disabled:opacity-60',
       ].join(' ')}
     >
       <span>{isLoading ? 'Please wait...' : label}</span>
@@ -295,9 +270,7 @@ interface StepOneProps {
 
 function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
   const [displayName, setDisplayName] = React.useState(initialDisplayName);
-  const [timezone, setTimezone] = React.useState(
-    () => detectBrowserTimezone().value,
-  );
+  const [timezone, setTimezone] = React.useState(() => detectBrowserTimezone().value);
   const [errors, setErrors] = React.useState<StepOneErrors>({});
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -314,23 +287,21 @@ function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
   function handleContinue() {
     if (!validate()) return;
     setIsLoading(true);
-    // Validation passed — hand off to parent which calls the API
     onComplete({ displayName: displayName.trim(), timezone });
     setIsLoading(false);
   }
 
   return (
     <div>
-      {/* Titles */}
-      <p className="font-[Space_Grotesk] text-[10px] font-medium tracking-[0.08em] uppercase text-[var(--color-text-muted)] mb-1">
+      {/* Subtitle + title — matches auth page heading pattern */}
+      <p className="mb-1 font-label text-[10px] font-medium uppercase tracking-[0.08em] text-outline">
         TELL US A BIT ABOUT YOURSELF
       </p>
-      <h1 className="font-[Newsreader] italic text-[36px] leading-[1.1] text-[var(--color-text-primary)] mb-8">
+      <h1 className="mb-8 font-headline text-4xl italic leading-tight text-on-surface md:text-5xl">
         Set up your profile
       </h1>
 
-      {/* Fields */}
-      <div className="flex flex-col gap-8 mb-10">
+      <div className="mb-10 flex flex-col gap-8">
         <InputField
           id="display-name"
           label="Display Name"
@@ -353,11 +324,7 @@ function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
         />
       </div>
 
-      <CtaButton
-        label="Continue"
-        onClick={handleContinue}
-        isLoading={isLoading}
-      />
+      <CtaButton label="Continue" onClick={handleContinue} isLoading={isLoading} />
     </div>
   );
 }
@@ -371,19 +338,13 @@ interface StepTwoProps {
 
 function StepTwo({ onComplete, accessToken }: StepTwoProps) {
   const [path, setPath] = React.useState<WorkspacePath>('create');
-
-  // Create path
   const [workspaceName, setWorkspaceName] = React.useState('');
   const [slug, setSlug] = React.useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = React.useState(false);
-
-  // Join path
   const [inviteCode, setInviteCode] = React.useState('');
-
   const [errors, setErrors] = React.useState<StepTwoErrors>({});
   const [isLoading, setIsLoading] = React.useState(false);
 
-  // Auto-generate slug from workspace name unless manually edited
   React.useEffect(() => {
     if (!slugManuallyEdited) {
       setSlug(toSlug(workspaceName));
@@ -391,7 +352,6 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
   }, [workspaceName, slugManuallyEdited]);
 
   function handleSlugChange(value: string) {
-    // Only allow valid slug characters as the user types
     const sanitized = value
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '')
@@ -446,15 +406,12 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
       await joinWorkspace(accessToken, inviteCode.trim());
       onComplete();
     } catch (err) {
-      setErrors({
-        inviteCode: (err as Error).message,
-      });
+      setErrors({ inviteCode: (err as Error).message });
     } finally {
       setIsLoading(false);
     }
   }
 
-  // Reset errors and form when switching paths
   function switchPath(next: WorkspacePath) {
     setPath(next);
     setErrors({});
@@ -462,16 +419,15 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
 
   return (
     <div>
-      {/* Titles */}
-      <p className="font-[Space_Grotesk] text-[10px] font-medium tracking-[0.08em] uppercase text-[var(--color-text-muted)] mb-1">
+      <p className="mb-1 font-label text-[10px] font-medium uppercase tracking-[0.08em] text-outline">
         WHERE YOUR TEAM&apos;S UPDATES WILL LIVE
       </p>
-      <h1 className="font-[Newsreader] italic text-[36px] leading-[1.1] text-[var(--color-text-primary)] mb-6">
+      <h1 className="mb-6 font-headline text-4xl italic leading-tight text-on-surface md:text-5xl">
         Create your workspace
       </h1>
 
       {/* Segmented toggle */}
-      <div className="flex rounded-full border border-[var(--color-border-default)] p-[3px] mb-8">
+      <div className="mb-8 flex rounded-full border border-outline-variant p-[3px]">
         {(
           [
             { value: 'create', label: 'Create workspace' },
@@ -483,12 +439,12 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
             type="button"
             onClick={() => switchPath(option.value)}
             className={[
-              'flex-1 py-2 px-4 rounded-full',
-              'font-[Space_Grotesk] text-[12px] font-medium tracking-[0.04em]',
+              'flex-1 rounded-full px-4 py-2',
+              'font-label text-[12px] font-medium tracking-[0.04em]',
               'transition-colors duration-150',
               path === option.value
-                ? 'bg-[var(--color-cyan)] text-[#0e0e10]'
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
+                ? 'bg-primary text-primary-on'
+                : 'text-on-surface-variant hover:text-on-surface',
             ].join(' ')}
           >
             {option.label}
@@ -496,16 +452,12 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
         ))}
       </div>
 
-      {/* General error */}
       {errors.general && (
-        <p className="font-[Space_Grotesk] text-[13px] text-[var(--color-error)] mb-4">
-          {errors.general}
-        </p>
+        <p className="mb-4 font-label text-[13px] text-error">{errors.general}</p>
       )}
 
-      {/* Create path */}
       {path === 'create' && (
-        <div className="flex flex-col gap-8 mb-10">
+        <div className="mb-10 flex flex-col gap-8">
           <InputField
             id="workspace-name"
             label="Workspace Name"
@@ -515,7 +467,6 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
             error={errors.name}
             autoFocus
           />
-
           <InputField
             id="workspace-slug"
             label="Workspace Slug"
@@ -526,10 +477,8 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
             hint={
               slug ? (
                 <>
-                  <span className="text-[var(--color-text-muted)]">
-                    soarup.app/join/
-                  </span>
-                  <span className="text-[var(--color-cyan)]">{slug}</span>
+                  <span className="text-on-surface-variant">soarup.app/join/</span>
+                  <span className="text-primary">{slug}</span>
                 </>
               ) : null
             }
@@ -537,9 +486,8 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
         </div>
       )}
 
-      {/* Join path */}
       {path === 'join' && (
-        <div className="flex flex-col gap-8 mb-10">
+        <div className="mb-10 flex flex-col gap-8">
           <InputField
             id="invite-code"
             label="Invite Code"
@@ -563,6 +511,7 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
 }
 
 // ─── Main onboarding form ─────────────────────────────────────────────────────
+// Renders card content only — AuthLayout provides the page chrome.
 
 export function OnboardingForm() {
   const router = useRouter();
@@ -572,8 +521,6 @@ export function OnboardingForm() {
   const [step1Error, setStep1Error] = React.useState<string | null>(null);
 
   const accessToken = tokens?.access_token ?? '';
-
-  // Pre-fill display name from OAuth or previous signup
   const initialDisplayName = user?.full_name ?? '';
 
   async function handleStep1Complete(fields: StepOneFields) {
@@ -584,8 +531,6 @@ export function OnboardingForm() {
         full_name: fields.displayName,
         timezone: fields.timezone,
       });
-      // Optimistically update the Zustand store so the name is reflected
-      // immediately if the user navigates back or the token is refreshed
       if (user) {
         setUser({ ...user, full_name: fields.displayName });
       }
@@ -600,8 +545,6 @@ export function OnboardingForm() {
   }
 
   function handleStep2Complete() {
-    // Mark user as onboarded in the Zustand store.
-    // The backend already set is_onboarded = true via create_workspace.
     if (user) {
       setUser({ ...user, is_onboarded: true });
     }
@@ -609,52 +552,27 @@ export function OnboardingForm() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-8 py-6">
-        <span className="font-[Space_Grotesk] text-[16px] font-bold tracking-tight uppercase text-[var(--color-text-primary)]">
-          SoarUp
-        </span>
-        {/* Theme toggle placeholder — wired to your existing ThemeToggle component */}
-        <div className="border border-[var(--color-border-default)] px-3 py-1 rounded-full">
-          <span className="font-[Space_Grotesk] text-[12px] text-[var(--color-text-muted)]">
-            ◐
-          </span>
-        </div>
-      </header>
+    <div className="space-y-8">
+      <ProgressBar step={step} />
 
-      {/* Centered card */}
-      <main className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-[512px] bg-[var(--color-surface)] border border-[var(--color-border-default)] p-8">
-          <ProgressBar step={step} />
-
-          {step === 1 && (
-            <>
-              <StepOne
-                onComplete={handleStep1Complete}
-                initialDisplayName={initialDisplayName}
-              />
-              {step1Error && (
-                <p className="mt-4 font-[Space_Grotesk] text-[13px] text-[var(--color-error)]">
-                  {step1Error}
-                </p>
-              )}
-              {isSubmittingStep1 && (
-                <p className="mt-2 font-[Space_Grotesk] text-[13px] text-[var(--color-text-muted)]">
-                  Saving...
-                </p>
-              )}
-            </>
+      {step === 1 && (
+        <>
+          <StepOne
+            onComplete={handleStep1Complete}
+            initialDisplayName={initialDisplayName}
+          />
+          {step1Error && (
+            <p className="font-label text-[13px] text-error">{step1Error}</p>
           )}
-
-          {step === 2 && (
-            <StepTwo
-              onComplete={handleStep2Complete}
-              accessToken={accessToken}
-            />
+          {isSubmittingStep1 && (
+            <p className="font-label text-[13px] text-on-surface-variant">Saving...</p>
           )}
-        </div>
-      </main>
+        </>
+      )}
+
+      {step === 2 && (
+        <StepTwo onComplete={handleStep2Complete} accessToken={accessToken} />
+      )}
     </div>
   );
 }
