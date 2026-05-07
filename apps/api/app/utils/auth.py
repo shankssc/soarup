@@ -14,11 +14,6 @@ from app.config import settings
 security = HTTPBearer()
 logger = structlog.get_logger(__name__)
 
-# Supabase local uses HS256 (symmetric, signed with SUPABASE_JWT_SECRET).
-# Supabase cloud uses RS256 (asymmetric, verified via JWKS endpoint).
-# We detect which to use based on environment.
-_LOCAL_ENVS = {"local", "test"}
-
 
 @lru_cache(maxsize=1)
 def get_jwks_client() -> PyJWKClient:
@@ -32,25 +27,46 @@ def get_jwks_client() -> PyJWKClient:
         Results are cached using @lru_cache to avoid repeated network calls.
         Call get_jwks_client.cache_clear() to refresh the cache (e.g., on key rotation).
     """
-    jwks_uri = f"{settings.supabase_url}/auth/v1/jwks"
+    jwks_uri = f"{settings.supabase_url}/auth/v1/.well-known/jwks.json"
     return PyJWKClient(jwks_uri)
 
 
-def _is_local() -> bool:
-    return settings.environment in _LOCAL_ENVS
+def _get_token_algorithm(token: str) -> str | Any:
+    """
+    Peek at the JWT header to determine which algorithm was used.
+    Returns the alg claim without verifying the signature.
+    Falls back to 'RS256' if the header can't be decoded.
+    """
+    try:
+        header = jwt.get_unverified_header(token)
+        return header.get("alg", "RS256")
+    except Exception:
+        return "RS256"
 
 
 async def validate_supabase_jwt(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict[str, Any]:
+    """
+    Validate a Supabase-issued JWT and return the decoded payload.
+
+    Strategy:
+    - Peek at the token header to determine the algorithm (alg claim).
+    - ES256 / RS256: use JWKS endpoint for key lookup (works locally and in production).
+    - HS256: use symmetric secret from settings (legacy local Supabase CLI < v1.50).
+    - On JWKS key fetch failure, clear the cache and retry once (handles key rotation).
+
+    Raises HTTP 401 for any validation failure.
+    """
     token = credentials.credentials
+    alg = _get_token_algorithm(token)
 
     try:
-        if _is_local():
-            # HS256 path — local and test environments.
-            # Verify directly against the JWT secret; no JWKS network call needed.
+        if alg == "HS256":
+            # Legacy path — old Supabase CLI versions used symmetric HS256.
             secret = settings.supabase_jwt_secret
             if secret is None:
+                logger.error("supabase_jwt_secret_not_configured")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid or expired token",
@@ -64,15 +80,16 @@ async def validate_supabase_jwt(
                 options={
                     "verify_exp": True,
                     "verify_aud": True,
-                    "verify_iss": False,  # always skip iss in local/test
+                    "verify_iss": False,
                 },
             )
         else:
-            # RS256 path — staging and production.
-            # Fetch signing key from JWKS with rotation retry.
+            # ES256 / RS256 path — current Supabase CLI and all production instances.
+            # JWKS endpoint is available on both local and cloud Supabase.
             try:
                 signing_key = get_jwks_client().get_signing_key_from_jwt(token)
             except PyJWKError:
+                # Key may have rotated — clear cache and retry once
                 get_jwks_client.cache_clear()
                 try:
                     signing_key = get_jwks_client().get_signing_key_from_jwt(token)
@@ -84,17 +101,49 @@ async def validate_supabase_jwt(
                         headers={"WWW-Authenticate": "Bearer"},
                     ) from e
 
-            payload = jwt.decode(
-                token,
-                signing_key.key,
-                algorithms=["RS256"],
-                audience=getattr(settings, "supabase_jwt_aud", "authenticated"),
-                issuer=settings.supabase_url,
-                options={"verify_exp": True, "verify_aud": True, "verify_iss": True},
-            )
+            # For local Supabase CLI, skip issuer verification because the
+            # issuer in the token (http://127.0.0.1:54321/auth/v1) may not
+            # match settings.supabase_url if Docker networking uses a
+            # different hostname (e.g. http://supabase_auth:9999).
+            verify_iss = settings.environment not in {"local", "test"}
+
+            if verify_iss:
+                # With issuer verification
+                payload = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=[alg],
+                    audience=getattr(settings, "supabase_jwt_aud", "authenticated"),
+                    issuer=str(settings.supabase_url),  # ← Explicit argument
+                    options={
+                        "verify_exp": True,
+                        "verify_aud": True,
+                        "verify_iss": verify_iss,
+                    },
+                )
+            else:
+                # Without issuer verification (local/test environments)
+                payload = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=[alg],
+                    audience=getattr(settings, "supabase_jwt_aud", "authenticated"),
+                    options={
+                        "verify_exp": True,
+                        "verify_aud": True,
+                        "verify_iss": verify_iss,
+                    },
+                )
 
         return payload  # noqa: RET504
 
+    except jwt.ExpiredSignatureError as e:
+        logger.info("jwt_expired", token_prefix=token[:20])
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
     except jwt.PyJWTError as e:
         logger.warning("jwt_decode_failed", reason=type(e).__name__, error=str(e))
         raise HTTPException(
