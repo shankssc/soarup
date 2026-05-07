@@ -90,12 +90,28 @@ async function apiPost<T>(
   }
 
   if (!res.ok) {
-    let envelope: ApiErrorEnvelope;
+    let envelope: ApiErrorEnvelope & { detail?: string };
     try {
       envelope = await res.json();
     } catch {
       throw new Error(friendlyError('internal_error'));
     }
+    // ── Onboarding gate intercept ──────────────────────────────────────────
+    // OnboardedDep returns HTTP 403 with FastAPI's default detail field.
+    // We check the exact string to avoid swallowing legitimate 403s.
+
+    if (
+      res.status === 403 &&
+      typeof envelope?.detail === 'string' &&
+      envelope.detail.toLowerCase().includes('onboarding required')
+    ) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/onboarding';
+      }
+      // Throw anyway so the calling code's try/catch doesn't proceed
+      throw new Error('Onboarding required.');
+    }
+
     const code = envelope?.error ?? 'internal_error';
     throw new Error(friendlyError(code));
   }
