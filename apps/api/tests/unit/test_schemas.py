@@ -23,4 +23,4 @@ def test_password_no_digit_raises():
 
 def test_valid_password_passes():
     req = ResetPasswordRequest(token="a" * 32, new_password="ValidPass1")  # Noqa: S106 # pragma: allowlist secret
-    assert req.new_password == "ValidPass1"  # pragma: allowlist secret
+    assert req.new_password == "ValidPass1"  # pragma: allowlist secret # Noqa: S105
