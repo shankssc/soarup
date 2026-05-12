@@ -3,6 +3,10 @@
 import '@testing-library/jest-dom';
 import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import * as axeMatchers from 'vitest-axe/matchers';
+import 'vitest-axe/extend-expect';
+
+expect.extend(axeMatchers);
 
 // Polyfill ResizeObserver — not implemented in jsdom but used by Radix UI primitives
 global.ResizeObserver = class ResizeObserver {
