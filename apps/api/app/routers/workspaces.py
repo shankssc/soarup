@@ -2,7 +2,7 @@
 # Thin HTTP layer for workspace endpoints
 
 import structlog
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import Response
 
 from app.api import (
@@ -73,13 +73,13 @@ async def create_workspace(
     user_ctx: AuthDep,
     api_version: ApiVersionDep,
     db: DBSessionDep,
+    service: WorkspaceService = Depends(get_workspace_service),
 ) -> Response:
     """
     Create a workspace for the authenticated user.
     The caller becomes the workspace owner.
     Sets is_onboarded = True on the user's profile.
     """
-    service = get_workspace_service(db)
     try:
         logger.info("create_workspace_attempt", user_id=user_ctx["user_id"], slug=request.slug)
         result = await service.create_workspace(user_id=user_ctx["user_id"], request=request)
@@ -106,6 +106,7 @@ async def join_workspace(
     user_ctx: AuthDep,
     api_version: ApiVersionDep,
     db: DBSessionDep,
+    service: WorkspaceService = Depends(get_workspace_service),
 ) -> Response:
     """
     Join an existing workspace using an invite code.
@@ -114,7 +115,6 @@ async def join_workspace(
     Note: Invite code validation is stubbed — returns 400 until
     the InviteRepository is implemented in Milestone 5.
     """
-    service = get_workspace_service(db)
     try:
         logger.info("join_workspace_attempt", user_id=user_ctx["user_id"])
         result = await service.join_workspace(
@@ -143,11 +143,11 @@ async def get_workspaces(
     user_ctx: AuthDep,
     api_version: ApiVersionDep,
     db: DBSessionDep,
+    service: WorkspaceService = Depends(get_workspace_service),
 ) -> Response:
     """
     Return all workspaces the authenticated user is a member of.
     """
-    service = get_workspace_service(db)
     try:
         logger.info("get_workspaces_attempt", user_id=user_ctx["user_id"])
         result = await service.get_user_workspaces(user_id=user_ctx["user_id"])
