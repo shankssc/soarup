@@ -46,6 +46,12 @@
     --color-inverse-surface: #233333;
     --color-inverse-on-surface: #e2f4f3;
     --color-inverse-primary: #4cd7f6;
+    --color-cyan: #00687a;
+    --color-magenta: #ec63ff;
+    --color-error: #ff716c;
+    --color-border-default: var(--color-outline-variant);
+    --color-text-primary: var(--color-on-surface);
+    --color-text-muted: var(--color-on-surface-variant);
   }
 
   /* ─── Dark mode ─────────────────────────────────────────────────────────── */
@@ -89,6 +95,11 @@
     --color-inverse-surface: #fcf8fb;
     --color-inverse-on-surface: #565457;
     --color-inverse-primary: #00687b;
+    --color-cyan: #53ddfc;
+    --color-magenta: #ec63ff;
+    --color-border-default: var(--color-outline-variant);
+    --color-text-primary: var(--color-on-surface);
+    --color-text-muted: var(--color-on-surface-variant);
   }
 
   /* ─── Base styles ────────────────────────────────────────────────────────── */

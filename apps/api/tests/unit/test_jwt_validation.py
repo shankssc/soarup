@@ -177,18 +177,19 @@ async def test_wrong_signature_rs256_raises_401(monkeypatch):
     """
     Production path: JWKS returns a key that doesn't match the token's signature.
     """
+    from pydantic import SecretStr
+
     from app.utils.auth import validate_supabase_jwt
 
-    monkeypatch.setattr("app.utils.auth.settings.environment", "production")
+    with patch("app.utils.auth.settings.environment", "production"), patch("app.utils.auth.settings.supabase_jwt_secret", SecretStr("super-secret-jwt-token-with-at-least-32-characters-long")):
+        token = _make_token(_base_payload())
+        wrong_key_mock = _mock_jwks_client(secret="completely-wrong-secret-32-bytes")  # Noqa: S106 # pragma-allowlist
 
-    token = _make_token(_base_payload())
-    wrong_key_mock = _mock_jwks_client(secret="completely-wrong-secret-32-bytes")  # Noqa: S106
+        with patch(JWKS_CLIENT_PATH, return_value=wrong_key_mock):  # Noqa: SIM117
+            with pytest.raises(HTTPException) as exc_info:
+                await validate_supabase_jwt(_credentials(token))
 
-    with patch(JWKS_CLIENT_PATH, return_value=wrong_key_mock):  # Noqa: SIM117
-        with pytest.raises(HTTPException) as exc_info:
-            await validate_supabase_jwt(_credentials(token))
-
-    assert exc_info.value.status_code == 401
+        assert exc_info.value.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -283,20 +284,20 @@ async def test_issuer_validation_skipped_in_local(monkeypatch):
 @pytest.mark.asyncio
 async def test_issuer_validation_enforced_in_production(monkeypatch):
     """In ENVIRONMENT=production, issuer mismatch raises 401."""
+    from pydantic import SecretStr
+
     from app.utils.auth import validate_supabase_jwt
 
-    monkeypatch.setattr("app.utils.auth.settings.environment", "production")
-    monkeypatch.setattr("app.utils.auth.settings.supabase_url", "https://real.supabase.co")
+    with patch("app.utils.auth.settings.environment", "production"), patch("app.utils.auth.settings.supabase_jwt_secret", SecretStr("super-secret-jwt-token-with-at-least-32-characters-long")):
+        payload = _base_payload()
+        payload["iss"] = "https://wrong-issuer.example.com"
+        token = _make_token(payload)
 
-    payload = _base_payload()
-    payload["iss"] = "https://wrong-issuer.example.com"
-    token = _make_token(payload)
+        with patch(JWKS_CLIENT_PATH, return_value=_mock_jwks_client()):  # Noqa: SIM117
+            with pytest.raises(HTTPException) as exc_info:
+                await validate_supabase_jwt(_credentials(token))
 
-    with patch(JWKS_CLIENT_PATH, return_value=_mock_jwks_client()):  # Noqa: SIM117
-        with pytest.raises(HTTPException) as exc_info:
-            await validate_supabase_jwt(_credentials(token))
-
-    assert exc_info.value.status_code == 401
+        assert exc_info.value.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -318,19 +319,18 @@ async def test_rs256_path_invalid_token_raises_401(monkeypatch):
     """RS256 path (production) raises 401 on decode failure."""
     from app.utils.auth import validate_supabase_jwt
 
-    monkeypatch.setattr("app.utils.auth.settings.environment", "production")
+    with patch("app.utils.auth.settings.environment", "production"), patch("app.utils.auth.settings.supabase_jwt_secret", SecretStr("super-secret-jwt-token-with-at-least-32-characters-long")):
+        good_key = MagicMock()
+        good_key.key = "wrong-key"
 
-    good_key = MagicMock()
-    good_key.key = "wrong-key"
+        client_mock = MagicMock()
+        client_mock.get_signing_key_from_jwt.return_value = good_key
 
-    client_mock = MagicMock()
-    client_mock.get_signing_key_from_jwt.return_value = good_key
+        with patch(JWKS_CLIENT_PATH, return_value=client_mock):  # Noqa: SIM117
+            with pytest.raises(HTTPException) as exc_info:
+                await validate_supabase_jwt(_credentials(_make_token(_base_payload())))
 
-    with patch(JWKS_CLIENT_PATH, return_value=client_mock):  # Noqa: SIM117
-        with pytest.raises(HTTPException) as exc_info:
-            await validate_supabase_jwt(_credentials(_make_token(_base_payload())))
-
-    assert exc_info.value.status_code == 401
+        assert exc_info.value.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -353,7 +353,6 @@ def test_get_jwks_client_is_cached():
 
 
 def test_get_jwks_client_uses_supabase_url(monkeypatch):
-    """JWKS URI is constructed from settings.supabase_url."""
     from app.utils.auth import get_jwks_client
 
     monkeypatch.setattr("app.utils.auth.settings.supabase_url", "http://localhost:54321")
@@ -363,4 +362,6 @@ def test_get_jwks_client_uses_supabase_url(monkeypatch):
         mock_cls.return_value = MagicMock()
         get_jwks_client()
 
-    mock_cls.assert_called_once_with("http://localhost:54321/auth/v1/jwks")
+    mock_cls.assert_called_once_with(
+        "http://localhost:54321/auth/v1/.well-known/jwks.json"  # ← corrected
+    )

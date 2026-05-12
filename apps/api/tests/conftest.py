@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -74,7 +75,7 @@ def test_settings():
 # ---------------------------------------------------------------------------
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def test_engine(test_settings):
     """
     Session-scoped engine against soarup_test DB.
@@ -86,6 +87,7 @@ async def test_engine(test_settings):
 
     # Import all models so their tables register on Base.metadata
     import app.models.profile  # noqa: F401
+    import app.models.workspace  # noqa: F401
     # Add other model imports here as the schema grows:
     # import app.models.workspace  # noqa: F401
     # import app.models.update     # noqa: F401
@@ -116,7 +118,13 @@ async def db_session(test_engine):
         async with session.begin():  # Noqa: SIM117
             nested = await session.begin_nested()
             yield session
-            await nested.rollback()
+            try:  # Noqa: SIM105
+                await nested.rollback()
+            except Exception:  # Noqa: S110
+                # IntegrityError tests cause the repo to call rollback()
+                # internally, which closes the transaction before teardown.
+                # Safe to ignore — the session closes cleanly on context exit.
+                pass
 
 
 # ---------------------------------------------------------------------------
@@ -378,6 +386,38 @@ def patch_auth_settings():
         ),
     ):
         yield
+
+
+@pytest.fixture
+def test_user_id() -> str:
+    """Fresh UUID per test — avoids cross-test contamination."""
+    return str(uuid.uuid4())
+
+
+@pytest_asyncio.fixture
+async def seeded_profile(db_session, test_user_id):
+    """
+    Insert a minimal Profile row so workspace FK constraints are satisfied.
+    Rolled back automatically by the SAVEPOINT at test teardown.
+    """
+    from app.models.profile import Profile
+
+    profile = Profile(
+        id=test_user_id,
+        full_name="Test User",
+        email_notifications=True,
+        timezone="UTC",
+    )  # type: ignore[call-arg]
+    db_session.add(profile)
+    await db_session.flush()
+    return profile
+
+
+@pytest_asyncio.fixture
+async def workspace_repo(db_session):
+    from app.repositories.workspace_repo import WorkspaceRepository
+
+    return WorkspaceRepository.from_session(db_session)
 
 
 # Expose helpers for use in test files
