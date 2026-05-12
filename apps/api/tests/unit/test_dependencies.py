@@ -229,6 +229,7 @@ def test_onboarded_dep_alias_points_to_require_onboarded():
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.db
 class TestRequireOnboarded:
     @pytest.mark.asyncio
     async def test_passes_when_profile_is_onboarded(self, db_session, test_user_id, seeded_profile):

@@ -92,6 +92,10 @@ addopts = [
     "--cov-fail-under=80",
     "-v",
 ]
+markers = [
+    "db: marks tests that require a live database connection",
+    "slow: marks slow tests",
+]
 
 [tool.coverage.run]
 omit = [

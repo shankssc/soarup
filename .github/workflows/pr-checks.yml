@@ -129,7 +129,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}\apps\api
         run: |
           echo ENVIRONMENT=test > .env
-          pytest tests/unit/ -v --tb=short --no-cov
+          pytest tests/unit/ -v --tb=short --no-cov -m "not slow and not db"
 
   # ===== FRONTEND: Quality + Tests =====
   web-quality:

@@ -18,10 +18,12 @@
 #   - `soarup_test` database exists
 #   - `alembic upgrade head` applied against soarup_test
 
-import pytest
-from sqlalchemy.exc import IntegrityError
-
 from app.repositories.workspace_repo import WorkspaceRepository
+from sqlalchemy.exc import IntegrityError
+import pytest
+
+pytestmark = pytest.mark.db
+
 
 # ---------------------------------------------------------------------------
 # Helpers
