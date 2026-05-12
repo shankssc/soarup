@@ -7,6 +7,7 @@ Usage:
         # Dependencies
         DBSessionDep,
         ApiVersionDep,
+        OnboardedDep,
         AuthDep,          # new canonical alias — use in new routers
         UserContextDep,   # legacy alias — kept for backward compatibility
         # Error handling utilities
@@ -27,20 +28,24 @@ from app.api.dependencies import (
     ApiVersionDep,
     AuthDep,
     DBSessionDep,
+    OnboardedDep,
     UserContextDep,
     get_current_user,
     require_auth,
+    require_onboarded,
 )
 
 __all__ = [
     # Dependencies — canonical
     "DBSessionDep",
     "ApiVersionDep",
+    "OnboardedDep",
     "AuthDep",
     "get_current_user",
     # Dependencies — legacy (kept for backward compatibility)
     "UserContextDep",
     "require_auth",
+    "require_onboarded",
     # Error utilities
     "create_error_response",
     "create_success_response",

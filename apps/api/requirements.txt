@@ -1,5 +1,5 @@
 # === Core Framework ===
-fastapi==0.115.0
+fastapi>=0.115.5
 uvicorn[standard]==0.30.6
 
 # === Database ===
@@ -26,7 +26,7 @@ pydantic==2.12.5
 pydantic-core==2.41.5
 pydantic[email]
 pydantic-settings==2.4.0
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.4.0
 python-multipart
 pyjwt==2.12.1
 email-validator>=2.1.0

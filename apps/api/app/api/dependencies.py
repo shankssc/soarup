@@ -4,7 +4,7 @@
 from typing import Annotated, Any
 
 import structlog
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,10 +50,47 @@ async def require_auth(
     return user_ctx
 
 
+async def require_onboarded(
+    user_ctx: dict[str, str] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, str]:
+    """
+    Extends get_current_user — additionally checks that the user has
+    completed onboarding before accessing app routes.
+
+    Returns the same user_ctx dict as get_current_user so existing
+    handler signatures don't need to change.
+
+    Raises:
+        HTTP 403 if the user's profile has is_onboarded = False,
+        or if no profile exists yet.
+    """
+    from app.repositories.profile_repo import ProfileRepository
+
+    profile_repo = ProfileRepository.from_session(db)
+    profile = await profile_repo.get_by_user_id(user_ctx["user_id"])
+
+    if not profile or not profile.is_onboarded:
+        logger.info(
+            "onboarding_required",
+            user_id=user_ctx["user_id"],
+            profile_exists=profile is not None,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Onboarding required before accessing this resource.",
+        )
+
+    return user_ctx
+
+
 # === Convenience Aliases ===
 
 # New canonical alias — use in all new routers
 AuthDep = Annotated[dict[str, str], Depends(get_current_user)]
+
+# Onboarding gate — use on all post-onboarding app routes
+OnboardedDep = Annotated[dict[str, str], Depends(require_onboarded)]
 
 # Legacy alias — existing routers keep working unchanged
 UserContextDep = Annotated[dict[str, str], Depends(require_auth)]

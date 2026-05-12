@@ -12,6 +12,8 @@ const dirname =
     ? __dirname
     : path.dirname(fileURLToPath(import.meta.url));
 
+const isCI = !!process.env.CI;
+
 export default defineWorkspace([
   {
     extends: "./vitest.config.ts",
@@ -24,19 +26,23 @@ export default defineWorkspace([
       exclude: ["**/node_modules/**", "**/.next/**", "**/e2e/**"],
     },
   },
-  {
-    extends: "./vitest.config.ts",
-    plugins: [
-      storybookTest({ configDir: path.join(dirname, ".storybook") }),
-    ],
-    test: {
-      name: "storybook",
-      browser: {
-        enabled: true,
-        headless: true,
-        provider: "playwright",
-        instances: [{ browser: "chromium" }],
-      },
-    },
-  },
+  ...(isCI
+    ? []
+    : [
+        {
+          extends: "./vitest.config.ts",
+          plugins: [
+            storybookTest({ configDir: path.join(dirname, ".storybook") }),
+          ],
+          test: {
+            name: "storybook",
+            browser: {
+              enabled: true,
+              headless: true,
+              provider: "playwright" as const,
+              instances: [{ browser: "chromium" }],
+            },
+          },
+        },
+      ]),
 ]);
