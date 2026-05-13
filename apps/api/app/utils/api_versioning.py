@@ -61,9 +61,6 @@ class ApiVersionInfo(BaseModel):
         description="Whether this is the current stable API version",
     )
 
-    class Config:
-        frozen = True  # Immutable after creation
-
     model_config = ConfigDict(frozen=True)
 
 
