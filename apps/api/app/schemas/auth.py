@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 # === Requests ===
 
@@ -43,8 +43,7 @@ class UserResponse(BaseModel):
     is_onboarded: bool = Field(default=False, description="Whether user has completed onboarding")
     created_at: datetime = Field(..., description="Account creation timestamp")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LoginResponse(BaseModel):

@@ -7,7 +7,7 @@ from typing import Any
 
 import structlog
 from fastapi import Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 logger = structlog.get_logger(__name__)
 
@@ -63,6 +63,8 @@ class ApiVersionInfo(BaseModel):
 
     class Config:
         frozen = True  # Immutable after creation
+
+    model_config = ConfigDict(frozen=True)
 
 
 # === Core Dependency ===

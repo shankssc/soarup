@@ -146,7 +146,7 @@ def handle_profile_error(
     status_map = {
         "profile_not_found": status.HTTP_404_NOT_FOUND,
         "no_fields_to_update": status.HTTP_400_BAD_REQUEST,
-        "file_too_large": status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        "file_too_large": status.HTTP_413_CONTENT_TOO_LARGE,
         "invalid_file_type": status.HTTP_400_BAD_REQUEST,
         "invalid_file": status.HTTP_400_BAD_REQUEST,
         "upload_failed": status.HTTP_500_INTERNAL_SERVER_ERROR,

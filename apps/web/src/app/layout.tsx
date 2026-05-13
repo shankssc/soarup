@@ -88,7 +88,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body
-        className={` ${spaceGrotesk.variable} ${newsreader.variable} dark:text-on-surface-dark min-h-screen bg-background font-body text-on-surface antialiased dark:bg-[#0e0e10]`}
+        className={` ${spaceGrotesk.variable} ${newsreader.variable} font-body bg-background text-on-surface antialiased min-h-screen`}
       >
         <ThemeProvider>{children}</ThemeProvider>
       </body>

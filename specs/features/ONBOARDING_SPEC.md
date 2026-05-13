@@ -437,8 +437,8 @@ dashboard redirect → verify is_onboarded = true in DB
 [✅] Returning user with is_onboarded = true skips onboarding
 [✅] OAuth user's name is pre-filled in step 1
 [✅] require_onboarded dependency returns 403 for non-onboarded users
-[ ] All new endpoints covered by unit tests
-[ ] CI passes on feature/auth/onboarding branch
+[✅] All new endpoints covered by unit tests
+[✅] CI passes on feature/auth/onboarding branch
 ```
 
 ---

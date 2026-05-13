@@ -19,5 +19,5 @@ async def get_supabase_client() -> AsyncClient:
     """
     return await create_async_client(
         supabase_url=str(settings.supabase_url),
-        supabase_key=settings.supabase_jwt_secret.get_secret_value() if settings.supabase_jwt_secret else "",
+        supabase_key=settings.supabase_anon_key.get_secret_value() if settings.supabase_anon_key else "",
     )
