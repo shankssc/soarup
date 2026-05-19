@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -59,6 +59,19 @@ class Workspace(Base):
         nullable=False,
         default="free",
         doc="Billing plan — 'free' or 'pro' (future)",
+    )
+
+    # === AI Prompt Configuration ===
+    summarisation_prompt: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        doc="Custom Claude prompt for update summarisation. " "If None, the default prompt from app.workers.prompts is used.",
+    )
+
+    digest_prompt: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        doc="Custom Claude prompt for daily digest generation (Milestone 6).",
     )
 
     # === Timestamps ===
