@@ -1,24 +1,24 @@
 // apps/web/tests/unit/useAuth.test.ts
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, renderHook } from "@testing-library/react";
-import { useAuth, useAuthStore } from "@/hooks/useAuth";
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { useAuth, useAuthStore } from '@/hooks/useAuth';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const mockUser = {
-  id: "user-123",
-  email: "test@soarup.app",
-  full_name: "Test User",
+  id: 'user-123',
+  email: 'test@soarup.app',
+  full_name: 'Test User',
   avatar_url: null,
   email_verified: true,
   is_onboarded: false,
-  created_at: "2024-01-01T00:00:00Z",
+  created_at: '2024-01-01T00:00:00Z',
 };
 
 const mockTokens = {
-  access_token: "access-abc",
-  refresh_token: "refresh-xyz",
+  access_token: 'access-abc',
+  refresh_token: 'refresh-xyz',
   expires_in: 3600,
 };
 
@@ -34,32 +34,28 @@ function makeLoginResponse(overrides = {}) {
 
 function mockFetchSuccess(body: unknown, status = 200) {
   vi.stubGlobal(
-    "fetch",
+    'fetch',
     vi.fn().mockResolvedValue({
       ok: status < 400,
       status,
       json: () => Promise.resolve(body),
-    })
+    }),
   );
 }
 
 function mockFetchError(errorCode: string, status = 401) {
   vi.stubGlobal(
-    "fetch",
+    'fetch',
     vi.fn().mockResolvedValue({
       ok: false,
       status,
-      json: () =>
-        Promise.resolve({ error: errorCode, message: "Server error" }),
-    })
+      json: () => Promise.resolve({ error: errorCode, message: 'Server error' }),
+    }),
   );
 }
 
 function mockFetchNetworkError() {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
-  );
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
 }
 
 // ─── Reset store between tests ────────────────────────────────────────────────
@@ -79,18 +75,18 @@ afterEach(() => {
 
 // ─── useAuth derived state ────────────────────────────────────────────────────
 
-describe("useAuth — derived state", () => {
-  it("isAuthenticated is false when no user", () => {
+describe('useAuth — derived state', () => {
+  it('isAuthenticated is false when no user', () => {
     const { result } = renderHook(() => useAuth());
     expect(result.current.isAuthenticated).toBe(false);
   });
 
-  it("isAuthenticated is false when tokens are expired", () => {
+  it('isAuthenticated is false when tokens are expired', () => {
     useAuthStore.setState({
       user: mockUser,
       tokens: {
-        access_token: "abc",
-        refresh_token: "xyz",
+        access_token: 'abc',
+        refresh_token: 'xyz',
         expires_at: Date.now() - 1000, // already expired
       },
     });
@@ -98,12 +94,12 @@ describe("useAuth — derived state", () => {
     expect(result.current.isAuthenticated).toBe(false);
   });
 
-  it("isAuthenticated is true when user and tokens are valid", () => {
+  it('isAuthenticated is true when user and tokens are valid', () => {
     useAuthStore.setState({
       user: mockUser,
       tokens: {
-        access_token: "abc",
-        refresh_token: "xyz",
+        access_token: 'abc',
+        refresh_token: 'xyz',
         expires_at: Date.now() + 3600 * 1000,
       },
     });
@@ -111,12 +107,12 @@ describe("useAuth — derived state", () => {
     expect(result.current.isAuthenticated).toBe(true);
   });
 
-  it("needsOnboarding is true when authenticated and is_onboarded is false", () => {
+  it('needsOnboarding is true when authenticated and is_onboarded is false', () => {
     useAuthStore.setState({
       user: { ...mockUser, is_onboarded: false },
       tokens: {
-        access_token: "abc",
-        refresh_token: "xyz",
+        access_token: 'abc',
+        refresh_token: 'xyz',
         expires_at: Date.now() + 3600 * 1000,
       },
     });
@@ -124,12 +120,12 @@ describe("useAuth — derived state", () => {
     expect(result.current.needsOnboarding).toBe(true);
   });
 
-  it("needsOnboarding is false when user is already onboarded", () => {
+  it('needsOnboarding is false when user is already onboarded', () => {
     useAuthStore.setState({
       user: { ...mockUser, is_onboarded: true },
       tokens: {
-        access_token: "abc",
-        refresh_token: "xyz",
+        access_token: 'abc',
+        refresh_token: 'xyz',
         expires_at: Date.now() + 3600 * 1000,
       },
     });
@@ -137,7 +133,7 @@ describe("useAuth — derived state", () => {
     expect(result.current.needsOnboarding).toBe(false);
   });
 
-  it("needsOnboarding is false when not authenticated", () => {
+  it('needsOnboarding is false when not authenticated', () => {
     const { result } = renderHook(() => useAuth());
     expect(result.current.needsOnboarding).toBe(false);
   });
@@ -145,95 +141,93 @@ describe("useAuth — derived state", () => {
 
 // ─── login ────────────────────────────────────────────────────────────────────
 
-describe("useAuth — login", () => {
-  it("sets user and tokens on success", async () => {
+describe('useAuth — login', () => {
+  it('sets user and tokens on success', async () => {
     mockFetchSuccess(makeLoginResponse());
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.login("test@soarup.app", "Password1");
+      await result.current.login('test@soarup.app', 'Password1');
     });
 
     expect(result.current.user).toEqual(mockUser);
-    expect(result.current.tokens?.access_token).toBe("access-abc");
-    expect(result.current.tokens?.refresh_token).toBe("refresh-xyz");
+    expect(result.current.tokens?.access_token).toBe('access-abc');
+    expect(result.current.tokens?.refresh_token).toBe('refresh-xyz');
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
   });
 
-  it("sets expires_at as a future timestamp", async () => {
+  it('sets expires_at as a future timestamp', async () => {
     const before = Date.now();
     mockFetchSuccess(makeLoginResponse());
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.login("test@soarup.app", "Password1");
+      await result.current.login('test@soarup.app', 'Password1');
     });
 
     expect(result.current.tokens?.expires_at).toBeGreaterThan(before);
-    expect(result.current.tokens?.expires_at).toBeGreaterThan(
-      Date.now() + 3500 * 1000
-    );
+    expect(result.current.tokens?.expires_at).toBeGreaterThan(Date.now() + 3500 * 1000);
   });
 
-  it("sets isLoading to false after success", async () => {
+  it('sets isLoading to false after success', async () => {
     mockFetchSuccess(makeLoginResponse());
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.login("test@soarup.app", "Password1");
+      await result.current.login('test@soarup.app', 'Password1');
     });
 
     expect(result.current.isLoading).toBe(false);
   });
 
-  it("sets friendly error on authentication_failed", async () => {
-    mockFetchError("authentication_failed", 401);
+  it('sets friendly error on authentication_failed', async () => {
+    mockFetchError('authentication_failed', 401);
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.login("test@soarup.app", "wrongpass").catch(() => {});
+      await result.current.login('test@soarup.app', 'wrongpass').catch(() => {});
     });
 
-    expect(result.current.error).toBe("Incorrect email or password.");
+    expect(result.current.error).toBe('Incorrect email or password.');
     expect(result.current.user).toBeNull();
     expect(result.current.isLoading).toBe(false);
   });
 
-  it("sets friendly error on service_unavailable", async () => {
-    mockFetchError("service_unavailable", 503);
+  it('sets friendly error on service_unavailable', async () => {
+    mockFetchError('service_unavailable', 503);
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.login("test@soarup.app", "Password1").catch(() => {});
+      await result.current.login('test@soarup.app', 'Password1').catch(() => {});
     });
 
     expect(result.current.error).toBe(
-      "Service temporarily unavailable. Please try again shortly."
+      'Service temporarily unavailable. Please try again shortly.',
     );
   });
 
-  it("sets network_error message on fetch failure", async () => {
+  it('sets network_error message on fetch failure', async () => {
     mockFetchNetworkError();
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.login("test@soarup.app", "Password1").catch(() => {});
+      await result.current.login('test@soarup.app', 'Password1').catch(() => {});
     });
 
     expect(result.current.error).toBe(
-      "Unable to connect. Check your internet connection."
+      'Unable to connect. Check your internet connection.',
     );
   });
 
-  it("re-throws error so form can catch it", async () => {
-    mockFetchError("authentication_failed", 401);
+  it('re-throws error so form can catch it', async () => {
+    mockFetchError('authentication_failed', 401);
     const { result } = renderHook(() => useAuth());
     let thrown: unknown;
 
     await act(async () => {
       try {
-        await result.current.login("bad@email.com", "wrong");
+        await result.current.login('bad@email.com', 'wrong');
       } catch (e) {
         thrown = e;
       }
@@ -242,12 +236,12 @@ describe("useAuth — login", () => {
     expect(thrown).toBeInstanceOf(Error);
   });
 
-  it("throws when server returns null refresh_token", async () => {
+  it('throws when server returns null refresh_token', async () => {
     mockFetchSuccess(makeLoginResponse({ refresh_token: null }));
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.login("test@soarup.app", "Password1").catch(() => {});
+      await result.current.login('test@soarup.app', 'Password1').catch(() => {});
     });
 
     expect(result.current.user).toBeNull();
@@ -257,65 +251,63 @@ describe("useAuth — login", () => {
 
 // ─── signup ───────────────────────────────────────────────────────────────────
 
-describe("useAuth — signup", () => {
-  it("sets user and tokens on success", async () => {
+describe('useAuth — signup', () => {
+  it('sets user and tokens on success', async () => {
     mockFetchSuccess(makeLoginResponse());
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.signup("new@soarup.app", "Password1", "New User");
+      await result.current.signup('new@soarup.app', 'Password1', 'New User');
     });
 
     expect(result.current.user).toEqual(mockUser);
-    expect(result.current.tokens?.access_token).toBe("access-abc");
+    expect(result.current.tokens?.access_token).toBe('access-abc');
     expect(result.current.error).toBeNull();
   });
 
-  it("works without fullName argument", async () => {
+  it('works without fullName argument', async () => {
     mockFetchSuccess(makeLoginResponse());
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.signup("new@soarup.app", "Password1");
+      await result.current.signup('new@soarup.app', 'Password1');
     });
 
     expect(result.current.user).toEqual(mockUser);
   });
 
-  it("sets friendly error on user_already_exists", async () => {
-    mockFetchError("user_already_exists", 409);
+  it('sets friendly error on user_already_exists', async () => {
+    mockFetchError('user_already_exists', 409);
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.signup("existing@soarup.app", "Password1").catch(() => {});
+      await result.current.signup('existing@soarup.app', 'Password1').catch(() => {});
     });
 
-    expect(result.current.error).toBe(
-      "An account with this email already exists."
-    );
+    expect(result.current.error).toBe('An account with this email already exists.');
   });
 
-  it("sets friendly error on registration_failed", async () => {
-    mockFetchError("registration_failed", 400);
+  it('sets friendly error on registration_failed', async () => {
+    mockFetchError('registration_failed', 400);
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.signup("bad@soarup.app", "Password1").catch(() => {});
+      await result.current.signup('bad@soarup.app', 'Password1').catch(() => {});
     });
 
     expect(result.current.error).toBe(
-      "Could not create your account. Please try again."
+      'Could not create your account. Please try again.',
     );
   });
 
-  it("re-throws error so form can catch it", async () => {
-    mockFetchError("registration_failed", 400);
+  it('re-throws error so form can catch it', async () => {
+    mockFetchError('registration_failed', 400);
     const { result } = renderHook(() => useAuth());
     let thrown: unknown;
 
     await act(async () => {
       try {
-        await result.current.signup("bad@soarup.app", "Password1");
+        await result.current.signup('bad@soarup.app', 'Password1');
       } catch (e) {
         thrown = e;
       }
@@ -327,13 +319,13 @@ describe("useAuth — signup", () => {
 
 // ─── logout ───────────────────────────────────────────────────────────────────
 
-describe("useAuth — logout", () => {
+describe('useAuth — logout', () => {
   beforeEach(() => {
     useAuthStore.setState({
       user: mockUser,
       tokens: {
-        access_token: "access-abc",
-        refresh_token: "refresh-xyz",
+        access_token: 'access-abc',
+        refresh_token: 'refresh-xyz',
         expires_at: Date.now() + 3600 * 1000,
       },
       isLoading: false,
@@ -341,7 +333,7 @@ describe("useAuth — logout", () => {
     });
   });
 
-  it("clears user and tokens after logout", async () => {
+  it('clears user and tokens after logout', async () => {
     mockFetchSuccess({}, 204);
     const { result } = renderHook(() => useAuth());
 
@@ -354,7 +346,7 @@ describe("useAuth — logout", () => {
     expect(result.current.isAuthenticated).toBe(false);
   });
 
-  it("clears state even when logout API call fails", async () => {
+  it('clears state even when logout API call fails', async () => {
     mockFetchNetworkError();
     const { result } = renderHook(() => useAuth());
 
@@ -366,7 +358,7 @@ describe("useAuth — logout", () => {
     expect(result.current.tokens).toBeNull();
   });
 
-  it("sets isLoading to false after logout", async () => {
+  it('sets isLoading to false after logout', async () => {
     mockFetchSuccess({}, 204);
     const { result } = renderHook(() => useAuth());
 
@@ -380,9 +372,9 @@ describe("useAuth — logout", () => {
 
 // ─── clearError ───────────────────────────────────────────────────────────────
 
-describe("useAuth — clearError", () => {
-  it("clears the error field", () => {
-    useAuthStore.setState({ error: "Some error" });
+describe('useAuth — clearError', () => {
+  it('clears the error field', () => {
+    useAuthStore.setState({ error: 'Some error' });
     const { result } = renderHook(() => useAuth());
 
     act(() => {
@@ -395,16 +387,16 @@ describe("useAuth — clearError", () => {
 
 // ─── setUser ──────────────────────────────────────────────────────────────────
 
-describe("useAuth — setUser", () => {
-  it("updates the user in the store", () => {
+describe('useAuth — setUser', () => {
+  it('updates the user in the store', () => {
     useAuthStore.setState({ user: mockUser });
     const { result } = renderHook(() => useAuth());
-    const updated = { ...mockUser, full_name: "Updated Name" };
+    const updated = { ...mockUser, full_name: 'Updated Name' };
 
     act(() => {
       result.current.setUser(updated);
     });
 
-    expect(result.current.user?.full_name).toBe("Updated Name");
+    expect(result.current.user?.full_name).toBe('Updated Name');
   });
 });

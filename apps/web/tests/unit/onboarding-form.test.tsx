@@ -147,9 +147,7 @@ describe('Step 1 — validation', () => {
     render(<OnboardingForm />);
     await fillDisplayName('');
     await user.click(screen.getByRole('button', { name: /continue/i }));
-    expect(
-      await screen.findByText(/display name is required/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/display name is required/i)).toBeInTheDocument();
   });
 
   it('does not call fetch when display name is empty', async () => {
@@ -161,13 +159,11 @@ describe('Step 1 — validation', () => {
   });
 
   it('shows error when display name exceeds 100 characters', async () => {
-  render(<OnboardingForm />);
-  await fillDisplayName('a'.repeat(101));
-  await user.click(screen.getByRole('button', { name: /continue/i }));
-  expect(
-    await screen.findByText(/100 characters or fewer/i),
-  ).toBeInTheDocument();
-}, 15000);
+    render(<OnboardingForm />);
+    await fillDisplayName('a'.repeat(101));
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    expect(await screen.findByText(/100 characters or fewer/i)).toBeInTheDocument();
+  }, 15000);
 
   it('clears validation error when user fixes display name', async () => {
     render(<OnboardingForm />);
@@ -179,9 +175,7 @@ describe('Step 1 — validation', () => {
     await fillDisplayName('Jane Doe');
     await user.click(screen.getByRole('button', { name: /continue/i }));
     await waitFor(() =>
-      expect(
-        screen.queryByText(/display name is required/i),
-      ).not.toBeInTheDocument(),
+      expect(screen.queryByText(/display name is required/i)).not.toBeInTheDocument(),
     );
   });
 });
@@ -276,12 +270,12 @@ describe('Step 1 — API interaction', () => {
 
 describe.skip('Step 1 — accessibility', () => {
   it('has no accessibility violations', async () => {
-  const { container } = render(<OnboardingForm />);
-  const results = await axe(container, {
-    rules: { region: { enabled: false } },
+    const { container } = render(<OnboardingForm />);
+    const results = await axe(container, {
+      rules: { region: { enabled: false } },
+    });
+    expect(results).toHaveNoViolations();
   });
-  expect(results).toHaveNoViolations();
-});
 });
 
 // ─── Step 2 — rendering ───────────────────────────────────────────────────────
@@ -311,12 +305,12 @@ describe('Step 2 — rendering', () => {
   });
 
   it('switches back to create path from join path', async () => {
-  await advanceToStep2();
-  await user.click(screen.getByRole('button', { name: /join with invite code/i }));
-  await user.click(screen.getByRole('button', { name: 'Create workspace' })); // toggle button
-  expect(screen.getByLabelText(/workspace name/i)).toBeInTheDocument();
-  expect(screen.queryByLabelText(/invite code/i)).not.toBeInTheDocument();
-});
+    await advanceToStep2();
+    await user.click(screen.getByRole('button', { name: /join with invite code/i }));
+    await user.click(screen.getByRole('button', { name: 'Create workspace' })); // toggle button
+    expect(screen.getByLabelText(/workspace name/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/invite code/i)).not.toBeInTheDocument();
+  });
 });
 
 // ─── Step 2 — slug generation ─────────────────────────────────────────────────
@@ -340,12 +334,12 @@ describe('Step 2 — slug auto-generation', () => {
   });
 
   it('strips special characters from slug', async () => {
-  await advanceToStep2();
-  await user.type(screen.getByLabelText(/workspace name/i), 'Hello & World!');
-  await waitFor(() =>
-    expect(screen.getByLabelText(/workspace slug/i)).toHaveValue('hello-world'),
-  );
-});
+    await advanceToStep2();
+    await user.type(screen.getByLabelText(/workspace name/i), 'Hello & World!');
+    await waitFor(() =>
+      expect(screen.getByLabelText(/workspace slug/i)).toHaveValue('hello-world'),
+    );
+  });
 
   it('allows manual slug override', async () => {
     await advanceToStep2();
@@ -364,13 +358,13 @@ describe('Step 2 — slug auto-generation', () => {
   });
 
   it('lowercases and strips invalid chars from manual slug input', async () => {
-  await advanceToStep2();
-  const slugInput = screen.getByLabelText(/workspace slug/i);
-  await user.clear(slugInput);
+    await advanceToStep2();
+    const slugInput = screen.getByLabelText(/workspace slug/i);
+    await user.clear(slugInput);
 
-  await user.type(slugInput, 'My Slug!');
-  expect(slugInput).toHaveValue('myslug');
-});
+    await user.type(slugInput, 'My Slug!');
+    expect(slugInput).toHaveValue('myslug');
+  });
 });
 
 // ─── Step 2 — create workspace validation ─────────────────────────────────────
@@ -379,18 +373,14 @@ describe('Step 2 — create workspace validation', () => {
   it('shows error when workspace name is empty', async () => {
     await advanceToStep2();
     await user.click(screen.getByRole('button', { name: 'Create Workspace' }));
-    expect(
-      await screen.findByText(/workspace name is required/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/workspace name is required/i)).toBeInTheDocument();
   });
 
   it('shows error when workspace name exceeds 100 characters', async () => {
     await advanceToStep2();
     await user.type(screen.getByLabelText(/workspace name/i), 'a'.repeat(101));
     await user.click(screen.getByRole('button', { name: 'Create Workspace' }));
-    expect(
-      await screen.findByText(/100 characters or fewer/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/100 characters or fewer/i)).toBeInTheDocument();
   });
 
   it('does not call fetch when create form is invalid', async () => {
@@ -443,22 +433,22 @@ describe('Step 2 — create workspace API', () => {
       expect(screen.getByLabelText(/workspace slug/i)).toHaveValue('acme-team'),
     );
     await user.click(screen.getByRole('button', { name: 'Create Workspace' }));
-    await waitFor(() =>
-      expect(useAuthStore.getState().user?.is_onboarded).toBe(true),
-    );
+    await waitFor(() => expect(useAuthStore.getState().user?.is_onboarded).toBe(true));
   });
 
   it('shows slug_already_taken error on the slug field', async () => {
     await advanceToStep2();
-    mockFetchError('This slug is already taken. Please choose another.', 'slug_already_taken', 409);
+    mockFetchError(
+      'This slug is already taken. Please choose another.',
+      'slug_already_taken',
+      409,
+    );
     await user.type(screen.getByLabelText(/workspace name/i), 'Acme Team');
     await waitFor(() =>
       expect(screen.getByLabelText(/workspace slug/i)).toHaveValue('acme-team'),
     );
     await user.click(screen.getByRole('button', { name: 'Create Workspace' }));
-    expect(
-      await screen.findByText(/this slug is already taken/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/this slug is already taken/i)).toBeInTheDocument();
   });
 
   it('shows general error for non-slug API failures', async () => {
@@ -469,9 +459,7 @@ describe('Step 2 — create workspace API', () => {
       expect(screen.getByLabelText(/workspace slug/i)).toHaveValue('acme-team'),
     );
     await user.click(screen.getByRole('button', { name: 'Create Workspace' }));
-    expect(
-      await screen.findByText(/could not create workspace/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/could not create workspace/i)).toBeInTheDocument();
   });
 
   it('does not redirect on workspace creation failure', async () => {
@@ -494,9 +482,7 @@ describe('Step 2 — join workspace validation', () => {
     await advanceToStep2();
     await user.click(screen.getByRole('button', { name: /join with invite code/i }));
     await user.click(screen.getByRole('button', { name: /join workspace/i }));
-    expect(
-      await screen.findByText(/invite code is required/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/invite code is required/i)).toBeInTheDocument();
   });
 
   it('clears errors when switching between create and join paths', async () => {
@@ -507,9 +493,7 @@ describe('Step 2 — join workspace validation', () => {
 
     // Switch to join — errors should clear
     await user.click(screen.getByRole('button', { name: /join with invite code/i }));
-    expect(
-      screen.queryByText(/workspace name is required/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/workspace name is required/i)).not.toBeInTheDocument();
   });
 });
 
@@ -556,15 +540,15 @@ describe('Step 2 — join workspace API', () => {
 
 describe('Step 2 — accessibility', () => {
   it('has no accessibility violations', async () => {
-  const { container } = render(<OnboardingForm />);
-  const results = await axe(container, {
-    rules: {
-      region: { enabled: false },
-      'button-name': { enabled: false }, // Radix Select trigger not readable in jsdom
-    },
+    const { container } = render(<OnboardingForm />);
+    const results = await axe(container, {
+      rules: {
+        region: { enabled: false },
+        'button-name': { enabled: false }, // Radix Select trigger not readable in jsdom
+      },
+    });
+    expect(results).toHaveNoViolations();
   });
-  expect(results).toHaveNoViolations();
-});
 
   it('has no accessibility violations on join path', async () => {
     await advanceToStep2();

@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 
 
 class ProfileRepository:
-    """epository for app-level user profile operations."""
+    """repository for app-level user profile operations."""
 
     def __init__(self, db_session: AsyncSession):
         """
@@ -77,7 +77,7 @@ class ProfileRepository:
             full_name=full_name,
             email_notifications=True,
             timezone="UTC",
-        )  # type: ignore[call-arg]
+        )
         self.db.add(profile)
         try:
             await self.db.commit()

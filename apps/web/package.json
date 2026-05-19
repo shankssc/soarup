@@ -9,8 +9,8 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\" \".storybook/**/*.{ts,tsx}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,md,json}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\" \"tests/**/*.{ts,tsx}\" \".storybook/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,md,json}\" \"tests/**/*.{ts,tsx}\"",
     "type-check": "tsc --noEmit",
     "check": "npm run lint && npm run format:check && npm run type-check",
     "test": "vitest run --project unit",
@@ -22,6 +22,7 @@
     "test:e2e:ui": "playwright test --ui",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
+    "react-doctor": "npx react-doctor@latest",
     "prepare": "husky"
   },
   "dependencies": {

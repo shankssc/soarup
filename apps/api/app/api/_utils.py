@@ -160,3 +160,32 @@ def handle_profile_error(
         details=e.details,
         api_version=api_version,
     )
+
+
+def handle_update_error(
+    e: Exception,
+    api_version: ApiVersionInfo | None = None,
+) -> JSONResponse:
+    from app.services.update_service import UpdateError
+
+    if not isinstance(e, UpdateError):
+        return create_error_response(
+            "internal_error",
+            "An unexpected error occurred",
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            api_version=api_version,
+        )
+
+    status_map = {
+        "update_already_exists": status.HTTP_409_CONFLICT,
+        "update_not_found": status.HTTP_404_NOT_FOUND,
+        "unauthorized": status.HTTP_403_FORBIDDEN,
+    }
+
+    return create_error_response(
+        error_code=e.error_code,
+        message=e.message,
+        status_code=status_map.get(e.error_code, status.HTTP_400_BAD_REQUEST),
+        details=e.details,
+        api_version=api_version,
+    )

@@ -1,71 +1,72 @@
 // apps/web/tests/unit/login-form.test.tsx
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { LoginForm } from "@/components/domain/auth/login-form";
-import { useAuthStore } from "@/hooks/useAuth";
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { LoginForm } from '@/components/domain/auth/login-form';
+import { useAuthStore } from '@/hooks/useAuth';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 // OAuthButtons has its own network calls and is not under test here
-vi.mock("@/components/domain/auth/oauth-buttons", () => ({
+vi.mock('@/components/domain/auth/oauth-buttons', () => ({
   OAuthButtons: () => <div data-testid="oauth-buttons" />,
 }));
 
 const mockPush = vi.fn();
-vi.mock("next/navigation", () => ({
+vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), prefetch: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
-  usePathname: () => "/login",
+  usePathname: () => '/login',
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const mockUser = {
-  id: "user-123",
-  email: "test@soarup.app",
-  full_name: "Test User",
+  id: 'user-123',
+  email: 'test@soarup.app',
+  full_name: 'Test User',
   avatar_url: null,
   email_verified: true,
   is_onboarded: false,
-  created_at: "2024-01-01T00:00:00Z",
+  created_at: '2024-01-01T00:00:00Z',
 };
 
 function mockLoginSuccess(isOnboarded = false) {
   vi.stubGlobal(
-    "fetch",
+    'fetch',
     vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: () =>
         Promise.resolve({
-          access_token: "access-abc",
-          refresh_token: "refresh-xyz",
+          access_token: 'access-abc',
+          refresh_token: 'refresh-xyz',
           expires_in: 3600,
           user: { ...mockUser, is_onboarded: isOnboarded },
         }),
-    })
+    }),
   );
 }
 
 function mockLoginError(errorCode: string, status = 401) {
   vi.stubGlobal(
-    "fetch",
+    'fetch',
     vi.fn().mockResolvedValue({
       ok: false,
       status,
-      json: () => Promise.resolve({ error: errorCode, message: "error" }),
-    })
+      json: () => Promise.resolve({ error: errorCode, message: 'error' }),
+    }),
   );
 }
 
 const user = userEvent.setup();
 
-async function fillAndSubmit(email = "test@soarup.app", password = "Password1") { // pragma: allowlist secret
+async function fillAndSubmit(email = 'test@soarup.app', password = 'Password1') {
+  // pragma: allowlist secret
   await user.type(screen.getByLabelText(/email/i), email);
   await user.type(screen.getByLabelText(/^password$/i), password);
-  await user.click(screen.getByRole("button", { name: /sign in/i }));
+  await user.click(screen.getByRole('button', { name: /sign in/i }));
 }
 
 // ─── Reset store between tests ────────────────────────────────────────────────
@@ -79,7 +80,7 @@ beforeEach(() => {
   });
   mockPush.mockClear();
 
-  vi.stubGlobal("fetch", vi.fn());
+  vi.stubGlobal('fetch', vi.fn());
 });
 
 afterEach(() => {
@@ -88,89 +89,87 @@ afterEach(() => {
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
-describe("LoginForm — rendering", () => {
-  it("renders email and password inputs", () => {
+describe('LoginForm — rendering', () => {
+  it('renders email and password inputs', () => {
     render(<LoginForm />);
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
   });
 
-  it("renders the sign in submit button", () => {
+  it('renders the sign in submit button', () => {
     render(<LoginForm />);
-    expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
-  it("renders OAuth buttons", () => {
+  it('renders OAuth buttons', () => {
     render(<LoginForm />);
-    expect(screen.getByTestId("oauth-buttons")).toBeInTheDocument();
+    expect(screen.getByTestId('oauth-buttons')).toBeInTheDocument();
   });
 
-  it("renders forgot password link", () => {
+  it('renders forgot password link', () => {
     render(<LoginForm />);
-    expect(screen.getByRole("button", { name: /forgot password/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /forgot password/i }),
+    ).toBeInTheDocument();
   });
 
-  it("renders sign up navigation link", () => {
+  it('renders sign up navigation link', () => {
     render(<LoginForm />);
-    expect(screen.getByRole("button", { name: /new to soarup/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /new to soarup/i })).toBeInTheDocument();
   });
 });
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
-describe("LoginForm — validation", () => {
-  it("shows email required error on empty submit", async () => {
+describe('LoginForm — validation', () => {
+  it('shows email required error on empty submit', async () => {
     render(<LoginForm />);
-    await user.click(screen.getByRole("button", { name: /sign in/i }));
-    expect(await screen.findByText("Email is required.")).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+    expect(await screen.findByText('Email is required.')).toBeInTheDocument();
   });
 
-  it("shows invalid email error on bad format", async () => {
+  it('shows invalid email error on bad format', async () => {
     render(<LoginForm />);
-    await user.type(screen.getByLabelText(/email/i), "notanemail");
-    await user.click(screen.getByRole("button", { name: /sign in/i }));
+    await user.type(screen.getByLabelText(/email/i), 'notanemail');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
     expect(
-      await screen.findByText("Please enter a valid email address.")
+      await screen.findByText('Please enter a valid email address.'),
     ).toBeInTheDocument();
   });
 
-  it("shows password required error on empty submit", async () => {
+  it('shows password required error on empty submit', async () => {
     render(<LoginForm />);
-    await user.type(screen.getByLabelText(/email/i), "test@soarup.app");
-    await user.click(screen.getByRole("button", { name: /sign in/i }));
-    expect(await screen.findByText("Password is required.")).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/email/i), 'test@soarup.app');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+    expect(await screen.findByText('Password is required.')).toBeInTheDocument();
   });
 
-  it("does not call login when form is invalid", async () => {
+  it('does not call login when form is invalid', async () => {
     render(<LoginForm />);
-    await user.click(screen.getByRole("button", { name: /sign in/i }));
-    await screen.findByText("Email is required.");
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+    await screen.findByText('Email is required.');
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 });
 
 // ─── Submission ───────────────────────────────────────────────────────────────
 
-describe("LoginForm — submission", () => {
-  it("redirects to /onboarding when is_onboarded is false", async () => {
+describe('LoginForm — submission', () => {
+  it('redirects to /onboarding when is_onboarded is false', async () => {
     mockLoginSuccess(false);
     render(<LoginForm />);
     await fillAndSubmit();
-    await waitFor(() =>
-      expect(mockPush).toHaveBeenCalledWith("/onboarding")
-    );
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/onboarding'));
   });
 
-  it("redirects to /dashboard when is_onboarded is true", async () => {
+  it('redirects to /dashboard when is_onboarded is true', async () => {
     mockLoginSuccess(true);
     render(<LoginForm />);
     await fillAndSubmit();
-    await waitFor(() =>
-      expect(mockPush).toHaveBeenCalledWith("/dashboard")
-    );
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/dashboard'));
   });
 
-  it("calls onSuccess prop instead of redirecting when provided", async () => {
+  it('calls onSuccess prop instead of redirecting when provided', async () => {
     mockLoginSuccess();
     const onSuccess = vi.fn();
     render(<LoginForm onSuccess={onSuccess} />);
@@ -179,77 +178,75 @@ describe("LoginForm — submission", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("disables submit button while loading", async () => {
+  it('disables submit button while loading', async () => {
     // Never resolves — keeps isLoading true
-    vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})));
     render(<LoginForm />);
-    await user.type(screen.getByLabelText(/email/i), "test@soarup.app");
-    await user.type(screen.getByLabelText(/^password$/i), "Password1");
-    await user.click(screen.getByRole("button", { name: /sign in/i }));
-    expect(screen.getByRole("button", { name: /sign in/i })).toBeDisabled();
+    await user.type(screen.getByLabelText(/email/i), 'test@soarup.app');
+    await user.type(screen.getByLabelText(/^password$/i), 'Password1');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+    expect(screen.getByRole('button', { name: /sign in/i })).toBeDisabled();
   });
 });
 
 // ─── API errors ───────────────────────────────────────────────────────────────
 
-describe("LoginForm — API errors", () => {
-  it("shows friendly error for authentication_failed", async () => {
-    mockLoginError("authentication_failed", 401);
+describe('LoginForm — API errors', () => {
+  it('shows friendly error for authentication_failed', async () => {
+    mockLoginError('authentication_failed', 401);
     render(<LoginForm />);
     await fillAndSubmit();
-    expect(
-      await screen.findByText("Incorrect email or password.")
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Incorrect email or password.')).toBeInTheDocument();
   });
 
-  it("shows friendly error for service_unavailable", async () => {
-    mockLoginError("service_unavailable", 503);
+  it('shows friendly error for service_unavailable', async () => {
+    mockLoginError('service_unavailable', 503);
     render(<LoginForm />);
     await fillAndSubmit();
     expect(
       await screen.findByText(
-        "Service temporarily unavailable. Please try again shortly."
-      )
+        'Service temporarily unavailable. Please try again shortly.',
+      ),
     ).toBeInTheDocument();
   });
 
-  it("does not redirect on API error", async () => {
-    mockLoginError("authentication_failed", 401);
+  it('does not redirect on API error', async () => {
+    mockLoginError('authentication_failed', 401);
     render(<LoginForm />);
     await fillAndSubmit();
-    await screen.findByText("Incorrect email or password.");
+    await screen.findByText('Incorrect email or password.');
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("clears API error when user types in email field", async () => {
-    mockLoginError("authentication_failed", 401);
+  it('clears API error when user types in email field', async () => {
+    mockLoginError('authentication_failed', 401);
     render(<LoginForm />);
     await fillAndSubmit();
-    await screen.findByText("Incorrect email or password.");
+    await screen.findByText('Incorrect email or password.');
 
     // Now type in the email field — error should clear
     mockLoginSuccess(); // prevent re-trigger error on next fetch
-    await user.type(screen.getByLabelText(/email/i), "a");
+    await user.type(screen.getByLabelText(/email/i), 'a');
     await waitFor(() =>
       expect(
-        screen.queryByText("Incorrect email or password.")
-      ).not.toBeInTheDocument()
+        screen.queryByText('Incorrect email or password.'),
+      ).not.toBeInTheDocument(),
     );
   });
 });
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
-describe("LoginForm — navigation", () => {
-  it("navigates to /forgot-password when forgot password is clicked", async () => {
+describe('LoginForm — navigation', () => {
+  it('navigates to /forgot-password when forgot password is clicked', async () => {
     render(<LoginForm />);
-    await user.click(screen.getByRole("button", { name: /forgot password/i }));
-    expect(mockPush).toHaveBeenCalledWith("/forgot-password");
+    await user.click(screen.getByRole('button', { name: /forgot password/i }));
+    expect(mockPush).toHaveBeenCalledWith('/forgot-password');
   });
 
-  it("navigates to /signup when sign up link is clicked", async () => {
+  it('navigates to /signup when sign up link is clicked', async () => {
     render(<LoginForm />);
-    await user.click(screen.getByRole("button", { name: /new to soarup/i }));
-    expect(mockPush).toHaveBeenCalledWith("/signup");
+    await user.click(screen.getByRole('button', { name: /new to soarup/i }));
+    expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 });

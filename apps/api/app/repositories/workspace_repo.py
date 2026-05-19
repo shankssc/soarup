@@ -60,7 +60,7 @@ class WorkspaceRepository:
             name=name,
             slug=slug,
             plan="free",
-        )  # type: ignore[call-arg]
+        )
         self.db.add(workspace)
         try:
             await self.db.flush()  # get the id without committing — service owns the commit
@@ -152,7 +152,7 @@ class WorkspaceRepository:
             user_id=user_id,
             role=role,
             invited_by=invited_by,
-        )  # type: ignore[call-arg]
+        )
         self.db.add(member)
         try:
             await self.db.flush()

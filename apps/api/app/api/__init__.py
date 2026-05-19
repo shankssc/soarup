@@ -15,6 +15,7 @@ Usage:
         create_success_response,
         handle_auth_error,
         handle_profile_error,
+        handle_update_error,
     )
 """
 
@@ -23,6 +24,7 @@ from app.api._utils import (
     create_success_response,
     handle_auth_error,
     handle_profile_error,
+    handle_update_error,
 )
 from app.api.dependencies import (
     ApiVersionDep,
@@ -51,4 +53,5 @@ __all__ = [
     "create_success_response",
     "handle_auth_error",
     "handle_profile_error",
+    "handle_update_error",
 ]

@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import type { Viewport } from 'next';
 import { Space_Grotesk, Newsreader } from 'next/font/google';
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { QueryProvider } from '@/components/providers/query-provider';
 import './globals.css';
 
 // ─── Fonts ────────────────────────────────────────────────────────────────────
@@ -90,7 +91,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         className={` ${spaceGrotesk.variable} ${newsreader.variable} min-h-screen bg-background font-body text-on-surface antialiased`}
       >
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {/*QueryProvider sits inside themeprovider as theme has no dependency
+          on React Query but some query-driven components may eventually want to read the theme */}
+          <QueryProvider>{children}</QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

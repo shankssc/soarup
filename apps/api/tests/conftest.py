@@ -87,10 +87,9 @@ async def test_engine(test_settings):
 
     # Import all models so their tables register on Base.metadata
     import app.models.profile  # noqa: F401
+    import app.models.update  # noqa: F401
     import app.models.workspace  # noqa: F401
     # Add other model imports here as the schema grows:
-    # import app.models.workspace  # noqa: F401
-    # import app.models.update     # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

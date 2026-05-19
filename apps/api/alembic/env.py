@@ -1,11 +1,12 @@
 # apps/api/alembic/env.py
 # Configure Alembic for PostgreSQL migrations — uses SYNC engine (Alembic requirement)
 
-import os
 from dotenv import load_dotenv
 from app.config import settings
 # Ensure models are imported for autogenerate
 from app.models.profile import Profile
+from app.models.update import Update
+from app.models.workspace import Workspace, WorkspaceMember
 from app.models.base import Base
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
