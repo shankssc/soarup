@@ -151,3 +151,32 @@ async def validate_supabase_jwt(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
+
+
+async def validate_supabase_jwt_ws(token: str) -> dict[str, Any]:
+    """
+    Validate a JWT token passed as a query parameter (WebSocket auth).
+
+    WebSocket connections cannot send Authorization headers in browsers,
+    so the token is passed in the URL query string instead (?token=<jwt>).
+    Wraps the token in HTTPAuthorizationCredentials and delegates to
+    validate_supabase_jwt, reusing all existing validation logic including
+    JWKS caching, algorithm detection, and environment-aware issuer checks.
+
+    Args:
+        token: Raw JWT string from the WebSocket query parameter.
+
+    Returns:
+        Decoded JWT payload dict. Caller should extract payload["sub"]
+        for the authenticated user_id.
+
+    Raises:
+        HTTPException (401): Propagated from validate_supabase_jwt on
+            invalid, expired, or malformed tokens. The WebSocket endpoint
+            catches this and closes with code 4001 instead.
+    """
+    credentials = HTTPAuthorizationCredentials(
+        scheme="Bearer",
+        credentials=token,
+    )
+    return await validate_supabase_jwt(credentials)
