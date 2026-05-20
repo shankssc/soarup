@@ -13,6 +13,7 @@ from app.schemas.update import (
     UpdateResponse,
     UpdateUpdateRequest,
 )
+from app.workers.tasks import process_update
 
 logger = structlog.get_logger(__name__)
 
@@ -58,8 +59,8 @@ class UpdateService:
         request: SubmitUpdateRequest,
     ) -> UpdateResponse:
         """
-        Create a new update for today. Raises UpdateError if one already exists
-        for this user + workspace + date combination.
+        Create a new update for today and enqueue it for AI processing.
+        Raises UpdateError if one already exists for this user + workspace + date combination.
         """
         repo = self._get_update_repo()
         existing = await repo.get_for_user_on_date(workspace_id, user_id, request.update_date)
@@ -76,7 +77,15 @@ class UpdateService:
             update_date=request.update_date,
             mode=request.mode,
         )
-        # Milestone 3: process_update.delay(update.id)
+
+        # Enqueue Claude summarisation pipeline - the fire and forget approach
+
+        # The task transitions status: pending → processing → processed | failed
+
+        # and broadcasts each transition over Redis pub/sub.
+
+        process_update.delay(update.id)
+
         logger.info(
             "update_submitted",
             update_id=update.id,

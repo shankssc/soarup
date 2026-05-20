@@ -7,18 +7,19 @@ celery_app = Celery(
     "soarup",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=[],  # No tasks yet - added in Milestone 3
+    include=["app.workers.tasks"],
 )
 
-# Configure Celery
+# Configure Celery application globally
 celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
-    task_track_started=True,
+    task_acks_late=True,  # Ack after task completes, not before
     task_time_limit=300,  # 5 minutes max per task
+    task_reject_on_worker_lost=True,  # Requeue if worker dies mid-task
     worker_prefetch_multiplier=1,
 )
 

@@ -46,7 +46,7 @@ Digest:"""
 
 def build_summarisation_prompt(
     content: str,
-    author_name: str,
+    author_name: str | None,
     update_date: str,
     custom_prompt: str | None = None,
 ) -> str:
