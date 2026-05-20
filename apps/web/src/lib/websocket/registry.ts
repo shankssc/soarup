@@ -8,6 +8,7 @@
 // Usage:
 //   subscribe('update.status_changed', handler) → returns unsubscribe fn
 //   dispatch(message) → called by useWebSocket on every incoming message
+//   acts as a bridge between useWebsocket and useDashboardUpdates
 
 type Handler<T = unknown> = (payload: T) => void;
 
