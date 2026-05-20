@@ -97,3 +97,34 @@ class UpdateRepository:
         """Mark update as deleted without removing the row."""
         update.is_deleted = True
         await self.db.commit()
+
+    async def update_status(
+        self,
+        update: Update,
+        status: str,
+        summary: str | None = None,
+    ) -> Update:
+        """
+        Transition an update's processing status and optionally store its summary.
+
+        Called by the Celery task at each stage of the pipeline:
+          pending → processing  (no summary)
+          processing → processed (summary populated)
+          processing → failed    (no summary)
+
+        Args:
+            update:  ORM instance to mutate — must belong to the current session.
+            status:  Target status string: "processing", "processed", or "failed".
+            summary: AI-generated summary text. Only written when not None,
+                     so passing None on a failed transition won't overwrite
+                     a previously stored summary.
+
+        Returns:
+            The refreshed Update instance.
+        """
+        update.status = status
+        if summary is not None:
+            update.summary = summary
+        await self.db.commit()
+        await self.db.refresh(update)
+        return update
