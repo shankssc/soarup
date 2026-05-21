@@ -548,7 +548,7 @@ export function OnboardingForm() {
     if (user) {
       setUser({ ...user, is_onboarded: true });
     }
-    router.push('/dashboard');
+    router.replace('/dashboard');
   }
 
   return (

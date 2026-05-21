@@ -11,12 +11,14 @@ import {
   useEditUpdate,
   useDeleteUpdate,
 } from '@/hooks/useUpdates';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useDashboardUpdates } from '@/hooks/useDashboardUpdates';
 import { EmptyState } from '@/components/domain/updates/empty-state';
 import { UpdateForm } from '@/components/domain/updates/update-form';
 import { UpdateCard } from '@/components/domain/updates/update-card';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, tokens } = useAuth();
   const { data: workspace } = useWorkspace();
   const [showForm, setShowForm] = useState(false);
 
@@ -30,10 +32,23 @@ export default function DashboardPage() {
   const editMutation = useEditUpdate(workspace?.id ?? '');
   const deleteMutation = useDeleteUpdate(workspace?.id ?? '');
 
+  // Connect WebSocket — workspace-scoped, reconnects automatically with
+  // exponential backoff. Publishes events to the registry for handlers below.
+  useWebSocket({
+    workspaceId: workspace?.id,
+    accessToken: tokens?.access_token,
+    enabled: !!workspace?.id && !!tokens?.access_token,
+  });
+
+  // Register update.status_changed handler — patches React Query cache
+  // in place when AI processing transitions arrive over the WebSocket.
+  useDashboardUpdates(workspace?.id);
+
   // Hide form + CTA once user has submitted today
   const hasSubmittedToday = updates.some((u) => u.user_id === user?.id);
 
   async function handleSubmit(content: string) {
+    if (!workspace?.id) return;
     await submitMutation.mutateAsync({ content, update_date: today });
     setShowForm(false);
   }
@@ -62,7 +77,7 @@ export default function DashboardPage() {
             <UpdateForm
               onSubmit={handleSubmit}
               onCancel={() => setShowForm(false)}
-              isSubmitting={submitMutation.isPending}
+              isSubmitting={submitMutation.isPending || !workspace?.id}
             />
           ) : (
             <EmptyState onSubmitClick={() => setShowForm(true)} />
