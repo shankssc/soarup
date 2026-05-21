@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const hasSubmittedToday = updates.some((u) => u.user_id === user?.id);
 
   async function handleSubmit(content: string) {
+    if (!workspace?.id) return;
     await submitMutation.mutateAsync({ content, update_date: today });
     setShowForm(false);
   }
@@ -76,7 +77,7 @@ export default function DashboardPage() {
             <UpdateForm
               onSubmit={handleSubmit}
               onCancel={() => setShowForm(false)}
-              isSubmitting={submitMutation.isPending}
+              isSubmitting={submitMutation.isPending || !workspace?.id}
             />
           ) : (
             <EmptyState onSubmitClick={() => setShowForm(true)} />
