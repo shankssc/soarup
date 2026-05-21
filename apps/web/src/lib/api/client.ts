@@ -65,10 +65,7 @@ async function request<T>(
         res.status,
       );
     }
-    // Global onboarding gate
-    if (res.status === 403 && errBody.message?.toLowerCase().includes('onboarding')) {
-      if (typeof window !== 'undefined') window.location.href = '/onboarding';
-    }
+
     throw new ApiRequestError(
       errBody.error,
       errBody.message,

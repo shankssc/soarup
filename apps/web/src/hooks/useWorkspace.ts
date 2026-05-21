@@ -59,7 +59,7 @@ export function useWorkspace() {
     queryKey: workspaceKeys.mine(),
     queryFn: () =>
       apiClient
-        .get<WorkspaceResponse[]>('/workspaces/me', tokens?.access_token)
+        .get<WorkspaceResponse[]>('/workspaces/', tokens?.access_token)
         .then((workspaces) => workspaces[0] ?? null),
     enabled: !!tokens?.access_token,
     staleTime: 5 * 60 * 1000,
