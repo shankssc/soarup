@@ -1,9 +1,10 @@
-// apps/web/src/stories/layout/TopBar.stories.tsx
+// apps/web/src/stories/domain/DashboardView.stories.tsx
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import React, { useEffect } from 'react';
-import { TopBar } from '@/components/layout/top-bar';
+import { DashboardView } from '@/components/domain/dashboard/dashboard-view';
 import { useAuthStore } from '@/hooks/useAuth';
 import type { UserProfile, AuthTokens } from '@/hooks/useAuth';
+import type { UpdateResponse } from '@/hooks/useUpdates';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,59 @@ const MOCK_TOKENS: AuthTokens = {
   access_token: 'mock-access-token',
   refresh_token: 'mock-refresh-token',
   expires_at: Date.now() + 3600 * 1000,
+};
+
+const MOCK_UPDATE_PENDING: UpdateResponse = {
+  id: 'update-001',
+  workspace_id: 'workspace-123',
+  user_id: 'user-123',
+  content:
+    'Finished the API integration for the workspace switcher and started on the dashboard layout tokens.',
+  mode: 'text',
+  status: 'pending',
+  summary: null,
+  update_date: '2026-05-21',
+  created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+  updated_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+  author_name: 'Suyash Chaudhary',
+  author_avatar_url: null,
+};
+
+const MOCK_UPDATE_PROCESSING: UpdateResponse = {
+  ...MOCK_UPDATE_PENDING,
+  id: 'update-002',
+  status: 'processing',
+};
+
+const MOCK_UPDATE_PROCESSED: UpdateResponse = {
+  ...MOCK_UPDATE_PENDING,
+  id: 'update-003',
+  status: 'processed',
+  summary:
+    'They completed the API integration for the workspace switcher and began work on the dashboard layout token system, focusing on the asymmetric border radius logic for primary buttons.',
+};
+
+const MOCK_UPDATE_FAILED: UpdateResponse = {
+  ...MOCK_UPDATE_PENDING,
+  id: 'update-004',
+  status: 'failed',
+};
+
+const MOCK_TEAMMATE_UPDATE: UpdateResponse = {
+  id: 'update-005',
+  workspace_id: 'workspace-123',
+  user_id: 'user-456',
+  content:
+    'Reviewed the PR for the auth middleware and left some comments. Planning to start on the Redis pub/sub integration tomorrow.',
+  mode: 'text',
+  status: 'processed',
+  summary:
+    'They reviewed the auth middleware PR with comments and are planning to begin the Redis pub/sub integration next.',
+  update_date: '2026-05-21',
+  created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+  updated_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+  author_name: 'Alex Kim',
+  author_avatar_url: null,
 };
 
 // ─── Decorators ───────────────────────────────────────────────────────────────
@@ -50,19 +104,25 @@ function withAuthStore() {
   };
 }
 
-function TopBarShell(Story: React.ComponentType) {
+function DashboardShell(Story: React.ComponentType) {
   return (
-    <div className="w-full">
-      <Story />
+    <div className="min-h-screen bg-background p-8">
+      <div className="mx-auto max-w-[800px]">
+        <Story />
+      </div>
     </div>
   );
 }
 
+// ─── Shared no-op handlers ────────────────────────────────────────────────────
+
+const noop = async () => {};
+
 // ─── Meta ─────────────────────────────────────────────────────────────────────
 
 const meta = {
-  title: 'Layout/TopBar',
-  component: TopBar,
+  title: 'Domain/Dashboard/DashboardView',
+  component: DashboardView,
   parameters: {
     layout: 'fullscreen',
     nextjs: {
@@ -70,58 +130,132 @@ const meta = {
       navigation: { pathname: '/dashboard' },
     },
   },
+  args: {
+    updates: [],
+    isLoading: false,
+    hasSubmittedToday: false,
+    showForm: false,
+    currentUserId: 'user-123',
+    todayLabel: 'Thursday, 21 May',
+    onSubmitClick: noop,
+    onFormSubmit: noop,
+    onFormCancel: noop,
+    onEdit: noop,
+    onDelete: noop,
+    isSubmitting: false,
+  },
   tags: ['autodocs'],
-} satisfies Meta<typeof TopBar>;
+} satisfies Meta<typeof DashboardView>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// ─── Stories ──────────────────────────────────────────────────────────────────
+// ─── Empty state ──────────────────────────────────────────────────────────────
 
-export const Dark: Story = {
-  name: 'TopBar — Dashboard (Dark)',
+export const EmptyStateDark: Story = {
+  name: 'Empty State (Dark)',
   parameters: { theme: 'dark' },
-  decorators: [TopBarShell, withAuthStore()],
+  decorators: [DashboardShell, withAuthStore()],
 };
 
-export const Light: Story = {
-  name: 'TopBar — Dashboard (Light)',
+export const EmptyStateLight: Story = {
+  name: 'Empty State (Light)',
   parameters: { theme: 'light' },
-  decorators: [TopBarShell, withAuthStore()],
+  decorators: [DashboardShell, withAuthStore()],
 };
 
-export const HistoryDark: Story = {
-  name: 'TopBar — History (Dark)',
-  parameters: {
-    theme: 'dark',
-    nextjs: { navigation: { pathname: '/history' } },
-  },
-  decorators: [TopBarShell, withAuthStore()],
+// ─── Form open ────────────────────────────────────────────────────────────────
+
+export const FormOpenDark: Story = {
+  name: 'Update Form Open (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: { showForm: true },
 };
 
-export const SettingsDark: Story = {
-  name: 'TopBar — Settings (Dark)',
-  parameters: {
-    theme: 'dark',
-    nextjs: { navigation: { pathname: '/settings' } },
+// ─── Loading skeleton ─────────────────────────────────────────────────────────
+
+export const LoadingDark: Story = {
+  name: 'Loading Skeleton (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: { isLoading: true },
+};
+
+// ─── With updates ─────────────────────────────────────────────────────────────
+
+export const WithPendingUpdateDark: Story = {
+  name: 'With Pending Update (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [MOCK_UPDATE_PENDING],
+    hasSubmittedToday: true,
   },
-  decorators: [TopBarShell, withAuthStore()],
+};
+
+export const WithProcessingUpdateDark: Story = {
+  name: 'With Processing Update (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [MOCK_UPDATE_PROCESSING],
+    hasSubmittedToday: true,
+  },
+};
+
+export const WithSummarisedUpdateDark: Story = {
+  name: 'With Summarised Update (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [MOCK_UPDATE_PROCESSED, MOCK_TEAMMATE_UPDATE],
+    hasSubmittedToday: true,
+  },
+};
+
+export const WithSummarisedUpdateLight: Story = {
+  name: 'With Summarised Update (Light)',
+  parameters: { theme: 'light' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [MOCK_UPDATE_PROCESSED, MOCK_TEAMMATE_UPDATE],
+    hasSubmittedToday: true,
+  },
+};
+
+export const WithFailedUpdateDark: Story = {
+  name: 'With Failed Update (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [MOCK_UPDATE_FAILED],
+    hasSubmittedToday: true,
+  },
 };
 
 export const MobileDark: Story = {
-  name: 'TopBar — Mobile (Dark)',
+  name: 'Dashboard — Mobile (Dark)',
   parameters: {
     theme: 'dark',
     viewport: { defaultViewport: 'mobile1' },
   },
-  decorators: [TopBarShell, withAuthStore()],
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [MOCK_UPDATE_PROCESSED, MOCK_TEAMMATE_UPDATE],
+    hasSubmittedToday: true,
+  },
 };
 
 export const MobileLight: Story = {
-  name: 'TopBar — Mobile (Light)',
+  name: 'Dashboard — Mobile (Light)',
   parameters: {
     theme: 'light',
     viewport: { defaultViewport: 'mobile1' },
   },
-  decorators: [TopBarShell, withAuthStore()],
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [MOCK_UPDATE_PROCESSED, MOCK_TEAMMATE_UPDATE],
+    hasSubmittedToday: true,
+  },
 };

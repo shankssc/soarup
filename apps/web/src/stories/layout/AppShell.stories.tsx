@@ -1,75 +1,133 @@
-// apps/web/src/app/(app)/dashboard/page.tsx
-// Thin data wrapper — fetches data via hooks and passes it to DashboardView.
-// All rendering logic lives in DashboardView for Storybook testability.
-'use client';
+// apps/web/src/stories/layout/AppShell.stories.tsx
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import React, { useEffect } from 'react';
+import { AppShell } from '@/components/layout/app-shell';
+import { useAuthStore } from '@/hooks/useAuth';
+import type { UserProfile, AuthTokens } from '@/hooks/useAuth';
+import { useWebSocketStore } from '@/stores/websocket-store';
 
-import { useState } from 'react';
-import { format } from 'date-fns';
-import { useAuth } from '@/hooks/useAuth';
-import { useWorkspace } from '@/hooks/useWorkspace';
-import {
-  useUpdates,
-  useSubmitUpdate,
-  useEditUpdate,
-  useDeleteUpdate,
-} from '@/hooks/useUpdates';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { useDashboardUpdates } from '@/hooks/useDashboardUpdates';
-import { DashboardView } from '@/components/domain/dashboard/dashboard-view';
+// ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
-  const { user, tokens } = useAuth();
-  const { data: workspace } = useWorkspace();
-  const [showForm, setShowForm] = useState(false);
+const MOCK_USER: UserProfile = {
+  id: 'user-123',
+  email: 'suyash@example.com',
+  full_name: 'Suyash Chaudhary',
+  avatar_url: null,
+  email_verified: true,
+  is_onboarded: true,
+  created_at: new Date().toISOString(),
+};
 
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const todayLabel = format(new Date(), 'EEEE, d MMMM');
+const MOCK_TOKENS: AuthTokens = {
+  access_token: 'mock-access-token',
+  refresh_token: 'mock-refresh-token',
+  expires_at: Date.now() + 3600 * 1000,
+};
 
-  const { data: updatesData, isLoading } = useUpdates(workspace?.id, today);
-  const updates = updatesData?.updates ?? [];
+// ─── Decorators ───────────────────────────────────────────────────────────────
 
-  const submitMutation = useSubmitUpdate(workspace?.id ?? '');
-  const editMutation = useEditUpdate(workspace?.id ?? '');
-  const deleteMutation = useDeleteUpdate(workspace?.id ?? '');
-
-  useWebSocket({
-    workspaceId: workspace?.id,
-    accessToken: tokens?.access_token,
-    enabled: !!workspace?.id && !!tokens?.access_token,
-  });
-
-  useDashboardUpdates(workspace?.id);
-
-  const hasSubmittedToday = updates.some((u) => u.user_id === user?.id);
-
-  async function handleSubmit(content: string) {
-    if (!workspace?.id) return;
-    await submitMutation.mutateAsync({ content, update_date: today });
-    setShowForm(false);
-  }
-
-  async function handleEdit(updateId: string, content: string) {
-    await editMutation.mutateAsync({ updateId, content });
-  }
-
-  async function handleDelete(updateId: string, updateDate: string) {
-    await deleteMutation.mutateAsync({ updateId, updateDate });
-  }
-
-  return (
-    <DashboardView
-      updates={updates}
-      isLoading={isLoading}
-      hasSubmittedToday={hasSubmittedToday}
-      showForm={showForm}
-      currentUserId={user?.id ?? ''}
-      todayLabel={todayLabel}
-      onSubmitClick={() => setShowForm(true)}
-      onFormSubmit={handleSubmit}
-      onFormCancel={() => setShowForm(false)}
-      onEdit={handleEdit}
-      onDelete={handleDelete}
-      isSubmitting={submitMutation.isPending || !workspace?.id}
-    />
-  );
+function withAuthStore() {
+  return function Decorator(Story: React.ComponentType) {
+    function StoreSeeder() {
+      useEffect(() => {
+        useAuthStore.setState({
+          user: MOCK_USER,
+          tokens: MOCK_TOKENS,
+          isLoading: false,
+          error: null,
+        });
+        // Mock useWebSocketStore to avoid real WS connection
+        useWebSocketStore.setState({ status: 'connected' });
+        return () => {
+          useAuthStore.setState({
+            user: null,
+            tokens: null,
+            isLoading: false,
+            error: null,
+          });
+          useWebSocketStore.setState({ status: 'idle' });
+        };
+      }, []);
+      return <Story />;
+    }
+    return <StoreSeeder />;
+  };
 }
+
+// ─── Meta ─────────────────────────────────────────────────────────────────────
+
+const meta = {
+  title: 'Layout/AppShell',
+  component: AppShell,
+  parameters: {
+    layout: 'fullscreen',
+    nextjs: {
+      appDirectory: true,
+      navigation: { pathname: '/dashboard' },
+    },
+  },
+  tags: ['autodocs'],
+} satisfies Meta<typeof AppShell>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+// ─── Stories ──────────────────────────────────────────────────────────────────
+
+export const Dark: Story = {
+  name: 'AppShell (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [withAuthStore()],
+  args: {
+    children: (
+      <div className="flex flex-col gap-4">
+        <div className="h-8 w-48 animate-pulse rounded bg-surface-high" />
+        <div className="h-32 rounded border border-outline-variant bg-surface-high" />
+        <div className="h-32 rounded border border-outline-variant bg-surface-high" />
+      </div>
+    ),
+  },
+};
+
+export const Light: Story = {
+  name: 'AppShell (Light)',
+  parameters: { theme: 'light' },
+  decorators: [withAuthStore()],
+  args: {
+    children: (
+      <div className="flex flex-col gap-4">
+        <div className="h-8 w-48 animate-pulse rounded bg-surface-high" />
+        <div className="h-32 rounded border border-outline-variant bg-surface-high" />
+        <div className="h-32 rounded border border-outline-variant bg-surface-high" />
+      </div>
+    ),
+  },
+};
+
+export const MobileDark: Story = {
+  name: 'AppShell — Mobile (Dark)',
+  parameters: {
+    theme: 'dark',
+    viewport: { defaultViewport: 'mobile1' },
+  },
+  decorators: [withAuthStore()],
+  args: {
+    children: (
+      <div className="h-32 rounded border border-outline-variant bg-surface-high" />
+    ),
+  },
+};
+
+export const MobileLight: Story = {
+  name: 'AppShell — Mobile (Light)',
+  parameters: {
+    theme: 'light',
+    viewport: { defaultViewport: 'mobile1' },
+  },
+  decorators: [withAuthStore()],
+  args: {
+    children: (
+      <div className="h-32 rounded border border-outline-variant bg-surface-high" />
+    ),
+  },
+};
