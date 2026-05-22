@@ -1,5 +1,5 @@
-// apps/web/src/components/domain/updates/update-card.stories.tsx
-
+// apps/web/src/stories/domain/UpdateCard.stories.tsx
+// M3 additions: Processing, Summarised, Failed story variants
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import React, { useEffect } from 'react';
 import { UpdateCard } from '@/components/domain/updates/update-card';
@@ -25,7 +25,7 @@ const MOCK_TOKENS: AuthTokens = {
   expires_at: Date.now() + 3600 * 1000,
 };
 
-const MOCK_UPDATE: UpdateResponse = {
+const BASE_UPDATE: UpdateResponse = {
   id: 'update-abc',
   workspace_id: 'workspace-123',
   user_id: 'user-123',
@@ -34,24 +34,23 @@ const MOCK_UPDATE: UpdateResponse = {
   mode: 'text',
   status: 'pending',
   summary: null,
-  update_date: '2026-05-18',
-  created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 mins ago
+  update_date: '2026-05-21',
+  created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
   updated_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
   author_name: 'Jane Doe',
   author_avatar_url: null,
 };
 
-const MOCK_UPDATE_OTHER_USER: UpdateResponse = {
-  ...MOCK_UPDATE,
+const TEAMMATE_UPDATE: UpdateResponse = {
+  ...BASE_UPDATE,
   id: 'update-def',
   user_id: 'user-456',
   author_name: 'Alex Kim',
-  status: 'processed',
-  created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 mins ago
+  created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
   updated_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
 };
 
-// ─── Store seeder ─────────────────────────────────────────────────────────────
+// ─── Decorators ───────────────────────────────────────────────────────────────
 
 function withAuthStore() {
   return function Decorator(Story: React.ComponentType) {
@@ -78,8 +77,6 @@ function withAuthStore() {
   };
 }
 
-// ─── Shell ────────────────────────────────────────────────────────────────────
-
 function DashboardShell(Story: React.ComponentType) {
   return (
     <div className="min-h-screen bg-background p-8">
@@ -103,10 +100,10 @@ const meta = {
     },
   },
   args: {
-    update: MOCK_UPDATE,
+    update: BASE_UPDATE,
     currentUserId: 'user-123',
-    onEdit: async (_id: string, _content: string) => {},
-    onDelete: async (_id: string, _date: string) => {},
+    onEdit: async () => {},
+    onDelete: async () => {},
   },
   tags: ['autodocs'],
 } satisfies Meta<typeof UpdateCard>;
@@ -114,85 +111,135 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// ─── Stories ──────────────────────────────────────────────────────────────────
+// ─── M2 baseline stories ──────────────────────────────────────────────────────
 
-export const OwnUpdatePendingDark: Story = {
-  name: 'Own Update — Pending (Dark)',
+export const PendingDark: Story = {
+  name: 'Pending (Dark)',
   parameters: { theme: 'dark' },
   decorators: [DashboardShell, withAuthStore()],
 };
 
-export const OwnUpdatePendingLight: Story = {
-  name: 'Own Update — Pending (Light)',
+export const PendingLight: Story = {
+  name: 'Pending (Light)',
   parameters: { theme: 'light' },
   decorators: [DashboardShell, withAuthStore()],
 };
 
-export const OwnUpdateProcessedDark: Story = {
-  name: 'Own Update — Summarised (Dark)',
-  parameters: { theme: 'dark' },
-  decorators: [DashboardShell, withAuthStore()],
-  args: { update: { ...MOCK_UPDATE, status: 'processed' } },
-};
+// ─── M3 status variants ───────────────────────────────────────────────────────
 
-export const OtherUserUpdateDark: Story = {
-  name: "Teammate's Update — No Menu (Dark)",
+export const ProcessingDark: Story = {
+  name: 'Processing — Skeleton (Dark)',
   parameters: { theme: 'dark' },
   decorators: [DashboardShell, withAuthStore()],
   args: {
-    update: MOCK_UPDATE_OTHER_USER,
+    update: { ...BASE_UPDATE, status: 'processing' },
+  },
+};
+
+export const ProcessingLight: Story = {
+  name: 'Processing — Skeleton (Light)',
+  parameters: { theme: 'light' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: { ...BASE_UPDATE, status: 'processing' },
+  },
+};
+
+export const SummarisedDark: Story = {
+  name: 'Summarised — With AI Summary (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: {
+      ...BASE_UPDATE,
+      status: 'processed',
+      summary:
+        'They completed the API integration for the workspace switcher and began work on the dashboard layout token system, focusing on the asymmetric border radius logic for primary buttons.',
+    },
+  },
+};
+
+export const SummarisedLight: Story = {
+  name: 'Summarised — With AI Summary (Light)',
+  parameters: { theme: 'light' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: {
+      ...BASE_UPDATE,
+      status: 'processed',
+      summary:
+        'They completed the API integration for the workspace switcher and began work on the dashboard layout token system, focusing on the asymmetric border radius logic for primary buttons.',
+    },
+  },
+};
+
+export const FailedDark: Story = {
+  name: 'Failed — Summary Unavailable (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: { ...BASE_UPDATE, status: 'failed' },
+  },
+};
+
+export const FailedLight: Story = {
+  name: 'Failed — Summary Unavailable (Light)',
+  parameters: { theme: 'light' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: { ...BASE_UPDATE, status: 'failed' },
+  },
+};
+
+// ─── Teammate card (no menu) ──────────────────────────────────────────────────
+
+export const TeammateProcessedDark: Story = {
+  name: "Teammate's Update — Summarised (Dark)",
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: {
+      ...TEAMMATE_UPDATE,
+      status: 'processed',
+      summary:
+        'They reviewed the auth middleware PR with comments and are planning to begin the Redis pub/sub integration next.',
+    },
     currentUserId: 'user-123',
   },
 };
 
-export const OtherUserUpdateLight: Story = {
-  name: "Teammate's Update — No Menu (Light)",
-  parameters: { theme: 'light' },
-  decorators: [DashboardShell, withAuthStore()],
-  args: {
-    update: MOCK_UPDATE_OTHER_USER,
-    currentUserId: 'user-123',
-  },
-};
-
-export const MultipleCardsDark: Story = {
-  name: 'Multiple Cards (Dark)',
-  parameters: { theme: 'dark' },
-  decorators: [DashboardShell, withAuthStore()],
-  render: (args) => (
-    <>
-      <UpdateCard {...args} update={MOCK_UPDATE} />
-      <UpdateCard {...args} update={MOCK_UPDATE_OTHER_USER} />
-    </>
-  ),
-};
-
-export const MultipleCardsLight: Story = {
-  name: 'Multiple Cards (Light)',
-  parameters: { theme: 'light' },
-  decorators: [DashboardShell, withAuthStore()],
-  render: (args) => (
-    <>
-      <UpdateCard {...args} update={MOCK_UPDATE} />
-      <UpdateCard {...args} update={MOCK_UPDATE_OTHER_USER} />
-    </>
-  ),
-};
+// ─── Mobile ───────────────────────────────────────────────────────────────────
 
 export const MobileDark: Story = {
-  name: 'Update Card — Mobile (Dark)',
+  name: 'UpdateCard — Mobile (Dark)',
   parameters: {
     theme: 'dark',
     viewport: { defaultViewport: 'mobile1' },
   },
   decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: {
+      ...BASE_UPDATE,
+      status: 'processed',
+      summary:
+        'They completed the API integration for the workspace switcher and began work on the dashboard layout token system.',
+    },
+  },
 };
 
 export const MobileLight: Story = {
-  name: 'Update Card — Mobile (Light)',
+  name: 'UpdateCard — Mobile (Light)',
   parameters: {
     theme: 'light',
     viewport: { defaultViewport: 'mobile1' },
   },
   decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: {
+      ...BASE_UPDATE,
+      status: 'processed',
+      summary:
+        'They completed the API integration for the workspace switcher and began work on the dashboard layout token system.',
+    },
+  },
 };
