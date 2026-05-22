@@ -12,9 +12,11 @@ from app.api import (
     create_error_response,
     create_success_response,
 )
+from app.api.dependencies import OnboardedDep
 from app.schemas.workspace import (
     CreateWorkspaceRequest,
     JoinWorkspaceRequest,
+    UpdateWorkspacePromptsRequest,
     WorkspaceListResponse,
     WorkspaceResponse,
 )
@@ -34,8 +36,10 @@ _WORKSPACE_STATUS_MAP: dict[str, int] = {
     "invalid_invite_code": status.HTTP_400_BAD_REQUEST,
     "already_member": status.HTTP_409_CONFLICT,
     "workspace_not_found": status.HTTP_404_NOT_FOUND,
+    "unauthorized": status.HTTP_403_FORBIDDEN,
     "fetch_failed": status.HTTP_500_INTERNAL_SERVER_ERROR,
     "create_failed": status.HTTP_500_INTERNAL_SERVER_ERROR,
+    "update_failed": status.HTTP_500_INTERNAL_SERVER_ERROR,
 }
 
 
@@ -159,5 +163,61 @@ async def get_workspaces(
         logger.exception("get_workspaces_error", user_id=user_ctx["user_id"], error=str(e))
         return _handle_workspace_error(
             WorkspaceError("fetch_failed", "Could not retrieve workspaces. Please try again."),
+            api_version,
+        )
+
+
+@router.patch(
+    "/{workspace_id}/prompts",
+    response_model=WorkspaceResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update workspace AI prompt configuration",
+)
+async def update_workspace_prompts(
+    workspace_id: str,
+    request: UpdateWorkspacePromptsRequest,
+    user_ctx: OnboardedDep,
+    api_version: ApiVersionDep,
+    db: DBSessionDep,
+    service: WorkspaceService = Depends(get_workspace_service),
+) -> Response:
+    """
+    Update the AI prompt templates for a workspace.
+
+    Owner-only — role-based access (admin support) lands in Milestone 5.
+
+    Pass null for either prompt to reset it to the system default.
+    The Celery task reads None and falls back to the default prompt
+    defined in app.workers.prompts.
+    """
+    try:
+        logger.info(
+            "update_workspace_prompts_attempt",
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+        )
+        result = await service.update_workspace_prompts(
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+            request=request,
+        )
+        return create_success_response(result, api_version=api_version)
+    except WorkspaceError as e:
+        logger.warning(
+            "update_workspace_prompts_failed",
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+            error_code=e.error_code,
+        )
+        return _handle_workspace_error(e, api_version)
+    except Exception as e:
+        logger.exception(
+            "update_workspace_prompts_error",
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+            error=str(e),
+        )
+        return _handle_workspace_error(
+            WorkspaceError("update_failed", "Could not update workspace prompts. Please try again."),
             api_version,
         )

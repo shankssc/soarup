@@ -11,6 +11,7 @@ from app.repositories.profile_repo import ProfileRepository
 from app.repositories.workspace_repo import WorkspaceRepository
 from app.schemas.workspace import (
     CreateWorkspaceRequest,
+    UpdateWorkspacePromptsRequest,
     WorkspaceListResponse,
     WorkspaceResponse,
 )
@@ -242,4 +243,96 @@ class WorkspaceService:
             raise WorkspaceError(
                 error_code="fetch_failed",
                 message="Could not retrieve workspaces. Please try again.",
+            ) from e
+
+    async def update_workspace_prompts(
+        self,
+        workspace_id: str,
+        user_id: str,
+        request: UpdateWorkspacePromptsRequest,
+    ) -> WorkspaceResponse:
+        """
+        Update the AI prompt configuration for a workspace.
+
+        Only the workspace owner can update prompts. Role-based
+        access control (admin support) is deferred to Milestone 5
+        when the full RBAC layer lands.
+
+        Passing null for either prompt resets it to the system default —
+        the Celery task reads None and falls back to DEFAULT_SUMMARISATION_PROMPT
+        in app.workers.prompts.
+
+        Args:
+            workspace_id: UUID of the workspace to update.
+            user_id:      Supabase user ID of the requesting user.
+            request:      Validated UpdateWorkspacePromptsRequest.
+
+        Returns:
+            Updated WorkspaceResponse.
+
+        Raises:
+            WorkspaceError: workspace_not_found (404) or unauthorized (403).
+        """
+        workspace_repo = self._get_workspace_repo()
+
+        workspace = await workspace_repo.get_by_id(workspace_id)
+        if not workspace:
+            raise WorkspaceError(
+                error_code="workspace_not_found",
+                message="Workspace not found.",
+            )
+
+        # Owner-only guard — role checks (admin support) land in M5
+        if workspace.owner_id != user_id:
+            raise WorkspaceError(
+                error_code="unauthorized",
+                message="Only the workspace owner can update prompt configuration.",
+            )
+
+        try:
+            updated = await workspace_repo.update(
+                workspace_id,
+                {
+                    "summarisation_prompt": request.summarisation_prompt,
+                    "digest_prompt": request.digest_prompt,
+                },
+            )
+            await self.db.commit()
+
+            if not updated:
+                raise WorkspaceError(
+                    error_code="workspace_not_found",
+                    message="Workspace not found.",
+                )
+
+            logger.info(
+                "workspace_prompts_updated",
+                workspace_id=workspace_id,
+                user_id=user_id,
+                has_summarisation_prompt=request.summarisation_prompt is not None,
+                has_digest_prompt=request.digest_prompt is not None,
+            )
+
+            return WorkspaceResponse(
+                id=updated.id,
+                name=updated.name,
+                slug=updated.slug,
+                owner_id=updated.owner_id,
+                plan=updated.plan,
+                created_at=updated.created_at,
+            )
+
+        except WorkspaceError:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger.exception(
+                "workspace_prompts_update_failed",
+                workspace_id=workspace_id,
+                user_id=user_id,
+                error=str(e),
+            )
+            raise WorkspaceError(
+                error_code="update_failed",
+                message="Could not update workspace prompts. Please try again.",
             ) from e
