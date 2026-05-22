@@ -39,6 +39,26 @@ class JoinWorkspaceRequest(BaseModel):
     )
 
 
+class UpdateWorkspacePromptsRequest(BaseModel):
+    """Request schema for PATCH /workspaces/:id/prompts.
+
+    Both fields are optional — pass only the prompt you want to update.
+    Pass null explicitly to reset a prompt back to the system default.
+    """
+
+    summarisation_prompt: str | None = Field(
+        None,
+        max_length=2000,
+        description="Custom prompt for update summarisation. " "Pass null to reset to the system default.",
+        examples=["Summarise this developer update in 2 sentences using third person."],
+    )
+    digest_prompt: str | None = Field(
+        None,
+        max_length=2000,
+        description="Custom prompt for daily digest generation (Milestone 6). " "Pass null to reset to the system default.",
+    )
+
+
 # === Responses ===
 
 
