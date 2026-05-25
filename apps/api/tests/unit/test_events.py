@@ -8,10 +8,11 @@
 #     error handling behaviour (ValueError re-raised, Redis errors swallowed)
 
 import json
-import pytest
 from unittest.mock import AsyncMock
 
-from app.lib.events import publish_event, EVENT_TYPES, _channel, _build_message
+import pytest
+
+from app.lib.events import EVENT_TYPES, _build_message, _channel, publish_event
 
 WORKSPACE_ID = "workspace-123"
 UPDATE_ID = "update-abc"
