@@ -31,6 +31,7 @@ MOCK_SUMMARY = "They completed the auth flow and began working on the dashboard.
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_fake_update(
     update_id: str = UPDATE_ID,
     workspace_id: str = WORKSPACE_ID,
@@ -95,6 +96,7 @@ def _noop_status(u: MagicMock, _s: str, summary: str | None = None) -> MagicMock
     """No-op update_status side_effect — returns update unchanged."""
     return u
 
+
 # ---------------------------------------------------------------------------
 # Patch targets
 # All deferred imports in _process_update_async must be patched at source.
@@ -113,6 +115,7 @@ _BUILD_PROMPT = "app.workers.prompts.build_summarisation_prompt"
 # ---------------------------------------------------------------------------
 # Happy path
 # ---------------------------------------------------------------------------
+
 
 class TestHappyPath:
     @pytest.mark.asyncio
@@ -143,10 +146,8 @@ class TestHappyPath:
             patch(_PUBLISH_EVENT, new=AsyncMock()),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=workspace)
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=profile)
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=workspace)
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=profile)
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -179,10 +180,8 @@ class TestHappyPath:
             patch(_PUBLISH_EVENT, new=AsyncMock()),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -198,8 +197,7 @@ class TestHappyPath:
 
         mock_update_repo = MagicMock()
         mock_update_repo.get_by_id = AsyncMock(return_value=update)
-        mock_update_repo.update_status = AsyncMock(
-            side_effect=_noop_status)
+        mock_update_repo.update_status = AsyncMock(side_effect=_noop_status)
 
         with (
             patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
@@ -211,10 +209,8 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -232,8 +228,7 @@ class TestHappyPath:
 
         mock_update_repo = MagicMock()
         mock_update_repo.get_by_id = AsyncMock(return_value=update)
-        mock_update_repo.update_status = AsyncMock(
-            side_effect=_noop_status)
+        mock_update_repo.update_status = AsyncMock(side_effect=_noop_status)
 
         with (
             patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
@@ -245,10 +240,8 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -269,8 +262,7 @@ class TestHappyPath:
 
         mock_update_repo = MagicMock()
         mock_update_repo.get_by_id = AsyncMock(return_value=update)
-        mock_update_repo.update_status = AsyncMock(
-            side_effect=_noop_status)
+        mock_update_repo.update_status = AsyncMock(side_effect=_noop_status)
 
         with (
             patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
@@ -282,10 +274,8 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -306,8 +296,7 @@ class TestHappyPath:
 
         mock_update_repo = MagicMock()
         mock_update_repo.get_by_id = AsyncMock(return_value=update)
-        mock_update_repo.update_status = AsyncMock(
-            side_effect=_noop_status)
+        mock_update_repo.update_status = AsyncMock(side_effect=_noop_status)
 
         with (
             patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
@@ -319,10 +308,8 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -333,16 +320,14 @@ class TestHappyPath:
     async def test_custom_workspace_prompt_passed_to_build_prompt(self):
         """workspace.summarisation_prompt is forwarded to build_summarisation_prompt."""
         update = make_fake_update()
-        workspace = make_fake_workspace(
-            summarisation_prompt="Focus on blockers only.")
+        workspace = make_fake_workspace(summarisation_prompt="Focus on blockers only.")
         task = make_mock_task()
         mock_factory, _ = _make_mock_session_factory()
         mock_build = MagicMock(return_value="built-prompt")
 
         mock_update_repo = MagicMock()
         mock_update_repo.get_by_id = AsyncMock(return_value=update)
-        mock_update_repo.update_status = AsyncMock(
-            side_effect=_noop_status)
+        mock_update_repo.update_status = AsyncMock(side_effect=_noop_status)
 
         with (
             patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
@@ -355,10 +340,8 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=workspace)
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=workspace)
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -377,8 +360,7 @@ class TestHappyPath:
 
         mock_update_repo = MagicMock()
         mock_update_repo.get_by_id = AsyncMock(return_value=update)
-        mock_update_repo.update_status = AsyncMock(
-            side_effect=_noop_status)
+        mock_update_repo.update_status = AsyncMock(side_effect=_noop_status)
 
         with (
             patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
@@ -391,10 +373,8 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=workspace)
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=workspace)
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -405,6 +385,7 @@ class TestHappyPath:
 # ---------------------------------------------------------------------------
 # Update not found
 # ---------------------------------------------------------------------------
+
 
 class TestUpdateNotFound:
     @pytest.mark.asyncio
@@ -439,6 +420,7 @@ class TestUpdateNotFound:
 # Max retries exhausted
 # ---------------------------------------------------------------------------
 
+
 class TestMaxRetries:
     @pytest.mark.asyncio
     async def test_failed_status_set_on_max_retries(self):
@@ -467,10 +449,8 @@ class TestMaxRetries:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -489,8 +469,7 @@ class TestMaxRetries:
 
         mock_update_repo = MagicMock()
         mock_update_repo.get_by_id = AsyncMock(return_value=update)
-        mock_update_repo.update_status = AsyncMock(
-            side_effect=_noop_status)
+        mock_update_repo.update_status = AsyncMock(side_effect=_noop_status)
 
         with (
             patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
@@ -502,15 +481,12 @@ class TestMaxRetries:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
-        failed_payloads = [
-            p for p in publish_calls if p.get("status") == "failed"]
+        failed_payloads = [p for p in publish_calls if p.get("status") == "failed"]
         assert len(failed_payloads) == 1
 
     @pytest.mark.asyncio
@@ -522,24 +498,20 @@ class TestMaxRetries:
 
         mock_update_repo = MagicMock()
         mock_update_repo.get_by_id = AsyncMock(return_value=update)
-        mock_update_repo.update_status = AsyncMock(
-            side_effect=_noop_status)
+        mock_update_repo.update_status = AsyncMock(side_effect=_noop_status)
 
         with (
             patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
             patch(_UPDATE_REPO) as mock_update_repo_cls,
             patch(_WORKSPACE_REPO) as mock_workspace_repo_cls,
             patch(_PROFILE_REPO) as mock_profile_repo_cls,
-            patch(_SUMMARISE, new=AsyncMock(
-                side_effect=Exception("transient"))),
+            patch(_SUMMARISE, new=AsyncMock(side_effect=Exception("transient"))),
             patch(_PUBLISH_EVENT, new=AsyncMock()),
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-                return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-                return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
 
             with pytest.raises(Exception, match="transient"):
                 await _process_update_async(task, UPDATE_ID)
