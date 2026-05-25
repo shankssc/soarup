@@ -99,7 +99,7 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
         aria-label="Main navigation"
       >
         {/* Brand */}
-        <div className="flex items-center border-b border-outline-variant px-6 py-5">
+        <div className="flex h-16 items-center border-b border-outline-variant px-6">
           <span className="font-label text-sm font-bold uppercase tracking-[0.12em] text-primary">
             SoarUp
           </span>

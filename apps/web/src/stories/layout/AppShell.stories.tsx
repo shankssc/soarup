@@ -1,4 +1,5 @@
 // apps/web/src/stories/layout/AppShell.stories.tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import React, { useEffect } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
@@ -25,6 +26,17 @@ const MOCK_TOKENS: AuthTokens = {
 };
 
 // ─── Decorators ───────────────────────────────────────────────────────────────
+
+function withQueryClient(Story: React.ComponentType) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Story />
+    </QueryClientProvider>
+  );
+}
 
 function withAuthStore() {
   return function Decorator(Story: React.ComponentType) {
@@ -77,7 +89,7 @@ type Story = StoryObj<typeof meta>;
 export const Dark: Story = {
   name: 'AppShell (Dark)',
   parameters: { theme: 'dark' },
-  decorators: [withAuthStore()],
+  decorators: [withQueryClient, withAuthStore()],
   args: {
     children: (
       <div className="flex flex-col gap-4">
@@ -92,7 +104,7 @@ export const Dark: Story = {
 export const Light: Story = {
   name: 'AppShell (Light)',
   parameters: { theme: 'light' },
-  decorators: [withAuthStore()],
+  decorators: [withQueryClient, withAuthStore()],
   args: {
     children: (
       <div className="flex flex-col gap-4">
@@ -110,7 +122,7 @@ export const MobileDark: Story = {
     theme: 'dark',
     viewport: { defaultViewport: 'mobile1' },
   },
-  decorators: [withAuthStore()],
+  decorators: [withQueryClient, withAuthStore()],
   args: {
     children: (
       <div className="h-32 rounded border border-outline-variant bg-surface-high" />
@@ -124,7 +136,7 @@ export const MobileLight: Story = {
     theme: 'light',
     viewport: { defaultViewport: 'mobile1' },
   },
-  decorators: [withAuthStore()],
+  decorators: [withQueryClient, withAuthStore()],
   args: {
     children: (
       <div className="h-32 rounded border border-outline-variant bg-surface-high" />
