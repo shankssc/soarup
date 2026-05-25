@@ -1,4 +1,6 @@
 // apps/web/src/app/(app)/dashboard/page.tsx
+// Thin data wrapper — fetches data via hooks and passes it to DashboardView.
+// All rendering logic lives in DashboardView for Storybook testability.
 'use client';
 
 import { useState } from 'react';
@@ -11,12 +13,12 @@ import {
   useEditUpdate,
   useDeleteUpdate,
 } from '@/hooks/useUpdates';
-import { EmptyState } from '@/components/domain/updates/empty-state';
-import { UpdateForm } from '@/components/domain/updates/update-form';
-import { UpdateCard } from '@/components/domain/updates/update-card';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useDashboardUpdates } from '@/hooks/useDashboardUpdates';
+import { DashboardView } from '@/components/domain/dashboard/dashboard-view';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, tokens } = useAuth();
   const { data: workspace } = useWorkspace();
   const [showForm, setShowForm] = useState(false);
 
@@ -30,10 +32,18 @@ export default function DashboardPage() {
   const editMutation = useEditUpdate(workspace?.id ?? '');
   const deleteMutation = useDeleteUpdate(workspace?.id ?? '');
 
-  // Hide form + CTA once user has submitted today
+  useWebSocket({
+    workspaceId: workspace?.id,
+    accessToken: tokens?.access_token,
+    enabled: !!workspace?.id && !!tokens?.access_token,
+  });
+
+  useDashboardUpdates(workspace?.id);
+
   const hasSubmittedToday = updates.some((u) => u.user_id === user?.id);
 
   async function handleSubmit(content: string) {
+    if (!workspace?.id) return;
     await submitMutation.mutateAsync({ content, update_date: today });
     setShowForm(false);
   }
@@ -47,52 +57,19 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Date header */}
-      <div className="border-b border-outline-variant pb-3">
-        <h2 className="font-label text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
-          Today — {todayLabel}
-        </h2>
-      </div>
-
-      {/* Submission area */}
-      {!hasSubmittedToday && (
-        <>
-          {showForm ? (
-            <UpdateForm
-              onSubmit={handleSubmit}
-              onCancel={() => setShowForm(false)}
-              isSubmitting={submitMutation.isPending}
-            />
-          ) : (
-            <EmptyState onSubmitClick={() => setShowForm(true)} />
-          )}
-        </>
-      )}
-
-      {/* Updates list */}
-      {isLoading ? (
-        <div className="flex flex-col gap-3">
-          {[1, 2].map((i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse border border-outline-variant bg-surface-high"
-            />
-          ))}
-        </div>
-      ) : updates.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          {updates.map((update) => (
-            <UpdateCard
-              key={update.id}
-              update={update}
-              currentUserId={user?.id ?? ''}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <DashboardView
+      updates={updates}
+      isLoading={isLoading}
+      hasSubmittedToday={hasSubmittedToday}
+      showForm={showForm}
+      currentUserId={user?.id ?? ''}
+      todayLabel={todayLabel}
+      onSubmitClick={() => setShowForm(true)}
+      onFormSubmit={handleSubmit}
+      onFormCancel={() => setShowForm(false)}
+      onEdit={handleEdit}
+      onDelete={handleDelete}
+      isSubmitting={submitMutation.isPending || !workspace?.id}
+    />
   );
 }

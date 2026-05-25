@@ -11,10 +11,26 @@ import type { UpdateResponse } from '@/hooks/useUpdates';
 // ── Status badge ──────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG = {
-  pending: { label: 'Processing...', color: 'text-amber-400', dot: 'bg-amber-400' },
-  processing: { label: 'Processing...', color: 'text-amber-400', dot: 'bg-amber-400' },
-  processed: { label: 'Summarised', color: 'text-emerald-400', dot: 'bg-emerald-400' },
-  failed: { label: 'Failed', color: 'text-error', dot: 'bg-error' },
+  pending: {
+    label: 'Processing...',
+    color: 'text-amber-400',
+    dot: 'bg-amber-400 animate-pulse',
+  },
+  processing: {
+    label: 'Processing...',
+    color: 'text-amber-400',
+    dot: 'bg-amber-400 animate-pulse',
+  },
+  processed: {
+    label: 'Summarised',
+    color: 'text-emerald-400',
+    dot: 'bg-primary',
+  },
+  failed: {
+    label: 'Failed',
+    color: 'text-error',
+    dot: 'bg-error',
+  },
 } as const;
 
 function StatusBadge({ status }: { status: string }) {
@@ -75,7 +91,6 @@ function CardMenu({ onEdit, onDelete }: CardMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -163,7 +178,6 @@ export function UpdateCard({
   const isOverLimit = charsLeft < 0;
   const isEmpty = editContent.trim().length === 0;
 
-  // Auto-focus textarea when edit mode opens
   useEffect(() => {
     if (editMode) textareaRef.current?.focus();
   }, [editMode]);
@@ -291,9 +305,48 @@ export function UpdateCard({
           )}
         </div>
       ) : (
-        <p className="pl-12 font-body text-base leading-relaxed text-on-surface">
-          {update.content}
-        </p>
+        <div className="flex flex-col gap-3 pl-12">
+          {/* Raw update content */}
+          <p className="font-body text-base leading-relaxed text-on-surface">
+            {update.content}
+          </p>
+
+          {/* Processing skeleton — shown while Claude is working */}
+          {update.status === 'processing' && (
+            <div
+              className="mt-1 animate-pulse space-y-2"
+              aria-label="Generating summary"
+            >
+              <div className="h-3 w-3/4 rounded-card bg-surface-highest" />
+              <div className="h-3 w-1/2 rounded-card bg-surface-highest" />
+            </div>
+          )}
+
+          {/* AI summary — shown once processed */}
+          {update.status === 'processed' && update.summary && (
+            <div className="border-l-2 border-primary-container pl-3">
+              <p className="font-headline text-sm italic leading-relaxed text-on-surface-variant">
+                {update.summary}
+              </p>
+            </div>
+          )}
+
+          {/* Failed state — ghost retry button (functional retry deferred to M5) */}
+          {update.status === 'failed' && (
+            <div className="flex items-center gap-2">
+              <span className="font-label text-[10px] uppercase tracking-[0.08em] text-error">
+                Summary unavailable
+              </span>
+              <button
+                disabled
+                className="text-on-surface-variant/40 cursor-not-allowed font-label text-[10px] uppercase tracking-[0.08em]"
+                title="Retry coming in a future update"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

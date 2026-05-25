@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useWebSocketStore } from '@/stores/websocket-store';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
 import type { WorkspaceResponse } from '@/hooks/useWorkspace';
@@ -34,6 +35,56 @@ function NavIcon({ icon, filled }: { icon: string; filled?: boolean }) {
   );
 }
 
+// ── Connection indicator ──────────────────────────────────────────────────────
+
+function ConnectionIndicator() {
+  const status = useWebSocketStore((s) => s.status);
+
+  if (status === 'connected' || status === 'idle') {
+    return (
+      <span
+        className="inline-block h-2 w-2 rounded-full bg-primary"
+        aria-label="Connected"
+      />
+    );
+  }
+
+  if (status === 'connecting') {
+    return (
+      <span
+        className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400"
+        aria-label="Connecting"
+      />
+    );
+  }
+
+  if (status === 'reconnecting') {
+    return (
+      <span className="flex items-center gap-1.5 font-label text-[10px] text-outline">
+        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+        Reconnecting...
+      </span>
+    );
+  }
+
+  if (status === 'disconnected' || status === 'error') {
+    return (
+      <button
+        onClick={() => window.location.reload()}
+        className="flex items-center gap-1.5 font-label text-[10px] text-error hover:underline"
+        aria-label="Connection lost — click to reconnect"
+      >
+        <span className="inline-block h-2 w-2 rounded-full bg-error" />
+        Connection lost — reconnect
+      </button>
+    );
+  }
+
+  return null;
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+
 export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -48,7 +99,7 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
         aria-label="Main navigation"
       >
         {/* Brand */}
-        <div className="flex items-center border-b border-outline-variant px-6 py-5">
+        <div className="flex h-16 items-center border-b border-outline-variant px-6">
           <span className="font-label text-sm font-bold uppercase tracking-[0.12em] text-primary">
             SoarUp
           </span>
@@ -91,6 +142,11 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
               </Link>
             );
           })}
+        </div>
+
+        {/* Connection indicator */}
+        <div className="border-t border-outline-variant px-6 py-3">
+          <ConnectionIndicator />
         </div>
 
         {/* User + sign out */}

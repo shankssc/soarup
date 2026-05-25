@@ -29,7 +29,13 @@ export default function OnboardingPage() {
 
   // Render nothing while auth resolves or redirect is pending
   if (isLoading || !isAuthenticated || !needsOnboarding) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <span className="material-symbols-outlined animate-spin text-[32px] text-primary">
+          progress_activity
+        </span>
+      </div>
+    );
   }
 
   return <OnboardingForm />;
