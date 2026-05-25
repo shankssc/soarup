@@ -22,6 +22,7 @@ UPDATE_ID = "update-abc"
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_redis() -> AsyncMock:
     redis = AsyncMock()
@@ -32,6 +33,7 @@ def mock_redis() -> AsyncMock:
 # ---------------------------------------------------------------------------
 # _channel()
 # ---------------------------------------------------------------------------
+
 
 class TestChannel:
     def test_channel_format(self):
@@ -45,16 +47,15 @@ class TestChannel:
 # _build_message()
 # ---------------------------------------------------------------------------
 
+
 class TestBuildMessage:
     def test_returns_valid_json(self):
-        msg = _build_message("update.status_changed",
-                             WORKSPACE_ID, {"update_id": UPDATE_ID})
+        msg = _build_message("update.status_changed", WORKSPACE_ID, {"update_id": UPDATE_ID})
         parsed = json.loads(msg)
         assert isinstance(parsed, dict)
 
     def test_envelope_contains_required_fields(self):
-        msg = _build_message("update.status_changed",
-                             WORKSPACE_ID, {"update_id": UPDATE_ID})
+        msg = _build_message("update.status_changed", WORKSPACE_ID, {"update_id": UPDATE_ID})
         parsed = json.loads(msg)
         assert "type" in parsed
         assert "workspace_id" in parsed
@@ -93,6 +94,7 @@ class TestBuildMessage:
 # ---------------------------------------------------------------------------
 # publish_event()
 # ---------------------------------------------------------------------------
+
 
 class TestPublishEvent:
     @pytest.mark.asyncio

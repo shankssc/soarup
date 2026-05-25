@@ -10,7 +10,7 @@
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -22,6 +22,17 @@ WORKSPACE_ID = "workspace-123"
 USER_ID = "user-123"
 OTHER_USER_ID = "other-user-456"
 UPDATE_ID = "update-789"
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def mock_celery_task():
+    """Prevent process_update.delay() from hitting real Redis in unit tests."""
+    with patch("app.workers.tasks.process_update.delay") as mock_delay:
+        yield mock_delay
 
 
 # ---------------------------------------------------------------------------
