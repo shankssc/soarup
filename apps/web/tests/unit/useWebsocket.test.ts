@@ -39,7 +39,7 @@ class FakeWebSocket {
   onclose: ((event: { code: number; reason: string }) => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
-  readyState = 0; // CONNECTING
+  readyState = 0; // CONNECTING STATE
   close = vi.fn(() => {
     this.readyState = 3; // CLOSED
     this.onclose?.({ code: 1000, reason: '' });
