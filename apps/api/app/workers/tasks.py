@@ -6,6 +6,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 from celery import Task
+from celery.signals import worker_ready
 from celery.utils.log import get_task_logger
 
 from app.config import settings
@@ -446,3 +447,12 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
                 )
                 return
             raise exc
+
+
+@worker_ready.connect  # type: ignore[misc]
+def preload_whisper_model(**kwargs: Any) -> None:
+    from app.workers.whisper_setup import get_whisper_model
+
+    logger.info("preloading_whisper_model")
+    get_whisper_model()
+    logger.info("whisper_model_ready")
