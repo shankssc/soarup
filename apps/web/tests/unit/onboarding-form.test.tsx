@@ -12,12 +12,13 @@ expect.extend(axeMatchers);
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockPush = vi.fn();
+const mockPush = vi.hoisted(() => vi.fn());
+const mockReplace = vi.hoisted(() => vi.fn());
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush, replace: vi.fn() }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
 }));
 
-// Pin detectBrowserTimezone to a known value so tests are deterministic
 vi.mock('@/lib/utils/timezones', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/utils/timezones')>();
   return {
@@ -422,7 +423,7 @@ describe('Step 2 — create workspace API', () => {
       expect(screen.getByLabelText(/workspace slug/i)).toHaveValue('acme-team'),
     );
     await user.click(screen.getByRole('button', { name: 'Create Workspace' }));
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/dashboard'));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/dashboard'));
   });
 
   it('marks user as onboarded in store on success', async () => {
@@ -521,7 +522,7 @@ describe('Step 2 — join workspace API', () => {
     await user.click(screen.getByRole('button', { name: /join with invite code/i }));
     await user.type(screen.getByLabelText(/invite code/i), 'ABC-123');
     await user.click(screen.getByRole('button', { name: /join workspace/i }));
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/dashboard'));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/dashboard'));
   });
 
   it('shows error on invalid invite code', async () => {
