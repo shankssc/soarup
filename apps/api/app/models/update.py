@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -50,6 +50,10 @@ class Update(Base):
     # AI output — nullable until Milestone 3
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     transcript: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Audio fields — populated for mode="voice", null for mode="text"
+    audio_key: Mapped[str | None] = mapped_column(String(500), nullable=True, doc="Minio/R2 object key for the original audio file")
+    audio_url: Mapped[str | None] = mapped_column(String(500), nullable=True, doc="Not stored long-term — pre-signed URLs generated on demand")
+    audio_duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True, doc="Audio duration in seconds — stored on upload, shown in card without re-fetching")
     # ISO date string "YYYY-MM-DD" in user's timezone
     # One update per user per workspace per day (enforced by unique constraint above)
     update_date: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
