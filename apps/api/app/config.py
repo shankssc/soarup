@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     anthropic_api_key: SecretStr | None = None
 
+    # === Whisper (faster-whisper transcription) ===
+    whisper_model_size: str = Field(
+        default="base",
+        description="faster-whisper model size. Use 'tiny' if memory is constrained.",
+    )
+    whisper_model_cache: str = Field(
+        default="/tmp/whisper-models",  # Noqa: S108
+        description="Directory to cache downloaded Whisper models.",
+    )
+
     # === Notifications ===
     resend_api_key: SecretStr | None = None
     novu_api_key: SecretStr | None = None
