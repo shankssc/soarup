@@ -23,6 +23,8 @@ class UpdateRepository:
         content: str,
         update_date: str,
         mode: str = "text",
+        audio_key: str | None = None,
+        audio_duration_seconds: int | None = None,
     ) -> Update:
         """Insert a new update record and return it refreshed from DB."""
         update = Update(
@@ -32,6 +34,8 @@ class UpdateRepository:
             update_date=update_date,
             mode=mode,
             status="pending",
+            audio_key=audio_key,
+            audio_duration_seconds=audio_duration_seconds,
         )
         self.db.add(update)
         await self.db.commit()
@@ -89,6 +93,19 @@ class UpdateRepository:
     async def update_content(self, update: Update, content: str) -> Update:
         """Overwrite update content in place and return the refreshed record."""
         update.content = content
+        await self.db.commit()
+        await self.db.refresh(update)
+        return update
+
+    async def update_transcript(self, update: Update, transcript: str) -> Update:
+        """
+        Store transcript text after faster-whisper transcription completes.
+        Sets both transcript (dedicated field) and content (so existing
+        queries that read content work without changes).
+        Voice updates have content = "" until this is called.
+        """
+        update.transcript = transcript
+        update.content = transcript
         await self.db.commit()
         await self.db.refresh(update)
         return update
