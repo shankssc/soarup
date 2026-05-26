@@ -13,6 +13,8 @@ export interface UpdateResponse {
   mode: string;
   status: string;
   summary: string | null;
+  transcript: string | null;
+  audio_duration_seconds: number | null;
   update_date: string;
   created_at: string;
   updated_at: string;
@@ -62,7 +64,13 @@ export function useSubmitUpdate(workspaceId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { content: string; update_date: string; mode?: string }) =>
+    mutationFn: (data: {
+      content: string;
+      update_date: string;
+      mode?: string;
+      audio_key?: string;
+      audio_duration_seconds?: number;
+    }) =>
       apiClient.post<UpdateResponse>(
         `/workspaces/${workspaceId}/updates`,
         { mode: 'text', ...data },
