@@ -289,7 +289,7 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
         # Replace with aioboto3 when moving to a proper async task runner.
         s3 = boto3.client(
             "s3",
-            endpoint_url=settings.r2_endpoint_url,
+            endpoint_url=settings.r2_public_endpoint_url,
             aws_access_key_id=(settings.r2_access_key_id.get_secret_value() if settings.r2_access_key_id else ""),
             aws_secret_access_key=(settings.r2_secret_access_key.get_secret_value() if settings.r2_secret_access_key else ""),
             region_name="auto",

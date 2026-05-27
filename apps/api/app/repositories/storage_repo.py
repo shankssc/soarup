@@ -30,7 +30,7 @@ class StorageRepository:
 
     def __init__(self) -> None:
         self.session = aioboto3.Session()
-        self.endpoint_url = settings.r2_endpoint_url
+        self.endpoint_url = settings.r2_public_endpoint_url
         self.access_key = settings.r2_access_key_id.get_secret_value() if settings.r2_access_key_id else ""
         self.secret_key = settings.r2_secret_access_key.get_secret_value() if settings.r2_secret_access_key else ""
         self.region_name = "auto"  # R2 uses "auto"
