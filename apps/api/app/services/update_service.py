@@ -13,7 +13,7 @@ from app.schemas.update import (
     UpdateResponse,
     UpdateUpdateRequest,
 )
-from app.workers.tasks import process_update
+from app.workers.tasks import process_audio_update, process_update
 
 logger = structlog.get_logger(__name__)
 
@@ -59,8 +59,10 @@ class UpdateService:
         request: SubmitUpdateRequest,
     ) -> UpdateResponse:
         """
-        Create a new update for today and enqueue it for AI processing.
-        Raises UpdateError if one already exists for this user + workspace + date combination.
+        Create a new update and enqueue it for AI processing.
+        - Text mode: enqueues process_update (summarisation only)
+        - Voice mode: enqueues process_audio_update (transcription → summarisation)
+        Raises UpdateError if one already exists for this user + workspace + date.
         """
         repo = self._get_update_repo()
         existing = await repo.get_for_user_on_date(workspace_id, user_id, request.update_date)
@@ -70,28 +72,47 @@ class UpdateService:
                 "You have already submitted an update for today.",
                 {"existing_id": existing.id},
             )
-        update = await repo.create(
-            workspace_id=workspace_id,
-            user_id=user_id,
-            content=request.content,
-            update_date=request.update_date,
-            mode=request.mode,
-        )
 
-        # Enqueue Claude summarisation pipeline - the fire and forget approach
+        if request.mode == "voice" and request.audio_key:
+            update = await repo.create(
+                workspace_id=workspace_id,
+                user_id=user_id,
+                content="",
+                update_date=request.update_date,
+                mode="voice",
+                audio_key=request.audio_key,
+                audio_duration_seconds=request.audio_duration_seconds,
+            )
+            process_audio_update.delay(update.id)
+            logger.info(
+                "voice_update_submitted",
+                update_id=update.id,
+                workspace_id=workspace_id,
+                user_id=user_id,
+            )
+        else:
+            update = await repo.create(
+                workspace_id=workspace_id,
+                user_id=user_id,
+                content=request.content,
+                update_date=request.update_date,
+                mode=request.mode,
+            )
 
-        # The task transitions status: pending → processing → processed | failed
+            # Enqueue Claude summarisation pipeline - the fire and forget approach
 
-        # and broadcasts each transition over Redis pub/sub.
+            # The task transitions status: pending → processing → processed | failed
 
-        process_update.delay(update.id)
+            # and broadcasts each transition over Redis pub/sub.
 
-        logger.info(
-            "update_submitted",
-            update_id=update.id,
-            workspace_id=workspace_id,
-            user_id=user_id,
-        )
+            process_update.delay(update.id)
+
+            logger.info(
+                "update_submitted",
+                update_id=update.id,
+                workspace_id=workspace_id,
+                user_id=user_id,
+            )
         return await self._to_response(update)
 
     async def get_workspace_updates(
@@ -158,6 +179,8 @@ class UpdateService:
             mode=update.mode,
             status=update.status,
             summary=update.summary,
+            transcript=update.transcript,
+            audio_duration_seconds=update.audio_duration_seconds,
             update_date=update.update_date,
             created_at=update.created_at,
             updated_at=update.updated_at,

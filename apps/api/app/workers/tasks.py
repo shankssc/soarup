@@ -5,9 +5,9 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+import structlog
 from celery import Task
 from celery.signals import worker_ready
-from celery.utils.log import get_task_logger
 
 from app.config import settings
 from app.workers.celery_app import celery_app
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from redis.asyncio import Redis
     from sqlalchemy.ext.asyncio import AsyncEngine
 
-logger = get_task_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ProcessUpdateTask(Task):  # type: ignore[misc]
@@ -34,8 +34,12 @@ class ProcessUpdateTask(Task):  # type: ignore[misc]
     def db_engine(self) -> AsyncEngine:
         if self._db_engine is None:
             from sqlalchemy.ext.asyncio import create_async_engine
+            from sqlalchemy.pool import NullPool
 
-            self._db_engine = create_async_engine(settings.database_url)
+            self._db_engine = create_async_engine(
+                settings.database_url,
+                poolclass=NullPool,
+            )
         return self._db_engine
 
     @property
@@ -289,7 +293,7 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
         # Replace with aioboto3 when moving to a proper async task runner.
         s3 = boto3.client(
             "s3",
-            endpoint_url=settings.r2_public_endpoint_url,
+            endpoint_url=settings.r2_endpoint_url,
             aws_access_key_id=(settings.r2_access_key_id.get_secret_value() if settings.r2_access_key_id else ""),
             aws_secret_access_key=(settings.r2_secret_access_key.get_secret_value() if settings.r2_secret_access_key else ""),
             region_name="auto",
