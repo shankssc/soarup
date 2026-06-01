@@ -22,6 +22,16 @@ vi.mock('date-fns', async (importOriginal) => {
   };
 });
 
+// VoiceRecorder uses MediaRecorder and getUserMedia — stub them so it
+// doesn't crash when rendered in tests that show the voice recorder
+vi.mock('@/components/domain/updates/voice-recorder', () => ({
+  VoiceRecorder: ({ onCancel }: { onCancel: () => void }) => (
+    <div data-testid="voice-recorder">
+      <button onClick={onCancel}>Cancel voice</button>
+    </div>
+  ),
+}));
+
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 const MOCK_UPDATE = {
@@ -32,6 +42,8 @@ const MOCK_UPDATE = {
   mode: 'text',
   status: 'pending',
   summary: null,
+  transcript: null,
+  audio_duration_seconds: null,
   update_date: '2026-05-18',
   created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
   updated_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
@@ -44,11 +56,17 @@ const defaultProps: DashboardViewProps = {
   isLoading: false,
   hasSubmittedToday: false,
   showForm: false,
+  showVoiceRecorder: false,
   currentUserId: 'user-123',
+  workspaceId: 'workspace-123',
   todayLabel: 'Monday, May 18',
+  today: '2026-05-18',
   onSubmitClick: vi.fn(),
+  onVoiceClick: vi.fn(),
   onFormSubmit: vi.fn().mockResolvedValue(undefined),
   onFormCancel: vi.fn(),
+  onVoiceSuccess: vi.fn().mockResolvedValue(undefined),
+  onVoiceCancel: vi.fn(),
   onEdit: vi.fn().mockResolvedValue(undefined),
   onDelete: vi.fn().mockResolvedValue(undefined),
   isSubmitting: false,
@@ -76,50 +94,102 @@ describe('DashboardView — date header', () => {
   });
 });
 
-// ─── Submission area — EmptyState ─────────────────────────────────────────────
+// ─── Submission area — mode toggle ────────────────────────────────────────────
 
-describe('DashboardView — empty state', () => {
-  it('shows EmptyState when hasSubmittedToday is false and showForm is false', () => {
+describe('DashboardView — mode toggle', () => {
+  it('shows submit update and voice note buttons when not submitted and no form open', () => {
     render(
-      <DashboardView {...defaultProps} hasSubmittedToday={false} showForm={false} />,
-    );
-    expect(screen.getByText('Nothing here yet.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /submit update/i })).toBeInTheDocument();
-  });
-
-  it('does not show EmptyState when hasSubmittedToday is true', () => {
-    render(
-      <DashboardView {...defaultProps} hasSubmittedToday={true} showForm={false} />,
-    );
-    expect(screen.queryByText('Nothing here yet.')).not.toBeInTheDocument();
-  });
-
-  it('does not show EmptyState when showForm is true', () => {
-    render(
-      <DashboardView {...defaultProps} hasSubmittedToday={false} showForm={true} />,
-    );
-    expect(screen.queryByText('Nothing here yet.')).not.toBeInTheDocument();
-  });
-
-  it('fires onSubmitClick when EmptyState CTA is clicked', async () => {
-    const onSubmitClick = vi.fn();
-    const { getByRole } = render(
       <DashboardView
         {...defaultProps}
         hasSubmittedToday={false}
         showForm={false}
+        showVoiceRecorder={false}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /submit update/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /voice note/i })).toBeInTheDocument();
+  });
+
+  it('hides mode toggle when hasSubmittedToday is true', () => {
+    render(
+      <DashboardView
+        {...defaultProps}
+        hasSubmittedToday={true}
+        showForm={false}
+        showVoiceRecorder={false}
+      />,
+    );
+    expect(
+      screen.queryByRole('button', { name: /submit update/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /voice note/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides mode toggle when showForm is true', () => {
+    render(
+      <DashboardView
+        {...defaultProps}
+        hasSubmittedToday={false}
+        showForm={true}
+        showVoiceRecorder={false}
+      />,
+    );
+    expect(
+      screen.queryByRole('button', { name: /voice note/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides mode toggle when showVoiceRecorder is true', () => {
+    render(
+      <DashboardView
+        {...defaultProps}
+        hasSubmittedToday={false}
+        showForm={false}
+        showVoiceRecorder={true}
+      />,
+    );
+    expect(
+      screen.queryByRole('button', { name: /voice note/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('submit update button fires onSubmitClick', () => {
+    const onSubmitClick = vi.fn();
+    render(
+      <DashboardView
+        {...defaultProps}
+        hasSubmittedToday={false}
+        showForm={false}
+        showVoiceRecorder={false}
         onSubmitClick={onSubmitClick}
       />,
     );
-    getByRole('button', { name: /submit update/i }).click();
+    screen.getByRole('button', { name: /submit update/i }).click();
     expect(onSubmitClick).toHaveBeenCalledOnce();
+  });
+
+  it('voice note button fires onVoiceClick', () => {
+    const onVoiceClick = vi.fn();
+    render(
+      <DashboardView
+        {...defaultProps}
+        hasSubmittedToday={false}
+        showForm={false}
+        showVoiceRecorder={false}
+        onVoiceClick={onVoiceClick}
+      />,
+    );
+    screen.getByRole('button', { name: /voice note/i }).click();
+    expect(onVoiceClick).toHaveBeenCalledOnce();
   });
 });
 
 // ─── Submission area — UpdateForm ─────────────────────────────────────────────
 
 describe('DashboardView — update form', () => {
-  it('shows UpdateForm when hasSubmittedToday is false and showForm is true', () => {
+  it('shows UpdateForm when showForm is true and not submitted', () => {
     render(
       <DashboardView {...defaultProps} hasSubmittedToday={false} showForm={true} />,
     );
@@ -133,7 +203,7 @@ describe('DashboardView — update form', () => {
     expect(screen.queryByPlaceholderText(/I finished/i)).not.toBeInTheDocument();
   });
 
-  it('passes isSubmitting prop to UpdateForm', () => {
+  it('passes isSubmitting to UpdateForm — disables cancel when true', () => {
     render(
       <DashboardView
         {...defaultProps}
@@ -142,11 +212,10 @@ describe('DashboardView — update form', () => {
         isSubmitting={true}
       />,
     );
-    // When isSubmitting, cancel button is disabled
     expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
   });
 
-  it('passes onFormCancel to UpdateForm cancel button', async () => {
+  it('passes onFormCancel to UpdateForm cancel button', () => {
     const onFormCancel = vi.fn();
     render(
       <DashboardView
@@ -161,24 +230,68 @@ describe('DashboardView — update form', () => {
   });
 });
 
-// ─── Submission area — hasSubmittedToday hides both ───────────────────────────
+// ─── Submission area — VoiceRecorder ──────────────────────────────────────────
+
+describe('DashboardView — voice recorder', () => {
+  it('shows VoiceRecorder when showVoiceRecorder is true and not submitted', () => {
+    render(
+      <DashboardView
+        {...defaultProps}
+        hasSubmittedToday={false}
+        showVoiceRecorder={true}
+      />,
+    );
+    expect(screen.getByTestId('voice-recorder')).toBeInTheDocument();
+  });
+
+  it('does not show VoiceRecorder when hasSubmittedToday is true', () => {
+    render(
+      <DashboardView
+        {...defaultProps}
+        hasSubmittedToday={true}
+        showVoiceRecorder={true}
+      />,
+    );
+    expect(screen.queryByTestId('voice-recorder')).not.toBeInTheDocument();
+  });
+
+  it('does not show VoiceRecorder when showVoiceRecorder is false', () => {
+    render(
+      <DashboardView
+        {...defaultProps}
+        hasSubmittedToday={false}
+        showVoiceRecorder={false}
+      />,
+    );
+    expect(screen.queryByTestId('voice-recorder')).not.toBeInTheDocument();
+  });
+});
+
+// ─── hasSubmittedToday hides submission area entirely ─────────────────────────
 
 describe('DashboardView — hasSubmittedToday', () => {
-  it('hides both EmptyState and UpdateForm when hasSubmittedToday is true', () => {
+  it('hides all submission UI when hasSubmittedToday is true', () => {
     render(
-      <DashboardView {...defaultProps} hasSubmittedToday={true} showForm={true} />,
+      <DashboardView
+        {...defaultProps}
+        hasSubmittedToday={true}
+        showForm={true}
+        showVoiceRecorder={true}
+      />,
     );
-    expect(screen.queryByText('Nothing here yet.')).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/I finished/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('voice-recorder')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /submit update/i }),
+    ).not.toBeInTheDocument();
   });
 });
 
 // ─── Loading state ────────────────────────────────────────────────────────────
 
 describe('DashboardView — loading state', () => {
-  it('renders skeleton placeholders when isLoading is true', () => {
+  it('renders two skeleton placeholders when isLoading is true', () => {
     const { container } = render(<DashboardView {...defaultProps} isLoading={true} />);
-    // Two skeleton divs with animate-pulse class
     const skeletons = container.querySelectorAll('.animate-pulse');
     expect(skeletons).toHaveLength(2);
   });
@@ -218,7 +331,7 @@ describe('DashboardView — updates list', () => {
     expect(screen.getByText(secondUpdate.content)).toBeInTheDocument();
   });
 
-  it('renders nothing in the updates area when updates is empty and not loading', () => {
+  it('renders nothing in the updates area when updates is empty', () => {
     const { container } = render(
       <DashboardView {...defaultProps} isLoading={false} updates={[]} />,
     );
@@ -226,7 +339,7 @@ describe('DashboardView — updates list', () => {
     expect(screen.queryByText(MOCK_UPDATE.content)).not.toBeInTheDocument();
   });
 
-  it('passes currentUserId to UpdateCard', () => {
+  it('shows three-dot menu for own updates', () => {
     render(
       <DashboardView
         {...defaultProps}
@@ -235,11 +348,10 @@ describe('DashboardView — updates list', () => {
         currentUserId="user-123"
       />,
     );
-    // owner matches → three-dot menu visible
     expect(screen.getByRole('button', { name: /update options/i })).toBeInTheDocument();
   });
 
-  it('hides three-dot menu for other user updates', () => {
+  it('hides three-dot menu for other users updates', () => {
     render(
       <DashboardView
         {...defaultProps}
@@ -257,22 +369,22 @@ describe('DashboardView — updates list', () => {
 // ─── Combined states ──────────────────────────────────────────────────────────
 
 describe('DashboardView — combined states', () => {
-  it('can show EmptyState and update cards simultaneously', () => {
-    // User has not submitted today (showForm=false) but has past updates
+  it('shows mode toggle and update cards simultaneously', () => {
     render(
       <DashboardView
         {...defaultProps}
         hasSubmittedToday={false}
         showForm={false}
+        showVoiceRecorder={false}
         updates={[MOCK_UPDATE]}
         isLoading={false}
       />,
     );
-    expect(screen.getByText('Nothing here yet.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /submit update/i })).toBeInTheDocument();
     expect(screen.getByText(MOCK_UPDATE.content)).toBeInTheDocument();
   });
 
-  it('can show UpdateForm and update cards simultaneously', () => {
+  it('shows UpdateForm and update cards simultaneously', () => {
     render(
       <DashboardView
         {...defaultProps}

@@ -1,10 +1,11 @@
-// apps/web/src/stories/domain/VoiceRecorder.stories.tsx
-// VoiceRecorder states renderable in Storybook without MediaRecorder mocking.
-// Recording/Preview/Uploading states require real browser interaction —
-// documented as manual test cases rather than Storybook stories.
+// apps/web/src/stories/ui/AudioPlayer.stories.tsx
+// AudioPlayer states: Inactive (duration shown), Loading URL, Active (audio element)
+// Note: Active state requires a real presigned URL — shown as inactive in Storybook.
+// The play button fetches a URL on click; mock the query in canvas to test active state.
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import React, { useEffect } from 'react';
-import { VoiceRecorder } from '@/components/domain/updates/voice-recorder';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AudioPlayer } from '@/components/ui/audio-player';
 import { useAuthStore } from '@/hooks/useAuth';
 import type { UserProfile, AuthTokens } from '@/hooks/useAuth';
 
@@ -53,10 +54,28 @@ function withAuthStore() {
   };
 }
 
-function DashboardShell(Story: React.ComponentType) {
+function withQueryClient() {
+  return function Decorator(Story: React.ComponentType) {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          staleTime: Infinity,
+        },
+      },
+    });
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Story />
+      </QueryClientProvider>
+    );
+  };
+}
+
+function CardShell(Story: React.ComponentType) {
   return (
     <div className="min-h-screen bg-background p-8">
-      <div className="mx-auto max-w-[600px]">
+      <div className="mx-auto max-w-[600px] border border-outline-variant bg-surface-high p-6">
         <Story />
       </div>
     </div>
@@ -66,8 +85,8 @@ function DashboardShell(Story: React.ComponentType) {
 // ─── Meta ─────────────────────────────────────────────────────────────────────
 
 const meta = {
-  title: 'Domain/Updates/VoiceRecorder',
-  component: VoiceRecorder,
+  title: 'UI/AudioPlayer',
+  component: AudioPlayer,
   parameters: {
     layout: 'fullscreen',
     nextjs: {
@@ -77,82 +96,82 @@ const meta = {
   },
   args: {
     workspaceId: 'workspace-123',
-    updateDate: '2026-05-21',
-    onSuccess: async () => {},
-    onCancel: () => {},
+    updateId: 'update-voice-001',
+    durationSeconds: 107,
   },
   tags: ['autodocs'],
-} satisfies Meta<typeof VoiceRecorder>;
+} satisfies Meta<typeof AudioPlayer>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// ─── Idle ─────────────────────────────────────────────────────────────────────
+// ─── Inactive — duration shown ────────────────────────────────────────────────
 
-export const IdleDark: Story = {
-  name: 'Idle — Tap to Record (Dark)',
+export const InactiveDark: Story = {
+  name: 'Inactive — Duration Shown (Dark)',
   parameters: { theme: 'dark' },
-  decorators: [DashboardShell, withAuthStore()],
+  decorators: [CardShell, withQueryClient(), withAuthStore()],
 };
 
-export const IdleLight: Story = {
-  name: 'Idle — Tap to Record (Light)',
+export const InactiveLight: Story = {
+  name: 'Inactive — Duration Shown (Light)',
   parameters: { theme: 'light' },
-  decorators: [DashboardShell, withAuthStore()],
+  decorators: [CardShell, withQueryClient(), withAuthStore()],
 };
 
-// ─── Error — mic permission denied ───────────────────────────────────────────
-// Patches getUserMedia to reject immediately so the component transitions
-// to error state when the record button is clicked in Storybook canvas.
+export const InactiveNoDurationDark: Story = {
+  name: 'Inactive — No Duration (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [CardShell, withQueryClient(), withAuthStore()],
+  args: {
+    durationSeconds: null,
+  },
+};
 
-export const MicPermissionDeniedDark: Story = {
-  name: 'Error — Microphone Permission Denied (Dark)',
+// ─── Loading URL ──────────────────────────────────────────────────────────────
+// Simulates the state after clicking play while the presigned URL is fetching.
+// Achieved by seeding the query cache with a pending state.
+
+export const LoadingUrlDark: Story = {
+  name: 'Loading — Fetching Playback URL (Dark)',
   parameters: { theme: 'dark' },
   decorators: [
-    DashboardShell,
+    CardShell,
     withAuthStore(),
     (Story) => {
-      if (typeof window !== 'undefined' && window.navigator?.mediaDevices) {
-        window.navigator.mediaDevices.getUserMedia = () =>
-          Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
-      }
-      return React.createElement(Story);
-    },
-  ],
-};
-
-export const MicPermissionDeniedLight: Story = {
-  name: 'Error — Microphone Permission Denied (Light)',
-  parameters: { theme: 'light' },
-  decorators: [
-    DashboardShell,
-    withAuthStore(),
-    (Story) => {
-      if (typeof window !== 'undefined' && window.navigator?.mediaDevices) {
-        window.navigator.mediaDevices.getUserMedia = () =>
-          Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
-      }
-      return React.createElement(Story);
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      // Seed a never-resolving query to simulate loading state
+      queryClient.setQueryData(
+        ['audio', 'playback', 'workspace-123', 'update-voice-001'],
+        undefined,
+      );
+      return (
+        <QueryClientProvider client={queryClient}>
+          <Story />
+        </QueryClientProvider>
+      );
     },
   ],
 };
 
 // ─── Mobile ───────────────────────────────────────────────────────────────────
 
-export const MobileIdleDark: Story = {
-  name: 'VoiceRecorder — Mobile Idle (Dark)',
+export const MobileInactiveDark: Story = {
+  name: 'AudioPlayer — Mobile Inactive (Dark)',
   parameters: {
     theme: 'dark',
     viewport: { defaultViewport: 'mobile1' },
   },
-  decorators: [DashboardShell, withAuthStore()],
+  decorators: [CardShell, withQueryClient(), withAuthStore()],
 };
 
-export const MobileIdleLight: Story = {
-  name: 'VoiceRecorder — Mobile Idle (Light)',
+export const MobileInactiveLight: Story = {
+  name: 'AudioPlayer — Mobile Inactive (Light)',
   parameters: {
     theme: 'light',
     viewport: { defaultViewport: 'mobile1' },
   },
-  decorators: [DashboardShell, withAuthStore()],
+  decorators: [CardShell, withQueryClient(), withAuthStore()],
 };
