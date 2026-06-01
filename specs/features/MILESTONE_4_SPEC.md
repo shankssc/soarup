@@ -1,6 +1,9 @@
 # SoarUp — Milestone 4: Voice Update Submission
+
 # Branch: feature/milestone-4
+
 # Merges into: develop
+
 # Prerequisites: feature/milestone-3 merged to develop ✅
 
 ---
@@ -24,20 +27,21 @@
 ```
 develop
 └── feature/milestone-4
-    ├── feature/milestone-4-audio-upload        ← pre-signed URL + R2 upload flow
-    ├── feature/milestone-4-transcription       ← faster-whisper Celery task
-    ├── feature/milestone-4-voice-recorder      ← VoiceRecorder component
-    ├── feature/milestone-4-voice-card          ← UpdateCard voice variant
+    ├── feature/milestone-4-audio-upload        ← pre-signed URL + R2 upload flow ✅ squash merged
     └── feature/milestone-4-stories-and-tests  ← Storybook + unit tests
 
 Merge order:
-  feature/milestone-4-audio-upload → feature/milestone-4
-  feature/milestone-4-transcription → feature/milestone-4
-  feature/milestone-4-voice-recorder → feature/milestone-4
-  feature/milestone-4-voice-card → feature/milestone-4
+  feature/milestone-4-audio-upload → feature/milestone-4  ✅ squash merged
   feature/milestone-4-stories-and-tests → feature/milestone-4
   feature/milestone-4 → develop
 ```
+
+Note: Sub-branches were consolidated during implementation. The transcription
+task, voice recorder, voice card, and dashboard integration were all built
+directly on `feature/milestone-4` after `feature/milestone-4-audio-upload`
+was squash merged. `feature/milestone-4-transcription` and
+`feature/milestone-4-voice-card` were not created as separate branches since
+the work was tightly coupled to the audio upload changes.
 
 ---
 
@@ -103,6 +107,7 @@ Dashboard UpdateCard — voice variant:
 ## Existing Stack Reference
 
 ### Backend
+
 - FastAPI, Python 3.12, SQLAlchemy async
 - Supabase Auth + PostgreSQL (Supabase CLI local, port 54322)
 - Alembic migrations
@@ -115,6 +120,7 @@ Dashboard UpdateCard — voice variant:
 - pytest + pytest-asyncio, conftest.py fixtures available
 
 ### Frontend
+
 - Next.js 14 App Router, TypeScript
 - Tailwind CSS + Electric Atelier CSS variable token system
 - @tanstack/react-query v5 — all data fetching
@@ -125,6 +131,7 @@ Dashboard UpdateCard — voice variant:
 - Playwright (E2E deferred to post-major-milestones)
 
 ### Design tokens
+
 ```
 text-on-surface, text-on-surface-variant, text-outline
 bg-surface, bg-surface-high, bg-surface-highest, bg-container
@@ -136,6 +143,7 @@ animation: pulse-slow (defined in tailwind.config.ts)
 ```
 
 ### Established WebSocket event types (from M3 events.py)
+
 ```python
 EVENT_TYPES = {
     "update.status_changed",           # M3 ✅
@@ -149,12 +157,14 @@ EVENT_TYPES = {
 ```
 
 ### React Query cache keys
+
 ```typescript
-updateKeys.byDate(workspaceId, date)   // ['updates', workspaceId, date]
-workspaceKeys.mine()                   // ['workspace', 'mine']
+updateKeys.byDate(workspaceId, date); // ['updates', workspaceId, date]
+workspaceKeys.mine(); // ['workspace', 'mine']
 ```
 
 ### conftest.py fixtures
+
 ```python
 db_session, api_client, client_with_mocks, unauthenticated_client
 make_jwt(user_id, email), auth_headers(user_id)
@@ -226,6 +236,7 @@ audio_duration_seconds: Mapped[int | None] = mapped_column(
 ```
 
 Alembic migration:
+
 ```bash
 docker compose exec api alembic revision --autogenerate -m "add_audio_fields_to_updates"
 docker compose exec api alembic upgrade head
@@ -235,6 +246,7 @@ docker compose exec api alembic upgrade head
 
 Add `get_presigned_url` to StorageRepository if not already there
 (it exists in the original spec — verify in your codebase):
+
 ```python
 async def get_presigned_url(
     self,
@@ -286,6 +298,7 @@ class AudioPlaybackUrlResponse(BaseModel):
 ```
 
 Update `SubmitUpdateRequest` in `schemas/update.py`:
+
 ```python
 class SubmitUpdateRequest(BaseModel):
     content: str = Field(default="", max_length=1000)
@@ -309,6 +322,7 @@ class SubmitUpdateRequest(BaseModel):
 ```
 
 Update `UpdateResponse` in `schemas/update.py`:
+
 ```python
 class UpdateResponse(BaseModel):
     ...  # existing fields unchanged
@@ -480,6 +494,7 @@ async def get_audio_playback_url(
 ```
 
 Add `get_presigned_upload_url` to `StorageRepository`:
+
 ```python
 async def get_presigned_upload_url(
     self,
@@ -507,6 +522,7 @@ async def get_presigned_upload_url(
 ```
 
 Register in `main.py`:
+
 ```python
 from app.routers import audio
 app.include_router(audio.router, prefix="/api/v1")
@@ -517,17 +533,20 @@ app.include_router(audio.router, prefix="/api/v1")
 ### Step 4: faster-whisper Setup
 
 Add to `requirements.txt`:
+
 ```
 faster-whisper>=1.0.0
 pydub>=0.25.1
 ```
 
 Add to `Dockerfile` (apps/api/Dockerfile) — install ffmpeg:
+
 ```dockerfile
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 ```
 
 Model pre-download script (run on container startup):
+
 ```python
 # apps/api/app/workers/whisper_setup.py
 """
@@ -565,6 +584,7 @@ def get_whisper_model() -> WhisperModel:
 ```
 
 Add `WHISPER_MODEL_SIZE` and `WHISPER_MODEL_CACHE` to `config.py`:
+
 ```python
 whisper_model_size: str = Field(default="base", description="faster-whisper model size")
 whisper_model_cache: str = Field(default="/tmp/whisper-models", description="Model cache directory")
@@ -768,6 +788,7 @@ async def _process_audio_update_async(
 ```
 
 Add `update_transcript` to `UpdateRepository`:
+
 ```python
 async def update_transcript(self, update: Update, transcript: str) -> Update:
     """Store transcript text (voice updates only)."""
@@ -779,6 +800,7 @@ async def update_transcript(self, update: Update, transcript: str) -> Update:
 ```
 
 Wire in `UpdateService.submit_update`:
+
 ```python
 if request.mode == "voice" and request.audio_key:
     update = await repo.create(
@@ -795,6 +817,7 @@ else:
 ```
 
 Update `UpdateRepository.create` signature:
+
 ```python
 async def create(
     self, workspace_id, user_id, content, update_date,
@@ -916,8 +939,8 @@ export function useAudioPlaybackUrl(
         tokens?.access_token,
       ),
     enabled: enabled && !!tokens?.access_token,
-    staleTime: 10 * 60 * 1000,  // 10 minutes — expires before the 15-min URL
-    gcTime: 15 * 60 * 1000,     // Remove from cache at 15 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes — expires before the 15-min URL
+    gcTime: 15 * 60 * 1000, // Remove from cache at 15 minutes
   });
 }
 ```
@@ -1016,7 +1039,8 @@ export function VoiceRecorder({
   onSuccess,
   onCancel,
 }: VoiceRecorderProps) {
-  const [recorderState, setRecorderState] = React.useState<RecorderState>("idle");
+  const [recorderState, setRecorderState] =
+    React.useState<RecorderState>("idle");
   const [duration, setDuration] = React.useState(0);
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [audioBlob, setAudioBlob] = React.useState<Blob | null>(null);
@@ -1025,7 +1049,9 @@ export function VoiceRecorder({
 
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
-  const durationIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const durationIntervalRef = React.useRef<ReturnType<
+    typeof setInterval
+  > | null>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
 
   // Clean up object URLs and streams on unmount
@@ -1107,7 +1133,8 @@ export function VoiceRecorder({
 
     try {
       // 1. Request pre-signed URL
-      const { useRequestUploadUrl, uploadAudioBlob } = await import("@/hooks/useAudio");
+      const { useRequestUploadUrl, uploadAudioBlob } =
+        await import("@/hooks/useAudio");
       // Note: can't call hooks inside async function — pre-request the URL
       // by passing the mutation function down as a prop instead.
       // See implementation note below.
@@ -1135,10 +1162,11 @@ async function handleSubmit() {
 
   try {
     // 1. Get pre-signed upload URL
-    const { upload_url, object_key } = await requestUploadUrlMutation.mutateAsync({
-      content_type: audioBlob.type,
-      file_size_bytes: audioBlob.size,
-    });
+    const { upload_url, object_key } =
+      await requestUploadUrlMutation.mutateAsync({
+        content_type: audioBlob.type,
+        file_size_bytes: audioBlob.size,
+      });
 
     // 2. Upload directly to Minio/R2
     await uploadAudioBlob(upload_url, audioBlob, setUploadProgress);
@@ -1155,6 +1183,7 @@ async function handleSubmit() {
 ```
 
 The `onSuccess` callback in the dashboard page then calls `submitUpdateMutation.mutateAsync`:
+
 ```typescript
 // In dashboard/page.tsx or DashboardView:
 async function handleVoiceSuccess(
@@ -1269,36 +1298,45 @@ Add to existing `UpdateCard` component:
 
 ```tsx
 // Render audio player for voice updates
-{update.mode === "voice" && update.audio_duration_seconds && (
-  <AudioPlayer
-    workspaceId={update.workspace_id}
-    updateId={update.id}
-    durationSeconds={update.audio_duration_seconds}
-    className="mt-2"
-  />
-)}
+{
+  update.mode === "voice" && update.audio_duration_seconds && (
+    <AudioPlayer
+      workspaceId={update.workspace_id}
+      updateId={update.id}
+      durationSeconds={update.audio_duration_seconds}
+      className="mt-2"
+    />
+  );
+}
 
 // Collapsible transcript section
-{update.mode === "voice" && update.transcript && (
-  <CollapsibleSection label="Transcript" defaultOpen={false}>
-    <p className="font-body text-sm text-on-surface-variant leading-relaxed">
-      {update.transcript}
-    </p>
-  </CollapsibleSection>
-)}
+{
+  update.mode === "voice" && update.transcript && (
+    <CollapsibleSection label="Transcript" defaultOpen={false}>
+      <p className="font-body text-sm text-on-surface-variant leading-relaxed">
+        {update.transcript}
+      </p>
+    </CollapsibleSection>
+  );
+}
 
 // Collapsible summary section (already exists for text, now also for voice)
-{update.summary && (
-  <CollapsibleSection label="Summary" defaultOpen={update.mode === "text"}>
-    <p className="font-headline italic text-sm text-on-surface-variant
-                  leading-relaxed pl-3 border-l-2 border-primary-container">
-      {update.summary}
-    </p>
-  </CollapsibleSection>
-)}
+{
+  update.summary && (
+    <CollapsibleSection label="Summary" defaultOpen={update.mode === "text"}>
+      <p
+        className="font-headline italic text-sm text-on-surface-variant
+                  leading-relaxed pl-3 border-l-2 border-primary-container"
+      >
+        {update.summary}
+      </p>
+    </CollapsibleSection>
+  );
+}
 ```
 
 Add `CollapsibleSection` as a small local component within `update-card.tsx`:
+
 ```typescript
 function CollapsibleSection({
   label,
@@ -1392,6 +1430,7 @@ src/stories/domain/UpdateCard.stories.tsx   ← add voice variants
 ## Unit Tests
 
 ### Backend
+
 ```
 tests/unit/test_audio_router.py
   ← POST upload-url: valid request → 200 + url + object_key
@@ -1414,6 +1453,7 @@ tests/unit/test_process_audio_task.py
 ```
 
 ### Frontend
+
 ```
 hooks/useAudio.test.ts
   ← useRequestUploadUrl calls correct endpoint
@@ -1473,28 +1513,30 @@ shows a placeholder until the WebSocket event arrives.
 ## Acceptance Criteria
 
 ```
-[ ] User can record a voice update on desktop Chrome, Firefox, Safari
-[ ] User can record a voice update on mobile Chrome and mobile Safari
-[ ] Max recording duration is 5 minutes (enforced client-side)
-[ ] Microphone permission denied shows clear error message
-[ ] Preview state lets user replay before submitting
-[ ] Re-record discards current recording and returns to idle
-[ ] Upload progress shown during R2 upload
-[ ] File too large (>10MB) rejected with clear error
-[ ] Unsupported audio format rejected with 400 from API
-[ ] Voice update card shows audio player
-[ ] Audio player fetches pre-signed URL on demand (not on card render)
-[ ] Transcript shown in collapsible section after transcription
-[ ] Summary shown in collapsible section after Claude processing
-[ ] Status transitions visible in real time via WebSocket
-[ ] audio.transcription_started event published before transcription
-[ ] audio.transcription_complete event updates transcript in React Query cache
-[ ] Haiku used for summary, Sonnet on retry
-[ ] Failed transcription shows Failed badge after 3 retries
-[ ] Backend unit tests pass for audio router + transcription task
-[ ] Frontend unit tests pass for VoiceRecorder + AudioPlayer + hooks
-[ ] Storybook stories added for all new components and states
-[ ] CI passes on feature/milestone-4 branch
+[x] User can record a voice update on desktop Chrome, Firefox, Safari
+[ ] User can record a voice update on mobile Chrome and mobile Safari (deferred — needs device testing)
+[x] Max recording duration is 5 minutes (enforced client-side)
+[x] Microphone permission denied shows clear error message
+[x] Preview state lets user replay before submitting
+[x] Re-record discards current recording and returns to idle
+[x] Upload progress shown during R2 upload
+[x] File too large (>10MB) rejected by API schema validation
+[x] Unsupported audio format rejected with 400 from API
+[x] Voice update card shows audio player
+[x] Audio player fetches pre-signed URL on demand (not on card render)
+[x] Transcript shown in collapsible section after transcription
+[x] Summary shown in collapsible section after Claude processing
+[x] Status transitions visible in real time via WebSocket
+[x] audio.transcription_started event published before transcription
+[x] audio.transcription_complete event updates transcript in React Query cache
+[x] Haiku used for summary, Sonnet on retry
+[x] Failed transcription shows Failed badge after 3 retries
+[x] Backend unit tests pass for audio router + transcription task
+[x] Frontend unit tests pass for VoiceRecorder + AudioPlayer + hooks
+[x] Storybook stories added for all new components and states
+[x] Scaling debt documented in specs/scaling/api/voice_pipeline.md
+[x] Scaling debt documented in specs/scaling/web/voice_recorder.md
+[ ] CI passes on feature/milestone-4 branch (pending final merge)
 ```
 
 ---
@@ -1502,6 +1544,7 @@ shows a placeholder until the WebSocket event arrives.
 ## Files To Create Summary
 
 ### Backend (apps/api/)
+
 ```
 app/schemas/audio.py
 app/routers/audio.py
@@ -1512,6 +1555,7 @@ tests/unit/test_process_audio_task.py
 ```
 
 ### Frontend (apps/web/src/)
+
 ```
 hooks/useAudio.ts
 components/domain/updates/voice-recorder.tsx
@@ -1524,20 +1568,233 @@ tests/unit/AudioPlayer.test.tsx
 ```
 
 ### Updated files
+
 ```
 apps/api/app/models/update.py           ← +audio_key, +audio_url, +audio_duration_seconds
 apps/api/app/schemas/update.py          ← SubmitUpdateRequest +audio_key, +audio_duration_seconds
-                                           UpdateResponse +audio_duration_seconds
+                                           UpdateResponse +audio_duration_seconds, +transcript
 apps/api/app/repositories/update_repo.py ← +update_transcript, create() +audio fields
-apps/api/app/services/update_service.py ← voice branch in submit_update
-apps/api/app/workers/tasks.py           ← +process_audio_update task
-apps/api/app/repositories/storage_repo.py ← +get_presigned_upload_url
+apps/api/app/services/update_service.py ← voice branch in submit_update, _to_response fix
+apps/api/app/workers/tasks.py           ← +process_audio_update task, +NullPool, +structlog
+apps/api/app/repositories/storage_repo.py ← +get_presigned_upload_url, r2_public_endpoint_url
+apps/api/app/config.py                  ← +whisper_model_size, +whisper_model_cache,
+                                           +r2_public_endpoint_url
 apps/api/app/main.py                    ← +audio router
 apps/api/requirements.txt               ← +faster-whisper, +pydub
 apps/api/Dockerfile                     ← +ffmpeg apt install
-apps/web/src/lib/websocket/types.ts     ← +M4 payload types
-apps/web/src/hooks/useDashboardUpdates.ts ← +M4 WS handlers
-apps/web/src/hooks/useUpdates.ts        ← UpdateResponse +audio_duration_seconds
+apps/web/src/lib/websocket/types.ts     ← +M4 payload types (3 separate interfaces)
+apps/web/src/hooks/useDashboardUpdates.ts ← +M4 WS handlers, explicit dual unsubscribe
+apps/web/src/hooks/useUpdates.ts        ← UpdateResponse +audio_duration_seconds, +transcript
+                                           useSubmitUpdate +audio_key, +audio_duration_seconds
 apps/web/src/components/domain/updates/update-card.tsx ← voice variant
-apps/web/src/app/(app)/dashboard/page.tsx ← voice mode toggle + handleVoiceSuccess
+apps/web/src/components/domain/dashboard/dashboard-view.tsx ← voice mode toggle,
+                                           VoiceRecorder integration, new props
+apps/web/src/app/(app)/dashboard/page.tsx ← handleVoiceSuccess, showVoiceRecorder state
 ```
+
+---
+
+## Implementation Notes & Deviations from Original Spec
+
+### Docker networking — DATABASE_URL internal hostname
+
+The original spec used `host.docker.internal:54322` in `DATABASE_URL` to
+reach Supabase Postgres from Docker containers. On Windows with WSL2, this
+hostname fails to resolve from inside containers. Fixed by using the
+Supabase DB container's internal Docker network hostname instead:
+
+```
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@supabase_db_soarup:5432/postgres
+```
+
+`supabase_db_soarup` is the container name on the shared `supabase_network_soarup`
+Docker bridge network. Port `5432` (internal) not `54322` (host-mapped).
+
+### R2 public endpoint URL split
+
+The spec used a single `R2_ENDPOINT_URL` for all storage operations. During
+smoke testing, presigned URLs generated with the internal Docker hostname
+(`minio:9000`) were unreachable from the browser. Fixed by splitting into
+two config fields:
+
+- `R2_ENDPOINT_URL=http://minio:9000` — used by Celery worker (container-to-container)
+- `R2_PUBLIC_ENDPOINT_URL=http://localhost:9000` — used by `StorageRepository`
+  for presigned URLs returned to the browser
+
+`StorageRepository` uses `r2_public_endpoint_url` for all presigned URL
+generation. The `tasks.py` boto3 client keeps using `r2_endpoint_url`.
+
+### NullPool added to Celery DB engine
+
+The original spec did not specify a connection pool strategy for the Celery
+task's async SQLAlchemy engine. During smoke testing, `asyncpg` raised
+`InterfaceError: cannot perform operation: another operation is in progress`
+due to connection pool state not surviving across `asyncio.run()` invocations.
+
+Fixed by adding `poolclass=NullPool` to the engine:
+
+```python
+from sqlalchemy.pool import NullPool
+
+self._db_engine = create_async_engine(
+    settings.database_url,
+    poolclass=NullPool,
+)
+```
+
+`NullPool` disables connection pooling — each operation gets a fresh
+connection and closes it immediately. Correct for Celery's sync task model
+where each task creates a new event loop via `asyncio.run()`.
+
+### structlog replaces Celery task logger
+
+The original spec used `get_task_logger` from `celery.utils.log`. Celery's
+task logger does not support keyword arguments in log calls (e.g.
+`logger.info("event", update_id=update_id)`), causing `TypeError` at runtime.
+
+Fixed by replacing with `structlog.get_logger(__name__)`, consistent with the
+rest of the codebase:
+
+```python
+# Was:
+from celery.utils.log import get_task_logger
+logger = get_task_logger(__name__)
+
+# Now:
+import structlog
+logger = structlog.get_logger(__name__)
+```
+
+### Whisper model preload signal
+
+Added a `@worker_ready.connect` Celery signal to preload the Whisper model
+on worker startup, preventing cold-start latency on the first voice update:
+
+```python
+from celery.signals import worker_ready
+
+@worker_ready.connect  # type: ignore[misc]
+def preload_whisper_model(**kwargs: Any) -> None:
+    from app.workers.whisper_setup import get_whisper_model
+    logger.info("preloading_whisper_model")
+    get_whisper_model()
+    logger.info("whisper_model_ready")
+```
+
+### `transcript` field already existed on Update model
+
+The spec listed `transcript` as a new column to add in M4. It was already
+present on the `Update` model from M3 (added in preparation). The Alembic
+migration therefore only added three columns: `audio_key`, `audio_url`, and
+`audio_duration_seconds`.
+
+### `_to_response` was missing audio fields
+
+`UpdateService._to_response` was not mapping `transcript` and
+`audio_duration_seconds` to `UpdateResponse`, causing those fields to always
+return `null` in the API response despite being populated in the DB. Fixed
+by adding both fields to the mapper.
+
+### `submit_update` voice branch was missing
+
+`UpdateService.submit_update` was missing the voice branch entirely after
+the initial implementation — the updated version did not persist to the file.
+The voice branch correctly routes to `process_audio_update.delay()` and passes
+`audio_key` and `audio_duration_seconds` to `repo.create()`.
+
+### DashboardView props extended for voice mode
+
+`DashboardView` received six new props for voice mode integration:
+`showVoiceRecorder`, `workspaceId`, `today`, `onVoiceClick`, `onVoiceSuccess`,
+and `onVoiceCancel`. The `EmptyState` component is no longer rendered on the
+dashboard — the mode toggle buttons (text / voice) replace it as the
+submission entry point. `EmptyState` is retained in the codebase for
+potential reuse in M5 team views.
+
+### AudioPlayer play button hidden after activation
+
+The spec showed a play button that remains visible after activation. Revised
+during implementation — the play button is hidden once the native `<audio>`
+element renders (since the native controls include their own play/pause).
+Prevents duplicate play controls in the UI.
+
+### useDashboardUpdates cleanup returns dual unsubscribes
+
+M3's `useDashboardUpdates` returned `subscribe(...)` directly from `useEffect`,
+which only cleaned up one handler. M4 adds a second handler
+(`audio.transcription_complete`), requiring explicit cleanup of both:
+
+```typescript
+return () => {
+  unsubStatusChanged();
+  unsubTranscriptComplete();
+};
+```
+
+### `audio/webm;codecs=opus` removed from ALLOWED_AUDIO_CONTENT_TYPES set
+
+The router strips codec parameters with `split(";")[0]` before validation.
+The entry `"audio/webm;codecs=opus"` in the allowed set would never match
+after normalisation. Removed from the set — `"audio/webm"` covers it.
+
+### Supabase Studio fix — missing `supabase/functions` directory
+
+During development, Supabase Studio entered a crash loop with
+`ENOENT: no such file or directory, scandir '/Active Personal Projects/soarup/supabase/functions'`.
+Fixed by creating the empty directory:
+
+```bash
+mkdir supabase/functions
+docker restart supabase_studio_soarup
+```
+
+### Supabase CLI update deferred
+
+`supabase status` reported CLI version `v2.84.2` with `v2.101.0` available.
+Update deferred to next hardware setup migration to avoid disrupting the
+current development environment mid-milestone.
+
+---
+
+## Post-M9 UX Improvement Notes
+
+The following visual and interaction improvements were identified during M4
+smoke testing. None are blockers — deferred to a dedicated UI polish pass
+after Milestone 9.
+
+### Visual depth and shadow system
+
+The current UI uses flat surfaces across both dark and light modes. The
+Electric Atelier design system supports `shadow-electric` and
+`shadow-electric-sm` tokens but they are underutilised. A polish pass should:
+
+- Add `shadow-electric-sm` to `UpdateCard`, `VoiceRecorder`, and other
+  surface-high cards to create visual separation from the background
+- Add subtle hover shadows on interactive cards
+- Reference getHaiku's layered glow/shadow aesthetic as the target feel
+- Ensure shadows are calibrated per theme — glow effects in dark mode,
+  soft drop shadows in light mode
+
+### Light mode colour refinement
+
+Light mode surfaces currently feel flat and slightly washed out. Areas to
+improve:
+
+- Increase contrast between `bg-surface` and `bg-surface-high` layers
+- Add subtle tint or warmth to surface colours to reduce the clinical feel
+- Verify `text-on-surface-variant` passes WCAG AA against all surface colours
+  in light mode
+
+### Loading state indicators
+
+Several interactions lack loading feedback:
+
+- Form submit button has a spinner (good) but the dashboard page has no
+  skeleton or indicator while the workspace is loading on first mount
+- Login / signup / onboarding page transitions show no loading state between
+  form submit and redirect — add a full-page loading overlay or button spinner
+- The `VoiceRecorder` "requesting permission" state shows a pulse placeholder
+  but no label explaining what is happening — add "Requesting microphone..." text
+
+These should be addressed as a coordinated pass across all auth and app pages
+rather than individually per component.
