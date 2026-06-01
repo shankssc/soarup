@@ -66,7 +66,7 @@ class Settings(BaseSettings):
         description="faster-whisper model size. Use 'tiny' if memory is constrained.",
     )
     whisper_model_cache: str = Field(
-        default="/tmp/whisper-models",  # Noqa: S108
+        default="/tmp/whisper-models",  # Noqa: S108 # nosec B108
         description="Directory to cache downloaded Whisper models.",
     )
 

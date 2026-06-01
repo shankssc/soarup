@@ -34,6 +34,8 @@ const MOCK_UPDATE = {
   mode: 'text',
   status: 'pending',
   summary: null,
+  transcript: null,
+  audio_duration_seconds: null,
   update_date: '2026-05-18',
   created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
   updated_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),

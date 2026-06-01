@@ -65,6 +65,8 @@ def _fake_update(
     status: str = "pending",
     update_date: str = TODAY,
     summary: str | None = None,
+    transcript: str | None = None,
+    audio_duration_seconds: int | None = None,
 ) -> SimpleNamespace:
     now = datetime.now(UTC)
     return SimpleNamespace(
@@ -76,6 +78,8 @@ def _fake_update(
         status=status,
         update_date=update_date,
         summary=summary,
+        transcript=transcript,
+        audio_duration_seconds=audio_duration_seconds,
         created_at=now,
         updated_at=now,
         is_deleted=False,
@@ -112,7 +116,8 @@ class TestSubmitUpdate:
         result = await service.submit_update(
             WORKSPACE_ID,
             USER_ID,
-            SubmitUpdateRequest(content="Today I worked on tests", update_date=TODAY),
+            SubmitUpdateRequest(
+                content="Today I worked on tests", update_date=TODAY),
         )
 
         assert result.id == UPDATE_ID
@@ -183,7 +188,8 @@ class TestSubmitUpdate:
 
         update_repo.get_for_user_on_date = AsyncMock(return_value=None)
         update_repo.create = AsyncMock(return_value=update)
-        profile_repo.get_by_user_id = AsyncMock(return_value=_fake_profile(full_name="Jane Doe"))
+        profile_repo.get_by_user_id = AsyncMock(
+            return_value=_fake_profile(full_name="Jane Doe"))
 
         result = await service.submit_update(
             WORKSPACE_ID,
@@ -225,7 +231,8 @@ class TestGetWorkspaceUpdates:
             _fake_update(update_id="u2", user_id=OTHER_USER_ID),
         ]
 
-        update_repo.get_workspace_updates_for_date = AsyncMock(return_value=updates)
+        update_repo.get_workspace_updates_for_date = AsyncMock(
+            return_value=updates)
         profile_repo.get_by_user_id = AsyncMock(return_value=_fake_profile())
 
         result = await service.get_workspace_updates(WORKSPACE_ID, TODAY)
@@ -248,7 +255,8 @@ class TestGetWorkspaceUpdates:
         service, _, update_repo, profile_repo = _make_service()
         update = _fake_update(content="Specific content")
 
-        update_repo.get_workspace_updates_for_date = AsyncMock(return_value=[update])
+        update_repo.get_workspace_updates_for_date = AsyncMock(return_value=[
+                                                               update])
         profile_repo.get_by_user_id = AsyncMock(return_value=_fake_profile())
 
         result = await service.get_workspace_updates(WORKSPACE_ID, TODAY)
@@ -263,7 +271,8 @@ class TestGetWorkspaceUpdates:
 
         await service.get_workspace_updates(WORKSPACE_ID, TODAY)
 
-        update_repo.get_workspace_updates_for_date.assert_awaited_once_with(WORKSPACE_ID, TODAY)
+        update_repo.get_workspace_updates_for_date.assert_awaited_once_with(
+            WORKSPACE_ID, TODAY)
 
 
 # ---------------------------------------------------------------------------
