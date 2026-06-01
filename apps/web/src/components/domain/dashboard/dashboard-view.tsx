@@ -4,9 +4,10 @@
 // in Storybook without needing React Query or auth providers.
 'use client';
 
-import { EmptyState } from '@/components/domain/updates/empty-state';
 import { UpdateCard } from '@/components/domain/updates/update-card';
 import { UpdateForm } from '@/components/domain/updates/update-form';
+import { VoiceRecorder } from '@/components/domain/updates/voice-recorder';
+import { Button } from '@/components/ui/button';
 import type { UpdateResponse } from '@/hooks/useUpdates';
 
 export interface DashboardViewProps {
@@ -14,11 +15,21 @@ export interface DashboardViewProps {
   isLoading: boolean;
   hasSubmittedToday: boolean;
   showForm: boolean;
+  showVoiceRecorder: boolean;
   currentUserId: string;
+  workspaceId: string;
   todayLabel: string;
+  today: string;
   onSubmitClick: () => void;
+  onVoiceClick: () => void;
   onFormSubmit: (content: string) => Promise<void>;
   onFormCancel: () => void;
+  onVoiceSuccess: (
+    audioKey: string,
+    durationSeconds: number,
+    blob: Blob,
+  ) => Promise<void>;
+  onVoiceCancel: () => void;
   onEdit: (updateId: string, content: string) => Promise<void>;
   onDelete: (updateId: string, updateDate: string) => Promise<void>;
   isSubmitting?: boolean;
@@ -29,11 +40,17 @@ export function DashboardView({
   isLoading,
   hasSubmittedToday,
   showForm,
+  showVoiceRecorder,
   currentUserId,
+  workspaceId,
   todayLabel,
+  today,
   onSubmitClick,
+  onVoiceClick,
   onFormSubmit,
   onFormCancel,
+  onVoiceSuccess,
+  onVoiceCancel,
   onEdit,
   onDelete,
   isSubmitting = false,
@@ -50,14 +67,47 @@ export function DashboardView({
       {/* Submission area */}
       {!hasSubmittedToday && (
         <>
-          {showForm ? (
+          {/* Mode toggle — shown when neither form nor recorder is open */}
+          {!showForm && !showVoiceRecorder && (
+            <div className="flex items-center gap-2">
+              <Button variant="primary" asymmetric onClick={onSubmitClick}>
+                Submit update
+                <span
+                  className="material-symbols-outlined text-[18px]"
+                  aria-hidden="true"
+                >
+                  keyboard
+                </span>
+              </Button>
+              <Button variant="secondary" onClick={onVoiceClick}>
+                <span
+                  className="material-symbols-outlined text-[18px]"
+                  aria-hidden="true"
+                >
+                  mic
+                </span>
+                Voice note
+              </Button>
+            </div>
+          )}
+
+          {/* Text update form */}
+          {showForm && (
             <UpdateForm
               onSubmit={onFormSubmit}
               onCancel={onFormCancel}
               isSubmitting={isSubmitting}
             />
-          ) : (
-            <EmptyState onSubmitClick={onSubmitClick} />
+          )}
+
+          {/* Voice recorder */}
+          {showVoiceRecorder && (
+            <VoiceRecorder
+              workspaceId={workspaceId}
+              updateDate={today}
+              onSuccess={onVoiceSuccess}
+              onCancel={onVoiceCancel}
+            />
           )}
         </>
       )}

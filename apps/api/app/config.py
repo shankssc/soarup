@@ -37,6 +37,10 @@ class Settings(BaseSettings):
         default="http://minio:9000",
         description="R2/Minio endpoint URL",
     )
+    r2_public_endpoint_url: str = Field(
+        default="http://localhost:9000",
+        description="Public-facing R2/Minio URL used in presigned URLs returned to the browser.",
+    )
     r2_bucket_name: str = "soarup-local"
     # Sensitive: require from .env, no default
     r2_access_key_id: SecretStr | None = None
@@ -55,6 +59,16 @@ class Settings(BaseSettings):
     # === AI Services ===
     openai_api_key: SecretStr | None = None
     anthropic_api_key: SecretStr | None = None
+
+    # === Whisper (faster-whisper transcription) ===
+    whisper_model_size: str = Field(
+        default="base",
+        description="faster-whisper model size. Use 'tiny' if memory is constrained.",
+    )
+    whisper_model_cache: str = Field(
+        default="/tmp/whisper-models",  # Noqa: S108
+        description="Directory to cache downloaded Whisper models.",
+    )
 
     # === Notifications ===
     resend_api_key: SecretStr | None = None

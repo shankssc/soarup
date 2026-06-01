@@ -26,11 +26,11 @@ class StorageError(Exception):
 
 
 class StorageRepository:
-    """Async repository for object storage operations (Minio local, R2 production)."""
+    """Async repository for object storage operations (Minio local, R2 production (implementation is nearly identical with AWS S3))."""
 
     def __init__(self) -> None:
         self.session = aioboto3.Session()
-        self.endpoint_url = settings.r2_endpoint_url
+        self.endpoint_url = settings.r2_public_endpoint_url
         self.access_key = settings.r2_access_key_id.get_secret_value() if settings.r2_access_key_id else ""
         self.secret_key = settings.r2_secret_access_key.get_secret_value() if settings.r2_secret_access_key else ""
         self.region_name = "auto"  # R2 uses "auto"
@@ -164,3 +164,43 @@ class StorageRepository:
         except ClientError as e:
             logger.error("presign_failed", file_key=file_key, error=str(e))
             raise StorageError(f"Failed to generate presigned URL: {str(e)}") from e
+
+    @circuit_breaker(failure_threshold=3, recovery_timeout=30, name="storage.presign_upload")
+    async def get_presigned_upload_url(
+        self,
+        object_key: str,
+        content_type: str,
+        expires_in: int = 900,
+    ) -> str:
+        """
+        Generate a pre-signed PUT URL for direct browser-to-storage upload.
+        Audio data bypasses the FastAPI server entirely — no token needed in the URL.
+        URL expires in 15 minutes (900 seconds).
+        """
+        try:
+            async with self.session.client(
+                "s3",
+                endpoint_url=self.endpoint_url,
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_key,
+                region_name=self.region_name,
+            ) as client:
+                return cast(
+                    str,
+                    await client.generate_presigned_url(
+                        "put_object",
+                        Params={
+                            "Bucket": self.bucket_name,
+                            "Key": object_key,
+                            "ContentType": content_type,
+                        },
+                        ExpiresIn=expires_in,
+                    ),
+                )
+        except ClientError as e:
+            logger.error(
+                "presign_upload_failed",
+                object_key=object_key,
+                error=str(e),
+            )
+            raise StorageError(f"Failed to generate presigned upload URL: {str(e)}") from e

@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { AudioPlayer } from '@/components/ui/audio-player';
 import { cn } from '@/lib/utils/cn';
 import type { UpdateResponse } from '@/hooks/useUpdates';
 
@@ -47,6 +48,57 @@ function StatusBadge({ status }: { status: string }) {
       <span className="font-label text-[10px] uppercase tracking-[0.08em]">
         {config.label}
       </span>
+    </div>
+  );
+}
+
+// ── Voice badge ───────────────────────────────────────────────────────────────
+
+function VoiceBadge() {
+  return (
+    <div className="flex items-center gap-1.5 border border-outline-variant px-2 py-1">
+      <span
+        className="material-symbols-outlined text-[12px] text-on-surface-variant"
+        aria-hidden="true"
+      >
+        mic
+      </span>
+      <span className="font-label text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
+        Voice
+      </span>
+    </div>
+  );
+}
+
+// ── Collapsible section ───────────────────────────────────────────────────────
+
+function CollapsibleSection({
+  label,
+  defaultOpen,
+  children,
+}: {
+  label: string;
+  defaultOpen: boolean;
+  children: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => setIsOpen((o) => !o)}
+        className="flex items-center gap-1 font-label text-[10px] uppercase tracking-[0.15em] text-outline transition-colors hover:text-on-surface"
+        aria-expanded={isOpen}
+      >
+        <span
+          className="material-symbols-outlined text-[14px] transition-transform duration-200"
+          style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          aria-hidden="true"
+        >
+          expand_more
+        </span>
+        {label}
+      </button>
+      {isOpen && <div className="mt-2">{children}</div>}
     </div>
   );
 }
@@ -173,6 +225,7 @@ export function UpdateCard({
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isOwner = update.user_id === currentUserId;
+  const isVoice = update.mode === 'voice';
 
   const charsLeft = 1000 - editContent.length;
   const isOverLimit = charsLeft < 0;
@@ -222,7 +275,7 @@ export function UpdateCard({
 
   return (
     <div className="flex flex-col gap-4 border border-outline-variant bg-surface-high p-6">
-      {/* Header: avatar + meta + status + menu */}
+      {/* Header: avatar + meta + badges + menu */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <Avatar name={update.author_name} avatarUrl={update.author_avatar_url} />
@@ -237,14 +290,16 @@ export function UpdateCard({
         </div>
 
         <div className="flex items-center gap-2">
+          {isVoice && <VoiceBadge />}
           <StatusBadge status={update.status} />
-          {isOwner && (
+          {isOwner && !isVoice && (
             <CardMenu onEdit={() => setEditMode(true)} onDelete={handleDelete} />
           )}
+          {isOwner && isVoice && <CardMenu onEdit={() => {}} onDelete={handleDelete} />}
         </div>
       </div>
 
-      {/* Content or edit mode */}
+      {/* Content area */}
       {editMode ? (
         <div className="flex flex-col gap-3 pl-12">
           <textarea
@@ -306,13 +361,25 @@ export function UpdateCard({
         </div>
       ) : (
         <div className="flex flex-col gap-3 pl-12">
-          {/* Raw update content */}
-          <p className="font-body text-base leading-relaxed text-on-surface">
-            {update.content}
-          </p>
+          {/* Voice update — audio player */}
+          {isVoice && update.audio_duration_seconds != null && (
+            <AudioPlayer
+              workspaceId={update.workspace_id}
+              updateId={update.id}
+              durationSeconds={update.audio_duration_seconds}
+              className="mt-1"
+            />
+          )}
+
+          {/* Text update — raw content */}
+          {!isVoice && (
+            <p className="font-body text-base leading-relaxed text-on-surface">
+              {update.content}
+            </p>
+          )}
 
           {/* Processing skeleton — shown while Claude is working */}
-          {update.status === 'processing' && (
+          {(update.status === 'processing' || update.status === 'pending') && (
             <div
               className="mt-1 animate-pulse space-y-2"
               aria-label="Generating summary"
@@ -322,16 +389,27 @@ export function UpdateCard({
             </div>
           )}
 
-          {/* AI summary — shown once processed */}
-          {update.status === 'processed' && update.summary && (
-            <div className="border-l-2 border-primary-container pl-3">
-              <p className="font-headline text-sm italic leading-relaxed text-on-surface-variant">
-                {update.summary}
+          {/* Voice update — collapsible transcript */}
+          {isVoice && update.transcript && (
+            <CollapsibleSection label="Transcript" defaultOpen={false}>
+              <p className="font-body text-sm leading-relaxed text-on-surface-variant">
+                {update.transcript}
               </p>
-            </div>
+            </CollapsibleSection>
           )}
 
-          {/* Failed state — ghost retry button (functional retry deferred to M5) */}
+          {/* Summary — shown for both text and voice once processed */}
+          {update.status === 'processed' && update.summary && (
+            <CollapsibleSection label="Summary" defaultOpen={!isVoice}>
+              <div className="border-l-2 border-primary-container pl-3">
+                <p className="font-headline text-sm italic leading-relaxed text-on-surface-variant">
+                  {update.summary}
+                </p>
+              </div>
+            </CollapsibleSection>
+          )}
+
+          {/* Failed state */}
           {update.status === 'failed' && (
             <div className="flex items-center gap-2">
               <span className="font-label text-[10px] uppercase tracking-[0.08em] text-error">
@@ -345,6 +423,15 @@ export function UpdateCard({
                 Retry
               </button>
             </div>
+          )}
+
+          {error && (
+            <p
+              className="font-label text-[10px] tracking-[0.08em] text-error"
+              role="alert"
+            >
+              {error}
+            </p>
           )}
         </div>
       )}

@@ -24,11 +24,23 @@ export interface UpdateStatusChangedPayload {
 
 // ── Milestone 4 (reserved — define payload when building) ─────────────────────
 
-export interface AudioTranscriptionPayload {
+export interface AudioTranscriptionStartedPayload {
   update_id: string;
   workspace_id: string;
-  progress?: number; // 0–100 for progress events
-  transcript?: string; // populated on complete
+  update_date: string;
+}
+
+export interface AudioTranscriptionCompletePayload {
+  update_id: string;
+  workspace_id: string;
+  update_date: string;
+  transcript: string;
+}
+
+export interface AudioTranscriptionFailedPayload {
+  update_id: string;
+  workspace_id: string;
+  update_date: string;
 }
 
 // ── Milestone 5 (reserved) ────────────────────────────────────────────────────

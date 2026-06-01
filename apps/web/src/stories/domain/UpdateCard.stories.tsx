@@ -1,5 +1,6 @@
 // apps/web/src/stories/domain/UpdateCard.stories.tsx
 // M3 additions: Processing, Summarised, Failed story variants
+// M4 additions: Voice update variants (Pending, Transcribing, Summarised, Failed)
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import React, { useEffect } from 'react';
 import { UpdateCard } from '@/components/domain/updates/update-card';
@@ -34,6 +35,8 @@ const BASE_UPDATE: UpdateResponse = {
   mode: 'text',
   status: 'pending',
   summary: null,
+  transcript: null,
+  audio_duration_seconds: null,
   update_date: '2026-05-21',
   created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
   updated_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
@@ -48,6 +51,23 @@ const TEAMMATE_UPDATE: UpdateResponse = {
   author_name: 'Alex Kim',
   created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
   updated_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+};
+
+const BASE_VOICE_UPDATE: UpdateResponse = {
+  id: 'update-voice-001',
+  workspace_id: 'workspace-123',
+  user_id: 'user-123',
+  content: '',
+  mode: 'voice',
+  status: 'pending',
+  summary: null,
+  transcript: null,
+  audio_duration_seconds: 107,
+  update_date: '2026-05-21',
+  created_at: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+  updated_at: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+  author_name: 'Jane Doe',
+  author_avatar_url: null,
 };
 
 // ─── Decorators ───────────────────────────────────────────────────────────────
@@ -191,8 +211,6 @@ export const FailedLight: Story = {
   },
 };
 
-// ─── Teammate card (no menu) ──────────────────────────────────────────────────
-
 export const TeammateProcessedDark: Story = {
   name: "Teammate's Update — Summarised (Dark)",
   parameters: { theme: 'dark' },
@@ -205,6 +223,94 @@ export const TeammateProcessedDark: Story = {
         'They reviewed the auth middleware PR with comments and are planning to begin the Redis pub/sub integration next.',
     },
     currentUserId: 'user-123',
+  },
+};
+
+// ─── M4 voice variants ────────────────────────────────────────────────────────
+
+export const VoiceUpdatePendingDark: Story = {
+  name: 'Voice Update — Pending (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: BASE_VOICE_UPDATE,
+  },
+};
+
+export const VoiceUpdatePendingLight: Story = {
+  name: 'Voice Update — Pending (Light)',
+  parameters: { theme: 'light' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: BASE_VOICE_UPDATE,
+  },
+};
+
+export const VoiceUpdateTranscribingDark: Story = {
+  name: 'Voice Update — Transcribing (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: {
+      ...BASE_VOICE_UPDATE,
+      status: 'processing',
+    },
+  },
+};
+
+export const VoiceUpdateSummarisedDark: Story = {
+  name: 'Voice Update — Summarised (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: {
+      ...BASE_VOICE_UPDATE,
+      status: 'processed',
+      transcript:
+        'Today I finished the audio upload pipeline and wired up the voice recorder component. The presigned URL flow is working end to end and I can see files landing in Minio. Next up is the transcription task and wiring up the WebSocket events.',
+      summary:
+        'They completed the audio upload pipeline and voice recorder integration, with the presigned URL flow working end to end. Next focus is the transcription task and WebSocket event wiring.',
+    },
+  },
+};
+
+export const VoiceUpdateSummarisedLight: Story = {
+  name: 'Voice Update — Summarised (Light)',
+  parameters: { theme: 'light' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: {
+      ...BASE_VOICE_UPDATE,
+      status: 'processed',
+      transcript:
+        'Today I finished the audio upload pipeline and wired up the voice recorder component. The presigned URL flow is working end to end and I can see files landing in Minio. Next up is the transcription task and wiring up the WebSocket events.',
+      summary:
+        'They completed the audio upload pipeline and voice recorder integration, with the presigned URL flow working end to end. Next focus is the transcription task and WebSocket event wiring.',
+    },
+  },
+};
+
+export const VoiceUpdateFailedDark: Story = {
+  name: 'Voice Update — Failed (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: {
+      ...BASE_VOICE_UPDATE,
+      status: 'failed',
+    },
+  },
+};
+
+export const VoiceUpdateFailedLight: Story = {
+  name: 'Voice Update — Failed (Light)',
+  parameters: { theme: 'light' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: {
+      ...BASE_VOICE_UPDATE,
+      status: 'failed',
+    },
   },
 };
 

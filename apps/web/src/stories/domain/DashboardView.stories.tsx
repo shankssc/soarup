@@ -33,6 +33,8 @@ const MOCK_UPDATE_PENDING: UpdateResponse = {
   mode: 'text',
   status: 'pending',
   summary: null,
+  transcript: null,
+  audio_duration_seconds: null,
   update_date: '2026-05-21',
   created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
   updated_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
@@ -70,11 +72,40 @@ const MOCK_TEAMMATE_UPDATE: UpdateResponse = {
   status: 'processed',
   summary:
     'They reviewed the auth middleware PR with comments and are planning to begin the Redis pub/sub integration next.',
+  transcript: null,
+  audio_duration_seconds: null,
   update_date: '2026-05-21',
   created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
   updated_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
   author_name: 'Alex Kim',
   author_avatar_url: null,
+};
+
+const MOCK_VOICE_UPDATE_PENDING: UpdateResponse = {
+  id: 'update-006',
+  workspace_id: 'workspace-123',
+  user_id: 'user-123',
+  content: '',
+  mode: 'voice',
+  status: 'pending',
+  summary: null,
+  transcript: null,
+  audio_duration_seconds: 47,
+  update_date: '2026-05-21',
+  created_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+  updated_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+  author_name: 'Suyash Chaudhary',
+  author_avatar_url: null,
+};
+
+const MOCK_VOICE_UPDATE_PROCESSED: UpdateResponse = {
+  ...MOCK_VOICE_UPDATE_PENDING,
+  id: 'update-007',
+  status: 'processed',
+  transcript:
+    'Today I finished the audio upload pipeline and wired up the voice recorder component. The presigned URL flow is working end to end and I can see files landing in Minio.',
+  summary:
+    'They completed the audio upload pipeline and voice recorder integration, with presigned URL flow working end to end and files successfully landing in Minio.',
 };
 
 // ─── Decorators ───────────────────────────────────────────────────────────────
@@ -135,11 +166,17 @@ const meta = {
     isLoading: false,
     hasSubmittedToday: false,
     showForm: false,
+    showVoiceRecorder: false,
     currentUserId: 'user-123',
+    workspaceId: 'workspace-123',
     todayLabel: 'Thursday, 21 May',
+    today: '2026-05-21',
     onSubmitClick: noop,
+    onVoiceClick: noop,
     onFormSubmit: noop,
     onFormCancel: noop,
+    onVoiceSuccess: noop,
+    onVoiceCancel: noop,
     onEdit: noop,
     onDelete: noop,
     isSubmitting: false,
@@ -173,6 +210,22 @@ export const FormOpenDark: Story = {
   args: { showForm: true },
 };
 
+// ─── Voice recorder open ──────────────────────────────────────────────────────
+
+export const VoiceRecorderOpenDark: Story = {
+  name: 'Voice Recorder Open (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: { showVoiceRecorder: true },
+};
+
+export const VoiceRecorderOpenLight: Story = {
+  name: 'Voice Recorder Open (Light)',
+  parameters: { theme: 'light' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: { showVoiceRecorder: true },
+};
+
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 
 export const LoadingDark: Story = {
@@ -182,7 +235,7 @@ export const LoadingDark: Story = {
   args: { isLoading: true },
 };
 
-// ─── With updates ─────────────────────────────────────────────────────────────
+// ─── With text updates ────────────────────────────────────────────────────────
 
 export const WithPendingUpdateDark: Story = {
   name: 'With Pending Update (Dark)',
@@ -233,6 +286,40 @@ export const WithFailedUpdateDark: Story = {
     hasSubmittedToday: true,
   },
 };
+
+// ─── With voice updates ───────────────────────────────────────────────────────
+
+export const WithVoiceUpdatePendingDark: Story = {
+  name: 'With Voice Update — Pending (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [MOCK_VOICE_UPDATE_PENDING],
+    hasSubmittedToday: true,
+  },
+};
+
+export const WithVoiceUpdateProcessedDark: Story = {
+  name: 'With Voice Update — Summarised (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [MOCK_VOICE_UPDATE_PROCESSED, MOCK_TEAMMATE_UPDATE],
+    hasSubmittedToday: true,
+  },
+};
+
+export const WithVoiceUpdateProcessedLight: Story = {
+  name: 'With Voice Update — Summarised (Light)',
+  parameters: { theme: 'light' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [MOCK_VOICE_UPDATE_PROCESSED, MOCK_TEAMMATE_UPDATE],
+    hasSubmittedToday: true,
+  },
+};
+
+// ─── Mobile ───────────────────────────────────────────────────────────────────
 
 export const MobileDark: Story = {
   name: 'Dashboard — Mobile (Dark)',

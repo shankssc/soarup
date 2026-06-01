@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const { user, tokens } = useAuth();
   const { data: workspace } = useWorkspace();
   const [showForm, setShowForm] = useState(false);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayLabel = format(new Date(), 'EEEE, d MMMM');
@@ -56,17 +57,39 @@ export default function DashboardPage() {
     await deleteMutation.mutateAsync({ updateId, updateDate });
   }
 
+  async function handleVoiceSuccess(
+    audioKey: string,
+    durationSeconds: number,
+    _blob: Blob,
+  ) {
+    if (!workspace?.id) return;
+    await submitMutation.mutateAsync({
+      content: '',
+      mode: 'voice',
+      update_date: today,
+      audio_key: audioKey,
+      audio_duration_seconds: durationSeconds,
+    });
+    setShowVoiceRecorder(false);
+  }
+
   return (
     <DashboardView
       updates={updates}
       isLoading={isLoading}
       hasSubmittedToday={hasSubmittedToday}
       showForm={showForm}
+      showVoiceRecorder={showVoiceRecorder}
       currentUserId={user?.id ?? ''}
+      workspaceId={workspace?.id ?? ''}
       todayLabel={todayLabel}
+      today={today}
       onSubmitClick={() => setShowForm(true)}
+      onVoiceClick={() => setShowVoiceRecorder(true)}
       onFormSubmit={handleSubmit}
       onFormCancel={() => setShowForm(false)}
+      onVoiceSuccess={handleVoiceSuccess}
+      onVoiceCancel={() => setShowVoiceRecorder(false)}
       onEdit={handleEdit}
       onDelete={handleDelete}
       isSubmitting={submitMutation.isPending || !workspace?.id}
