@@ -1,5 +1,5 @@
-# apps/api/tests/unit/test_rbac.py
-# Unit tests for app/api/rbac.py
+# apps/api/tests/integration/test_rbac.py
+# Integration tests for app/api/rbac.py
 #
 # Strategy:
 #   - WorkspaceRepository.get_member is patched — no DB calls
@@ -11,12 +11,16 @@
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 import pytest_asyncio
 from fastapi import APIRouter, FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.api.dependencies import require_onboarded
 from app.api.rbac import WorkspaceAdminDep, WorkspaceMemberDep, WorkspaceOwnerDep, _check_role
+
+pytestmark = pytest.mark.db
+
 
 # ---------------------------------------------------------------------------
 # Pure unit tests for _check_role helper
