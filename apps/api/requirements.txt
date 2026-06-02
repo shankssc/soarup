@@ -52,3 +52,6 @@ supabase-auth==2.28.3
 supabase-functions==2.28.3
 tenacity==9.1.4
 websockets==15.0.1
+
+# === Email + Notifications ===
+resend>=2.0.0
