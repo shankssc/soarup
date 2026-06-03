@@ -86,10 +86,10 @@ async def test_engine(test_settings):
     engine = create_async_engine(test_settings.database_url, echo=False)
 
     # Import all models so their tables register on Base.metadata
+    import app.models.invite  # noqa: F401
     import app.models.profile  # noqa: F401
     import app.models.update  # noqa: F401
     import app.models.workspace  # noqa: F401
-    import app.models.invite  # noqa: F401
     # Add other model imports here as the schema grows:
 
     async with engine.begin() as conn:
@@ -359,10 +359,8 @@ async def unauthenticated_client(db_session):
 
     app = create_app()
     app.dependency_overrides[get_db_session] = lambda: db_session
-    app.dependency_overrides[get_auth_service] = lambda: _make_mock_auth_service(
-    )
-    app.dependency_overrides[get_profile_service] = lambda: _make_mock_profile_service(
-    )
+    app.dependency_overrides[get_auth_service] = lambda: _make_mock_auth_service()
+    app.dependency_overrides[get_profile_service] = lambda: _make_mock_profile_service()
 
     async with AsyncClient(
         transport=ASGITransport(app=cast(Any, app)),

@@ -26,6 +26,7 @@ pytestmark = pytest.mark.db
 # Pure unit tests for _check_role helper
 # ---------------------------------------------------------------------------
 
+
 class TestCheckRole:
     def test_owner_satisfies_owner(self):
         assert _check_role("owner", "owner") is True
@@ -120,6 +121,7 @@ URL = f"/workspaces/{WORKSPACE_ID}/test"
 
 # --- WorkspaceMemberDep ---
 
+
 class TestWorkspaceMemberDep:
     async def test_owner_passes(self, member_client):
         with patch(
@@ -158,6 +160,7 @@ class TestWorkspaceMemberDep:
 
 # --- WorkspaceAdminDep ---
 
+
 class TestWorkspaceAdminDep:
     async def test_owner_passes(self, admin_client):
         with patch(
@@ -194,6 +197,7 @@ class TestWorkspaceAdminDep:
 
 
 # --- WorkspaceOwnerDep ---
+
 
 class TestWorkspaceOwnerDep:
     async def test_owner_passes(self, owner_client):
