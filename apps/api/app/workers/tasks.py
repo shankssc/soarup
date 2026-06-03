@@ -135,7 +135,7 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.lib.claude import summarise
-    from app.lib.events import publish_event
+    from app.lib.events import append_event
     from app.repositories.profile_repo import ProfileRepository
     from app.repositories.update_repo import UpdateRepository
     from app.repositories.workspace_repo import WorkspaceRepository
@@ -163,7 +163,7 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
 
         # 2. Set status → processing and notify connected clients
         await update_repo.update_status(update, "processing")
-        await publish_event(
+        await append_event(
             task.redis,
             "update.status_changed",
             update.workspace_id,
@@ -191,7 +191,7 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
 
             # 5. Store summary and notify connected clients of success
             await update_repo.update_status(update, "processed", summary=summary)
-            await publish_event(
+            await append_event(
                 task.redis,
                 "update.status_changed",
                 update.workspace_id,
@@ -220,7 +220,7 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
             if task.request.retries >= task.max_retries:
                 # Terminal failure — all retries exhausted
                 await update_repo.update_status(update, "failed")
-                await publish_event(
+                await append_event(
                     task.redis,
                     "update.status_changed",
                     update.workspace_id,
@@ -257,7 +257,7 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.lib.claude import summarise
-    from app.lib.events import publish_event
+    from app.lib.events import append_event
     from app.repositories.profile_repo import ProfileRepository
     from app.repositories.update_repo import UpdateRepository
     from app.repositories.workspace_repo import WorkspaceRepository
@@ -321,7 +321,7 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
             raise
 
         # 5. Publish transcription started
-        await publish_event(
+        await append_event(
             task.redis,
             "audio.transcription_started",
             update.workspace_id,
@@ -358,7 +358,7 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
                 update_id=update_id,
                 error=str(e),
             )
-            await publish_event(
+            await append_event(
                 task.redis,
                 "audio.transcription_failed",
                 update.workspace_id,
@@ -379,7 +379,7 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
 
         # 7. Store transcript, publish transcription complete
         await update_repo.update_transcript(update, transcript)
-        await publish_event(
+        await append_event(
             task.redis,
             "audio.transcription_complete",
             update.workspace_id,
@@ -405,7 +405,7 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
 
             # 9. Store summary, set status → processed
             await update_repo.update_status(update, "processed", summary=summary)
-            await publish_event(
+            await append_event(
                 task.redis,
                 "update.status_changed",
                 update.workspace_id,
@@ -432,7 +432,7 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
             )
             if task.request.retries >= task.max_retries:
                 await update_repo.update_status(update, "failed")
-                await publish_event(
+                await append_event(
                     task.redis,
                     "update.status_changed",
                     update.workspace_id,
