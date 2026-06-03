@@ -61,10 +61,7 @@ def _make_rows(
     members: list[tuple[str, str, str]],
 ) -> list[tuple[MagicMock, MagicMock]]:
     """members: list of (user_id, role, full_name)"""
-    return [
-        (_make_member_orm(uid, role), _make_profile(uid, name))
-        for uid, role, name in members
-    ]
+    return [(_make_member_orm(uid, role), _make_profile(uid, name)) for uid, role, name in members]
 
 
 def _make_get_member_side_effect(
@@ -106,12 +103,11 @@ def _make_app(caller_id: str) -> FastAPI:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest_asyncio.fixture
 async def owner_client():
     app = _make_app(OWNER_ID)
-    with patch(RBAC_GET_MEMBER, new=AsyncMock(
-        side_effect=_make_get_member_side_effect(OWNER_ID, "owner")
-    )):
+    with patch(RBAC_GET_MEMBER, new=AsyncMock(side_effect=_make_get_member_side_effect(OWNER_ID, "owner"))):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
@@ -119,9 +115,7 @@ async def owner_client():
 @pytest_asyncio.fixture
 async def admin_client():
     app = _make_app(ADMIN_ID)
-    with patch(RBAC_GET_MEMBER, new=AsyncMock(
-        side_effect=_make_get_member_side_effect(ADMIN_ID, "admin")
-    )):
+    with patch(RBAC_GET_MEMBER, new=AsyncMock(side_effect=_make_get_member_side_effect(ADMIN_ID, "admin"))):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
@@ -129,9 +123,7 @@ async def admin_client():
 @pytest_asyncio.fixture
 async def member_client():
     app = _make_app(MEMBER_ID)
-    with patch(RBAC_GET_MEMBER, new=AsyncMock(
-        side_effect=_make_get_member_side_effect(MEMBER_ID, "member")
-    )):
+    with patch(RBAC_GET_MEMBER, new=AsyncMock(side_effect=_make_get_member_side_effect(MEMBER_ID, "member"))):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
@@ -139,15 +131,20 @@ async def member_client():
 # Fixtures with a known target — used when the handler guard also calls
 # get_member for a specific target user_id.
 
+
 @pytest_asyncio.fixture
 async def owner_client_with_member_target():
     app = _make_app(OWNER_ID)
-    with patch(RBAC_GET_MEMBER, new=AsyncMock(
-        side_effect=_make_get_member_side_effect(
-            OWNER_ID, "owner",
-            extra={MEMBER_ID: _make_member_orm(MEMBER_ID, "member")},
-        )
-    )):
+    with patch(
+        RBAC_GET_MEMBER,
+        new=AsyncMock(
+            side_effect=_make_get_member_side_effect(
+                OWNER_ID,
+                "owner",
+                extra={MEMBER_ID: _make_member_orm(MEMBER_ID, "member")},
+            )
+        ),
+    ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
@@ -155,12 +152,16 @@ async def owner_client_with_member_target():
 @pytest_asyncio.fixture
 async def owner_client_with_owner_target():
     app = _make_app(OWNER_ID)
-    with patch(RBAC_GET_MEMBER, new=AsyncMock(
-        side_effect=_make_get_member_side_effect(
-            OWNER_ID, "owner",
-            extra={OWNER_ID: _make_member_orm(OWNER_ID, "owner")},
-        )
-    )):
+    with patch(
+        RBAC_GET_MEMBER,
+        new=AsyncMock(
+            side_effect=_make_get_member_side_effect(
+                OWNER_ID,
+                "owner",
+                extra={OWNER_ID: _make_member_orm(OWNER_ID, "owner")},
+            )
+        ),
+    ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
@@ -168,12 +169,16 @@ async def owner_client_with_owner_target():
 @pytest_asyncio.fixture
 async def admin_client_with_member_target():
     app = _make_app(ADMIN_ID)
-    with patch(RBAC_GET_MEMBER, new=AsyncMock(
-        side_effect=_make_get_member_side_effect(
-            ADMIN_ID, "admin",
-            extra={MEMBER_ID: _make_member_orm(MEMBER_ID, "member")},
-        )
-    )):
+    with patch(
+        RBAC_GET_MEMBER,
+        new=AsyncMock(
+            side_effect=_make_get_member_side_effect(
+                ADMIN_ID,
+                "admin",
+                extra={MEMBER_ID: _make_member_orm(MEMBER_ID, "member")},
+            )
+        ),
+    ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
@@ -181,12 +186,16 @@ async def admin_client_with_member_target():
 @pytest_asyncio.fixture
 async def admin_client_with_owner_target():
     app = _make_app(ADMIN_ID)
-    with patch(RBAC_GET_MEMBER, new=AsyncMock(
-        side_effect=_make_get_member_side_effect(
-            ADMIN_ID, "admin",
-            extra={OWNER_ID: _make_member_orm(OWNER_ID, "owner")},
-        )
-    )):
+    with patch(
+        RBAC_GET_MEMBER,
+        new=AsyncMock(
+            side_effect=_make_get_member_side_effect(
+                ADMIN_ID,
+                "admin",
+                extra={OWNER_ID: _make_member_orm(OWNER_ID, "owner")},
+            )
+        ),
+    ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
@@ -194,12 +203,16 @@ async def admin_client_with_owner_target():
 @pytest_asyncio.fixture
 async def admin_client_with_other_admin_target():
     app = _make_app(ADMIN_ID)
-    with patch(RBAC_GET_MEMBER, new=AsyncMock(
-        side_effect=_make_get_member_side_effect(
-            ADMIN_ID, "admin",
-            extra={"other-admin": _make_member_orm("other-admin", "admin")},
-        )
-    )):
+    with patch(
+        RBAC_GET_MEMBER,
+        new=AsyncMock(
+            side_effect=_make_get_member_side_effect(
+                ADMIN_ID,
+                "admin",
+                extra={"other-admin": _make_member_orm("other-admin", "admin")},
+            )
+        ),
+    ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
@@ -208,13 +221,16 @@ async def admin_client_with_other_admin_target():
 # GET /members — list
 # ---------------------------------------------------------------------------
 
+
 class TestListMembers:
     async def test_returns_member_list(self, member_client):
-        rows = _make_rows([
-            (OWNER_ID, "owner", "Alice Owner"),
-            (ADMIN_ID, "admin", "Bob Admin"),
-            (MEMBER_ID, "member", "Carol Member"),
-        ])
+        rows = _make_rows(
+            [
+                (OWNER_ID, "owner", "Alice Owner"),
+                (ADMIN_ID, "admin", "Bob Admin"),
+                (MEMBER_ID, "member", "Carol Member"),
+            ]
+        )
         with patch(
             "app.routers.members.WorkspaceRepository.get_workspace_members_with_profiles",
             new=AsyncMock(return_value=rows),
@@ -254,18 +270,15 @@ class TestListMembers:
 # PATCH /members/:id/role — owner only
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateMemberRole:
-    async def test_owner_can_change_member_to_admin(
-        self, owner_client_with_member_target
-    ):
+    async def test_owner_can_change_member_to_admin(self, owner_client_with_member_target):
         updated = _make_member_orm(MEMBER_ID, "admin")
         rows = _make_rows([(MEMBER_ID, "admin", "Carol")])
 
         with (
-            patch("app.routers.members.WorkspaceRepository.update_member_role",
-                  new=AsyncMock(return_value=updated)),
-            patch("app.routers.members.WorkspaceRepository.get_workspace_members_with_profiles",
-                  new=AsyncMock(return_value=rows)),
+            patch("app.routers.members.WorkspaceRepository.update_member_role", new=AsyncMock(return_value=updated)),
+            patch("app.routers.members.WorkspaceRepository.get_workspace_members_with_profiles", new=AsyncMock(return_value=rows)),
         ):
             r = await owner_client_with_member_target.patch(
                 f"/api/v1/workspaces/{WORKSPACE_ID}/members/{MEMBER_ID}/role",
@@ -310,15 +323,14 @@ class TestUpdateMemberRole:
 # DELETE /members/:id — admin+
 # ---------------------------------------------------------------------------
 
+
 class TestRemoveMember:
     async def test_admin_can_remove_member(self, admin_client_with_member_target):
         with patch(
             "app.routers.members.WorkspaceRepository.remove_member",
             new=AsyncMock(return_value=True),
         ):
-            r = await admin_client_with_member_target.delete(
-                f"/api/v1/workspaces/{WORKSPACE_ID}/members/{MEMBER_ID}"
-            )
+            r = await admin_client_with_member_target.delete(f"/api/v1/workspaces/{WORKSPACE_ID}/members/{MEMBER_ID}")
         assert r.status_code == 204
 
     async def test_owner_can_remove_member(self, owner_client_with_member_target):
@@ -326,35 +338,23 @@ class TestRemoveMember:
             "app.routers.members.WorkspaceRepository.remove_member",
             new=AsyncMock(return_value=True),
         ):
-            r = await owner_client_with_member_target.delete(
-                f"/api/v1/workspaces/{WORKSPACE_ID}/members/{MEMBER_ID}"
-            )
+            r = await owner_client_with_member_target.delete(f"/api/v1/workspaces/{WORKSPACE_ID}/members/{MEMBER_ID}")
         assert r.status_code == 204
 
     async def test_member_gets_403(self, member_client):
-        r = await member_client.delete(
-            f"/api/v1/workspaces/{WORKSPACE_ID}/members/{ADMIN_ID}"
-        )
+        r = await member_client.delete(f"/api/v1/workspaces/{WORKSPACE_ID}/members/{ADMIN_ID}")
         assert r.status_code == 403
 
     async def test_cannot_remove_owner(self, admin_client_with_owner_target):
-        r = await admin_client_with_owner_target.delete(
-            f"/api/v1/workspaces/{WORKSPACE_ID}/members/{OWNER_ID}"
-        )
+        r = await admin_client_with_owner_target.delete(f"/api/v1/workspaces/{WORKSPACE_ID}/members/{OWNER_ID}")
         assert r.status_code == 400
         assert "owner" in r.json()["detail"].lower()
 
-    async def test_admin_cannot_remove_another_admin(
-        self, admin_client_with_other_admin_target
-    ):
-        r = await admin_client_with_other_admin_target.delete(
-            f"/api/v1/workspaces/{WORKSPACE_ID}/members/other-admin"
-        )
+    async def test_admin_cannot_remove_another_admin(self, admin_client_with_other_admin_target):
+        r = await admin_client_with_other_admin_target.delete(f"/api/v1/workspaces/{WORKSPACE_ID}/members/other-admin")
         assert r.status_code == 403
 
     async def test_target_not_found_returns_404(self, admin_client):
         # ghost-user not in the side_effect lookup → get_member returns None → 404
-        r = await admin_client.delete(
-            f"/api/v1/workspaces/{WORKSPACE_ID}/members/ghost-user"
-        )
+        r = await admin_client.delete(f"/api/v1/workspaces/{WORKSPACE_ID}/members/ghost-user")
         assert r.status_code == 404

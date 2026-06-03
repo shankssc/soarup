@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     environment: str = "local"
     debug: bool = False
 
+    # === App ===
+    app_base_url: str = Field(
+        default="http://localhost:3000",
+        description=("Public base URL of the Next.js frontend. Used to construct " "invite links sent in emails. Set APP_BASE_URL=https://soarup.app " "in production."),
+    )
+
     # === Database ===
     # Safe defaults for local dev (no secrets)
     database_url: str = Field(
@@ -97,6 +103,13 @@ class Settings(BaseSettings):
     def validate_supabase_anon_key(cls, v: SecretStr | None, info: ValidationInfo) -> SecretStr | None:
         if info.data.get("environment") == "production" and not v:
             raise ValueError("SUPABASE_ANON_KEY is required in production")
+        return v
+
+    @field_validator("app_base_url", mode="after")
+    @classmethod
+    def validate_app_base_url(cls, v: str, info: ValidationInfo) -> str:
+        if info.data.get("environment") == "production" and "localhost" in v:
+            raise ValueError("APP_BASE_URL must not point to localhost in production")
         return v
 
 

@@ -86,6 +86,7 @@ async def test_engine(test_settings):
     engine = create_async_engine(test_settings.database_url, echo=False)
 
     # Import all models so their tables register on Base.metadata
+    import app.models.invite  # noqa: F401
     import app.models.profile  # noqa: F401
     import app.models.update  # noqa: F401
     import app.models.workspace  # noqa: F401
