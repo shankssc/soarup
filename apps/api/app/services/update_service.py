@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.profile_repo import ProfileRepository
 from app.repositories.update_repo import UpdateRepository
+from app.repositories.workspace_repo import WorkspaceRepository
 from app.schemas.update import (
     SubmitUpdateRequest,
     UpdateListResponse,
@@ -41,6 +42,7 @@ class UpdateService:
         self.db = db
         self._update_repo: UpdateRepository | None = None
         self._profile_repo: ProfileRepository | None = None
+        self._workspace_repo: WorkspaceRepository | None = None
 
     def _get_update_repo(self) -> UpdateRepository:
         if self._update_repo is None:
@@ -51,6 +53,11 @@ class UpdateService:
         if self._profile_repo is None:
             self._profile_repo = ProfileRepository.from_session(self.db)
         return self._profile_repo
+
+    def _get_workspace_repo(self) -> WorkspaceRepository | Any:
+        if self._workspace_repo is None:
+            self._workspace_repo = WorkspaceRepository.from_session(self.db)
+        return self._workspace_repo
 
     async def submit_update(
         self,
@@ -98,15 +105,7 @@ class UpdateService:
                 update_date=request.update_date,
                 mode=request.mode,
             )
-
-            # Enqueue Claude summarisation pipeline - the fire and forget approach
-
-            # The task transitions status: pending → processing → processed | failed
-
-            # and broadcasts each transition over Redis pub/sub.
-
             process_update.delay(update.id)
-
             logger.info(
                 "update_submitted",
                 update_id=update.id,
@@ -120,9 +119,22 @@ class UpdateService:
         workspace_id: str,
         update_date: str,
     ) -> UpdateListResponse:
-        """Return all updates for a workspace on a given date."""
+        """
+        Return all updates for a workspace on a given date.
+
+        M5: Replaced the per-update profile fetch (N+1) with a single
+        batch query via get_profiles_for_updates. One IN query fetches
+        all author profiles regardless of how many updates are returned.
+        """
         updates = await self._get_update_repo().get_workspace_updates_for_date(workspace_id, update_date)
-        responses = [await self._to_response(u) for u in updates]
+
+        if not updates:
+            return UpdateListResponse(updates=[], total=0)
+
+        user_ids = list({u.user_id for u in updates})
+        profile_map = await self._get_workspace_repo().get_profiles_for_updates(user_ids)
+
+        responses = [self._to_response_batch(u, profile_map) for u in updates]
         return UpdateListResponse(updates=responses, total=len(responses))
 
     async def edit_update(
@@ -166,11 +178,48 @@ class UpdateService:
 
     async def _to_response(self, update: Any) -> UpdateResponse:
         """
-        Shape an Update ORM object into an UpdateResponse.
-        Makes one profile query per call — acceptable N+1 for M2,
-        batch fetch added in Milestone 5.
+        Shape a single Update ORM object into an UpdateResponse.
+        Makes one profile query — used by submit_update and edit_update
+        where only one update is being shaped at a time.
+        For list operations use _to_response_batch to avoid N+1.
         """
         profile = await self._get_profile_repo().get_by_user_id(update.user_id)
+        return UpdateResponse(
+            id=update.id,
+            workspace_id=update.workspace_id,
+            user_id=update.user_id,
+            content=update.content,
+            mode=update.mode,
+            status=update.status,
+            summary=update.summary,
+            transcript=update.transcript,
+            audio_duration_seconds=update.audio_duration_seconds,
+            update_date=update.update_date,
+            created_at=update.created_at,
+            updated_at=update.updated_at,
+            author_name=profile.full_name if profile else None,
+            author_avatar_url=profile.avatar_url if profile else None,
+        )
+
+    def _to_response_batch(
+        self,
+        update: Any,
+        profile_map: dict[str, Any],
+    ) -> UpdateResponse:
+        """
+        Shape an Update ORM object into an UpdateResponse using a
+        pre-fetched profile map. Synchronous — no DB calls.
+
+        Args:
+            update: Update ORM instance.
+            profile_map: Dict of user_id → Profile from
+                         get_profiles_for_updates. Missing user_ids
+                         resolve to None (author fields will be null).
+
+        Returns:
+            UpdateResponse with author fields populated where available.
+        """
+        profile = profile_map.get(update.user_id)
         return UpdateResponse(
             id=update.id,
             workspace_id=update.workspace_id,
