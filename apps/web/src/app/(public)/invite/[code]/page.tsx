@@ -78,7 +78,8 @@ export default function InvitePage() {
   async function handleAccept() {
     if (!isAuthenticated) {
       // Not logged in — redirect to login with return URL
-      router.push(`/login?next=/invite/${code}?accept=1`);
+      const next = `/invite/${code}?accept=1`;
+      router.push(`/login?next=${encodeURIComponent(next)}`);
       return;
     }
 

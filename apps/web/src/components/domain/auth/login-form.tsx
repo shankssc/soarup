@@ -6,7 +6,7 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,8 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
   const { login, isLoading, error, clearError } = useAuth();
   const [oauthLoading, setOAuthLoading] = React.useState(false);
 
+  const searchParams = useSearchParams();
+
   const {
     register,
     handleSubmit,
@@ -70,10 +72,15 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
         onSuccess();
       } else {
         const { user } = useAuthStore.getState();
-        router.push(user?.is_onboarded === false ? '/onboarding' : '/dashboard');
+        if (user?.is_onboarded === false) {
+          router.push('/onboarding');
+        } else {
+          const next = searchParams.get('next');
+          router.push(next ? decodeURIComponent(next) : '/dashboard');
+        }
       }
     } catch {
-      // Error is already set in useAuth store — no need to handle here
+      // Error is already set in useAuth store
     }
   }
 
