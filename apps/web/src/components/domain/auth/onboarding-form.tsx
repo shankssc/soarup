@@ -2,11 +2,11 @@
 
 // apps/web/src/components/domain/auth/onboarding-form.tsx
 // Two-step onboarding form: Step 1 — profile, Step 2 — workspace.
-// Wired to PATCH /auth/profile and POST /workspaces/.
+// Wired to PATCH /auth/profile and POST /invites/{code}/accept or POST /workspaces/.
 //
-// This component renders card content only — no page chrome.
-// Page chrome (header, background, footer) is provided by AuthLayout
-// via src/app/(auth)/onboarding/page.tsx.
+// M5: If a pending invite code exists in localStorage (soarup_pending_invite),
+// Step 2 auto-switches to the join path, pre-fills the code, and hides the
+// create option — the user is joining an existing workspace via invite.
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
@@ -17,6 +17,7 @@ import { detectBrowserTimezone, getGroupedTimezones } from '@/lib/utils/timezone
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1';
+export const PENDING_INVITE_KEY = 'soarup_pending_invite';
 
 const TIMEZONE_GROUPS = getGroupedTimezones().map((g) => ({
   label: g.region,
@@ -108,20 +109,39 @@ async function createWorkspace(
   }
 }
 
-async function joinWorkspace(accessToken: string, inviteCode: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/workspaces/join`, {
+async function acceptInvite(accessToken: string, inviteCode: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/invites/${inviteCode.trim()}/accept`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ invite_code: inviteCode }),
+    body: JSON.stringify({}),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(
-      (err as { message?: string }).message ?? 'Invite code is invalid or has expired.',
-    );
+    const detail =
+      (err as { detail?: string }).detail ??
+      (err as { message?: string }).message ??
+      '';
+
+    if (
+      detail.includes('already_member') ||
+      detail.toLowerCase().includes('already a member')
+    ) {
+      throw new Error('You are already a member of this workspace.');
+    }
+    if (detail.includes('invite_expired') || detail.toLowerCase().includes('expired')) {
+      throw new Error('This invite has expired. Ask an admin to send a new one.');
+    }
+    if (
+      detail.includes('invite_not_found') ||
+      detail.includes('invite_already_used') ||
+      detail.toLowerCase().includes('invalid')
+    ) {
+      throw new Error('Invite code is invalid or has already been used.');
+    }
+    throw new Error('Could not join workspace. Please check your invite code.');
   }
 }
 
@@ -157,6 +177,7 @@ interface InputFieldProps {
   hint?: React.ReactNode;
   autoFocus?: boolean;
   id: string;
+  readOnly?: boolean;
 }
 
 function InputField({
@@ -168,6 +189,7 @@ function InputField({
   hint,
   autoFocus,
   id,
+  readOnly = false,
 }: InputFieldProps) {
   return (
     <div className="flex flex-col gap-1">
@@ -187,13 +209,16 @@ function InputField({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        readOnly={readOnly}
         className={[
           'w-full bg-transparent px-0 py-2',
           'border-0 border-b',
           error ? 'border-error' : 'border-outline-variant',
           'font-body text-[15px] text-on-surface',
           'placeholder:text-on-surface-variant',
-          'focus:border-primary focus:outline-none',
+          readOnly
+            ? 'cursor-default opacity-60'
+            : 'focus:border-primary focus:outline-none',
           'rounded-none transition-colors duration-150',
         ].join(' ')}
       />
@@ -293,7 +318,6 @@ function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
 
   return (
     <div>
-      {/* Subtitle + title — matches auth page heading pattern */}
       <p className="mb-1 font-label text-[10px] font-medium uppercase tracking-[0.08em] text-outline">
         TELL US A BIT ABOUT YOURSELF
       </p>
@@ -334,14 +358,21 @@ function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
 interface StepTwoProps {
   onComplete: () => void;
   accessToken: string;
+  // If set, the user arrived via an invite link — hide create option,
+  // pre-fill the code, and lock the path to 'join'.
+  pendingInviteCode: string | null;
 }
 
-function StepTwo({ onComplete, accessToken }: StepTwoProps) {
-  const [path, setPath] = React.useState<WorkspacePath>('create');
+function StepTwo({ onComplete, accessToken, pendingInviteCode }: StepTwoProps) {
+  const hasInvite = Boolean(pendingInviteCode);
+
+  // Lock to 'join' if arriving via invite, otherwise default to 'create'
+  const [path, setPath] = React.useState<WorkspacePath>(hasInvite ? 'join' : 'create');
   const [workspaceName, setWorkspaceName] = React.useState('');
   const [slug, setSlug] = React.useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = React.useState(false);
-  const [inviteCode, setInviteCode] = React.useState('');
+  // Pre-fill invite code from localStorage if present
+  const [inviteCode, setInviteCode] = React.useState(pendingInviteCode ?? '');
   const [errors, setErrors] = React.useState<StepTwoErrors>({});
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -403,7 +434,7 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
     setIsLoading(true);
     setErrors({});
     try {
-      await joinWorkspace(accessToken, inviteCode.trim());
+      await acceptInvite(accessToken, inviteCode.trim());
       onComplete();
     } catch (err) {
       setErrors({ inviteCode: (err as Error).message });
@@ -420,37 +451,48 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
   return (
     <div>
       <p className="mb-1 font-label text-[10px] font-medium uppercase tracking-[0.08em] text-outline">
-        WHERE YOUR TEAM&apos;S UPDATES WILL LIVE
+        {hasInvite ? "YOU'VE BEEN INVITED" : "WHERE YOUR TEAM'S UPDATES WILL LIVE"}
       </p>
       <h1 className="mb-6 font-headline text-4xl italic leading-tight text-on-surface md:text-5xl">
-        Create your workspace
+        {hasInvite ? 'Join your workspace' : 'Create your workspace'}
       </h1>
 
-      {/* Segmented toggle */}
-      <div className="mb-8 flex rounded-full border border-outline-variant p-[3px]">
-        {(
-          [
-            { value: 'create', label: 'Create workspace' },
-            { value: 'join', label: 'Join with invite code' },
-          ] as const
-        ).map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => switchPath(option.value)}
-            className={[
-              'flex-1 rounded-full px-4 py-2',
-              'font-label text-[12px] font-medium tracking-[0.04em]',
-              'transition-colors duration-150',
-              path === option.value
-                ? 'bg-primary text-primary-on'
-                : 'text-on-surface-variant hover:text-on-surface',
-            ].join(' ')}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      {/* Show invite context banner when arriving via invite */}
+      {hasInvite && (
+        <div className="mb-6 border border-outline-variant bg-surface-high px-4 py-3">
+          <p className="font-body text-[14px] text-on-surface-variant">
+            You have a pending workspace invite. Accept it below to get started.
+          </p>
+        </div>
+      )}
+
+      {/* Segmented toggle — hidden when arriving via invite */}
+      {!hasInvite && (
+        <div className="mb-8 flex rounded-full border border-outline-variant p-[3px]">
+          {(
+            [
+              { value: 'create', label: 'Create workspace' },
+              { value: 'join', label: 'Join with invite code' },
+            ] as const
+          ).map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => switchPath(option.value)}
+              className={[
+                'flex-1 rounded-full px-4 py-2',
+                'font-label text-[12px] font-medium tracking-[0.04em]',
+                'transition-colors duration-150',
+                path === option.value
+                  ? 'bg-primary text-primary-on'
+                  : 'text-on-surface-variant hover:text-on-surface',
+              ].join(' ')}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {errors.general && (
         <p className="mb-4 font-label text-[13px] text-error">{errors.general}</p>
@@ -495,8 +537,25 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
             onChange={setInviteCode}
             placeholder="Enter your invite code"
             error={errors.inviteCode}
-            autoFocus
+            autoFocus={!hasInvite}
+            // Read-only when pre-filled from localStorage — prevents accidental edits
+            readOnly={hasInvite}
           />
+          {hasInvite && (
+            <p className="font-label text-[12px] text-on-surface-variant">
+              This code was pre-filled from your invite link.{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setInviteCode('');
+                  // Allow manual edit if user wants to use a different code
+                }}
+                className="text-primary underline-offset-2 hover:underline"
+              >
+                Use a different code
+              </button>
+            </p>
+          )}
         </div>
       )}
 
@@ -511,7 +570,6 @@ function StepTwo({ onComplete, accessToken }: StepTwoProps) {
 }
 
 // ─── Main onboarding form ─────────────────────────────────────────────────────
-// Renders card content only — AuthLayout provides the page chrome.
 
 export function OnboardingForm() {
   const router = useRouter();
@@ -519,6 +577,14 @@ export function OnboardingForm() {
   const [step, setStep] = React.useState<Step>(1);
   const [isSubmittingStep1, setIsSubmittingStep1] = React.useState(false);
   const [step1Error, setStep1Error] = React.useState<string | null>(null);
+
+  // Read pending invite code from localStorage on mount
+  const [pendingInviteCode, setPendingInviteCode] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const stored = localStorage.getItem(PENDING_INVITE_KEY);
+    if (stored) setPendingInviteCode(stored);
+  }, []);
 
   const accessToken = tokens?.access_token ?? '';
   const initialDisplayName = user?.full_name ?? '';
@@ -530,6 +596,7 @@ export function OnboardingForm() {
       await patchProfile(accessToken, {
         full_name: fields.displayName,
         timezone: fields.timezone,
+        is_onboarded: true,
       });
       if (user) {
         setUser({ ...user, full_name: fields.displayName });
@@ -545,6 +612,9 @@ export function OnboardingForm() {
   }
 
   function handleStep2Complete() {
+    // Always clear pending invite from localStorage on workspace step completion
+    localStorage.removeItem(PENDING_INVITE_KEY);
+
     if (user) {
       setUser({ ...user, is_onboarded: true });
     }
@@ -571,7 +641,11 @@ export function OnboardingForm() {
       )}
 
       {step === 2 && (
-        <StepTwo onComplete={handleStep2Complete} accessToken={accessToken} />
+        <StepTwo
+          onComplete={handleStep2Complete}
+          accessToken={accessToken}
+          pendingInviteCode={pendingInviteCode}
+        />
       )}
     </div>
   );

@@ -49,12 +49,15 @@ export function useWebSocket({
     incrementReconnectAttempts,
     resetReconnectAttempts,
     reconnectAttempts,
+    lastEventId,
   } = useWebSocketStore();
 
   const connect = useCallback(() => {
     if (!workspaceId || !accessToken || !enabled) return;
 
-    const url = `${WS_BASE}/workspaces/${workspaceId}?token=${accessToken}`;
+    const params = new URLSearchParams({ token: accessToken });
+    if (lastEventId) params.set('last_event_id', lastEventId);
+    const url = `${WS_BASE}/workspaces/${workspaceId}?${params.toString()}`;
     const ws = new WebSocket(url);
     socketRef.current = ws;
     setStatus('connecting');
@@ -63,9 +66,7 @@ export function useWebSocket({
       setStatus('connected');
       resetReconnectAttempts();
 
-      // Invalidate today's updates on reconnect to catch any events
-      // that arrived while the connection was down. The backend has no
-      // persistence for missed pub/sub events (Redis Streams is M5).
+      // Belt-and-suspenders alongside last_event_id stream replay.
       queryClient.invalidateQueries({
         queryKey: updateKeys.byDate(workspaceId, format(new Date(), 'yyyy-MM-dd')),
       });
@@ -110,7 +111,7 @@ export function useWebSocket({
       // onerror is always followed by onclose — let onclose handle reconnect logic.
       ws.close();
     };
-  }, [workspaceId, accessToken, enabled, reconnectAttempts]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [workspaceId, accessToken, enabled, reconnectAttempts, lastEventId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     connect();

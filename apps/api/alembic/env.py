@@ -7,6 +7,7 @@ from app.config import settings
 from app.models.profile import Profile
 from app.models.update import Update
 from app.models.workspace import Workspace, WorkspaceMember
+from app.models.invite import WorkspaceInvite
 from app.models.base import Base
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool

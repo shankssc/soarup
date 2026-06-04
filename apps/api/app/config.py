@@ -79,6 +79,10 @@ class Settings(BaseSettings):
     # === Notifications ===
     resend_api_key: SecretStr | None = None
     novu_api_key: SecretStr | None = None
+    resend_from_email: str = Field(
+        default="onboarding@resend.dev",
+        description=("From address for transactional emails. " "Defaults to Resend's shared test address for local dev. " "Set RESEND_FROM_EMAIL=invites@soarup.app in production."),
+    )
 
     # === Observability ===
     sentry_dsn: str | None = None
@@ -110,6 +114,13 @@ class Settings(BaseSettings):
     def validate_app_base_url(cls, v: str, info: ValidationInfo) -> str:
         if info.data.get("environment") == "production" and "localhost" in v:
             raise ValueError("APP_BASE_URL must not point to localhost in production")
+        return v
+
+    @field_validator("resend_from_email", mode="after")
+    @classmethod
+    def validate_resend_from_email(cls, v: str, info: ValidationInfo) -> str:
+        if info.data.get("environment") == "production" and "resend.dev" in v:
+            raise ValueError("RESEND_FROM_EMAIL must not use resend.dev test address in production")
         return v
 
 
