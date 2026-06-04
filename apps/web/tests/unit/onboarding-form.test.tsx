@@ -501,7 +501,7 @@ describe('Step 2 — join workspace validation', () => {
 // ─── Step 2 — join workspace API ──────────────────────────────────────────────
 
 describe('Step 2 — join workspace API', () => {
-  it('calls POST /workspaces/join with invite code', async () => {
+  it('calls POST /invites/{code}/accept with invite code', async () => {
     await advanceToStep2();
     mockFetchSuccess();
     await user.click(screen.getByRole('button', { name: /join with invite code/i }));
@@ -510,10 +510,10 @@ describe('Step 2 — join workspace API', () => {
 
     await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
     const [url, options] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
-    expect(url).toContain('/workspaces/join');
+    expect(url).toContain('/invites/ABC-123/accept'); // ← updated
     expect(options.method).toBe('POST');
     const body = JSON.parse(options.body as string);
-    expect(body.invite_code).toBe('ABC-123');
+    expect(body).toEqual({}); // ← accept sends empty body, not invite_code
   });
 
   it('redirects to /dashboard on successful join', async () => {
@@ -527,12 +527,19 @@ describe('Step 2 — join workspace API', () => {
 
   it('shows error on invalid invite code', async () => {
     await advanceToStep2();
-    mockFetchError('Invite code is invalid or has expired.');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ detail: 'invite_not_found' }),
+      }),
+    );
     await user.click(screen.getByRole('button', { name: /join with invite code/i }));
     await user.type(screen.getByLabelText(/invite code/i), 'INVALID');
     await user.click(screen.getByRole('button', { name: /join workspace/i }));
     expect(
-      await screen.findByText(/invite code is invalid or has expired/i),
+      await screen.findByText(/invite code is invalid or has already been used/i), // ← updated
     ).toBeInTheDocument();
   });
 });
