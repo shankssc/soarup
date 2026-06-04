@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.profile import Profile
 from app.models.workspace import Workspace, WorkspaceMember
 
 logger = structlog.get_logger(__name__)
@@ -231,3 +232,94 @@ class WorkspaceRepository:
                 data_keys=list(data.keys()),
             )
             raise
+
+    # === Members Mangaement ===
+
+    async def get_workspace_members_with_profiles(
+        self,
+        workspace_id: str,
+    ) -> list[tuple[WorkspaceMember, Profile]]:
+        """
+        Fetch all members with their profiles in a single JOIN query.
+
+        Args:
+            workspace_id: Workspace UUID.
+
+        Returns:
+            List of (WorkspaceMember, Profile) tuples ordered by joined_at.
+            Used by the members list endpoint and team dashboard to avoid
+            N+1 profile lookups.
+        """
+        result = await self.db.execute(select(WorkspaceMember, Profile).join(Profile, WorkspaceMember.user_id == Profile.id).where(WorkspaceMember.workspace_id == workspace_id).order_by(WorkspaceMember.joined_at.asc()))
+        return [(row[0], row[1]) for row in result.all()]
+
+    async def update_member_role(
+        self,
+        workspace_id: str,
+        user_id: str,
+        new_role: str,
+    ) -> WorkspaceMember | None:
+        """
+        Set a member's role and persist.
+
+        Args:
+            workspace_id: Workspace UUID.
+            user_id: Supabase user ID of the member to update.
+            new_role: Target role string — "admin" or "member".
+
+        Returns:
+            Updated WorkspaceMember instance if found, None otherwise.
+        """
+        member = await self.get_member(workspace_id, user_id)
+        if not member:
+            return None
+        member.role = new_role
+        await self.db.commit()
+        await self.db.refresh(member)
+        return member
+
+    async def remove_member(
+        self,
+        workspace_id: str,
+        user_id: str,
+    ) -> bool:
+        """
+        Hard-delete a workspace membership.
+
+        Args:
+            workspace_id: Workspace UUID.
+            user_id: Supabase user ID of the member to remove.
+
+        Returns:
+            True if the membership was found and deleted, False otherwise.
+        """
+        member = await self.get_member(workspace_id, user_id)
+        if not member:
+            return False
+        await self.db.delete(member)
+        await self.db.commit()
+        return True
+
+    # === Batch profile fetch — fixes N+1 in UpdateService ===
+
+    async def get_profiles_for_updates(
+        self,
+        user_ids: list[str],
+    ) -> dict[str, Profile]:
+        """
+        Batch-fetch profiles for a list of user IDs in a single IN query.
+
+        Args:
+            user_ids: List of Supabase user IDs to resolve.
+
+        Returns:
+            Dict keyed by profile.id for O(1) lookup in
+            UpdateService._to_response_with_profile. Empty dict if
+            user_ids is empty. Fixes the N+1 query that previously
+            fired once per update in get_workspace_updates.
+        """
+        if not user_ids:
+            return {}
+        result = await self.db.execute(select(Profile).where(Profile.id.in_(user_ids)))
+        profiles = result.scalars().all()
+        return {p.id: p for p in profiles}

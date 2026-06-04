@@ -8,8 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import audio, auth, health, updates, workspaces
-from app.routers.websockets import broadcast
+from app.routers import audio, auth, health, invites, members, updates, workspaces
 from app.routers.websockets import router as websocket_router
 
 
@@ -18,15 +17,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Manage application lifespan events.
 
-    Startup: connect broadcaster to Redis so the WebSocket endpoint
-    can subscribe to pub/sub channels published by Celery tasks.
-
-    Shutdown: disconnect broadcaster cleanly to release Redis connections
-    before the process exits.
     """
-    await broadcast.connect()
     yield
-    await broadcast.disconnect()
 
 
 def create_app() -> FastAPI:
@@ -55,6 +47,8 @@ def create_app() -> FastAPI:
     app.include_router(updates.router, prefix="/api/v1")
     app.include_router(websocket_router, prefix="/api/v1")
     app.include_router(audio.router, prefix="/api/v1")
+    app.include_router(members.router, prefix="/api/v1")
+    app.include_router(invites.router, prefix="/api/v1")
 
     return app
 

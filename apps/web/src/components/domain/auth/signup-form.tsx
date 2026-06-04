@@ -84,7 +84,10 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
       if (onSuccess) {
         onSuccess();
       } else {
-        // After signup, go to onboarding (profile setup)
+        // Always go to onboarding after signup — even if ?next= is set.
+        // The pending invite code is in localStorage and onboarding will
+        // pre-fill it. Redirecting to the invite page before onboarding
+        // completes causes OnboardedDep to reject the accept call.
         router.push('/onboarding');
       }
     } catch {

@@ -65,6 +65,15 @@ disallow_untyped_defs = false
 disable_error_code = ["misc", "call-arg"]
 
 [[tool.mypy.overrides]]
+module = ["app.lib.email"]
+# resend is installed but ships without type stubs — mypy can find the package
+# but cannot resolve resend.Resend or its attributes. ignore_missing_imports
+# does not help when the package is present. Suppressing at the module level
+# is cleaner than scattering type: ignore comments through email.py.
+disallow_untyped_defs = false
+disable_error_code = ["attr-defined", "no-untyped-call"]
+
+[[tool.mypy.overrides]]
 module = [
     "pydantic_settings.*",
     "alembic.*",
@@ -78,6 +87,7 @@ module = [
     "structlog.*",
     "supabase.*",
     "supabase_auth.*",
+    "resend.*",
 ]
 ignore_missing_imports = true
 

@@ -18,7 +18,12 @@ interface SidebarProps {
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { href: '/history', label: 'History', icon: 'history' },
-  { href: '/settings', label: 'Settings', icon: 'settings' },
+  {
+    href: '/settings/members',
+    label: 'Settings',
+    icon: 'settings',
+    activePrefix: '/settings',
+  },
 ];
 
 function NavIcon({ icon, filled }: { icon: string; filled?: boolean }) {
@@ -123,8 +128,11 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
 
         {/* Nav links */}
         <div className="flex flex-1 flex-col gap-1 py-4">
-          {NAV_LINKS.map(({ href, label, icon }) => {
-            const isActive = pathname === href || pathname.startsWith(`${href}/`);
+          {NAV_LINKS.map(({ href, label, icon, activePrefix }) => {
+            const isActive =
+              pathname === href ||
+              pathname.startsWith(`${href}/`) ||
+              (activePrefix ? pathname.startsWith(activePrefix) : false);
             return (
               <Link
                 key={href}
