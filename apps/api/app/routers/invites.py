@@ -12,7 +12,7 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, HTTPException, Response, status
 
-from app.api.dependencies import ApiVersionDep, DBSessionDep, OnboardedDep
+from app.api.dependencies import ApiVersionDep, AuthDep, DBSessionDep, OnboardedDep
 from app.api.rbac import WorkspaceAdminDep
 from app.repositories.invite_repo import InviteRepository
 from app.schemas.invite import (
@@ -163,7 +163,7 @@ async def get_invite_details(
 async def accept_invite(
     code: str,
     api_version: ApiVersionDep,
-    user_ctx: OnboardedDep,
+    user_ctx: AuthDep,
     db: DBSessionDep,
 ) -> dict[str, Any]:
     """

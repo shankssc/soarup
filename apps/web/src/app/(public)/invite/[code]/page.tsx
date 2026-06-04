@@ -3,25 +3,28 @@
 // apps/web/src/app/(public)/invite/[code]/page.tsx
 // Public invite acceptance page — no auth required to view.
 //
-// States:
-//   loading     — fetching invite details from GET /invites/{code}
-//   invalid     — code not found or expired (is_valid: false)
-//   ready       — valid invite, show workspace info + CTA
-//   accepting   — POST /invites/{code}/accept in flight
-//   success     — accepted, redirecting to dashboard
-//   error       — acceptance failed (already member, expired race, etc.)
+// Flow:
+//   Unauthenticated:
+//     1. Store code in localStorage (soarup_pending_invite)
+//     2. Redirect to /signup (new user) or /login (existing user)
+//     3. After auth, user is returned here via ?accept=1 OR lands
+//        in onboarding where the code is pre-filled (new user path)
 //
-// Auth flow:
-//   Unauthenticated → CTA redirects to /login?next=/invite/{code}
-//   After login, user lands back here and acceptance fires automatically.
-//   Authenticated → acceptance fires immediately on CTA click.
+//   Authenticated:
+//     1. Call POST /invites/{code}/accept immediately on CTA click
+//     2. On success → clear localStorage → redirect to /dashboard
+//
+//   Edge cases handled:
+//     - Email mismatch: warned but not blocked (code-based acceptance)
+//     - Already a member: show message + link to dashboard
+//     - Expired/used: show expired state
+//     - Not found: show not found state
 
 import * as React from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useInviteDetails, useAcceptInvite } from '@/hooks/useInviteMembers';
-
-// ─── Loading spinner ──────────────────────────────────────────────────────────
+import { PENDING_INVITE_KEY } from '@/components/domain/auth/onboarding-form';
 
 function Spinner() {
   return (
@@ -35,13 +38,10 @@ function Spinner() {
   );
 }
 
-// ─── Page shell ───────────────────────────────────────────────────────────────
-
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6 py-16">
       <div className="w-full max-w-[440px]">
-        {/* Logo / wordmark */}
         <p className="mb-12 font-label text-[12px] font-medium uppercase tracking-[0.12em] text-primary">
           SoarUp
         </p>
@@ -51,54 +51,78 @@ function PageShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
-
 export default function InvitePage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const code = typeof params.code === 'string' ? params.code : '';
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { data: details, isLoading, isError } = useInviteDetails(code);
   const acceptMutation = useAcceptInvite();
 
   const [acceptError, setAcceptError] = React.useState<string | null>(null);
   const [accepted, setAccepted] = React.useState(false);
+  const [alreadyMember, setAlreadyMember] = React.useState(false);
 
-  // Auto-accept after redirect back from login
-  // If user was sent to /login?next=/invite/{code} and came back authenticated
-  const autoAccept = searchParams.get('accept') === '1';
+  const shouldAutoAccept = searchParams.get('accept') === '1';
 
   React.useEffect(() => {
-    if (!autoAccept || !isAuthenticated || !details?.is_valid || accepted) return;
-    handleAccept();
-  }, [autoAccept, isAuthenticated, details?.is_valid]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!shouldAutoAccept || !isAuthenticated || !details?.is_valid || accepted) return;
+    void handleAccept();
+  }, [shouldAutoAccept, isAuthenticated, details?.is_valid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function storeInviteCode() {
+    try {
+      localStorage.setItem(PENDING_INVITE_KEY, code);
+    } catch {
+      // localStorage unavailable — silently continue
+    }
+  }
+
+  function clearInviteCode() {
+    try {
+      localStorage.removeItem(PENDING_INVITE_KEY);
+    } catch {
+      // silently continue
+    }
+  }
 
   async function handleAccept() {
     if (!isAuthenticated) {
-      // Not logged in — redirect to login with return URL
+      storeInviteCode();
       const next = `/invite/${code}?accept=1`;
-      router.push(`/login?next=${encodeURIComponent(next)}`);
+      router.push(`/signup?next=${encodeURIComponent(next)}`);
       return;
     }
 
     setAcceptError(null);
     try {
       await acceptMutation.mutateAsync(code);
+      clearInviteCode();
       setAccepted(true);
-      // Brief pause so the success state is visible before redirect
       setTimeout(() => {
-        router.replace(`/dashboard`);
+        router.replace('/dashboard');
       }, 1500);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      const message = err instanceof Error ? err.message : 'Something went wrong.';
+      if (
+        message.toLowerCase().includes('already a member') ||
+        message.toLowerCase().includes('already_member')
+      ) {
+        clearInviteCode();
+        setAlreadyMember(true);
+        return;
+      }
       setAcceptError(message);
     }
   }
 
-  // ── Loading ──────────────────────────────────────────────────────────────
+  function handleLoginInstead() {
+    storeInviteCode();
+    const next = `/invite/${code}?accept=1`;
+    router.push(`/login?next=${encodeURIComponent(next)}`);
+  }
 
   if (isLoading) {
     return (
@@ -109,8 +133,6 @@ export default function InvitePage() {
       </PageShell>
     );
   }
-
-  // ── Not found ─────────────────────────────────────────────────────────────
 
   if (isError || !details) {
     return (
@@ -130,8 +152,6 @@ export default function InvitePage() {
       </PageShell>
     );
   }
-
-  // ── Expired or used ───────────────────────────────────────────────────────
 
   if (!details.is_valid) {
     return (
@@ -153,7 +173,32 @@ export default function InvitePage() {
     );
   }
 
-  // ── Accepted — redirecting ────────────────────────────────────────────────
+  if (alreadyMember) {
+    return (
+      <PageShell>
+        <span
+          className="material-symbols-outlined mb-4 text-[40px] text-primary"
+          style={{ fontVariationSettings: "'FILL' 1, 'wght' 300" }}
+          aria-hidden="true"
+        >
+          check_circle
+        </span>
+        <h1 className="mb-3 font-headline text-3xl italic text-on-surface">
+          You&apos;re already in!
+        </h1>
+        <p className="mb-8 font-body text-[15px] text-on-surface-variant">
+          You&apos;re already a member of {details.workspace_name}.
+        </p>
+        <button
+          type="button"
+          onClick={() => router.replace('/dashboard')}
+          className="font-label text-[13px] text-primary underline-offset-2 hover:underline"
+        >
+          Go to dashboard
+        </button>
+      </PageShell>
+    );
+  }
 
   if (accepted) {
     return (
@@ -177,8 +222,6 @@ export default function InvitePage() {
     );
   }
 
-  // ── Valid invite — ready to accept ────────────────────────────────────────
-
   return (
     <PageShell>
       <p className="mb-1 font-label text-[10px] font-medium uppercase tracking-[0.08em] text-outline">
@@ -189,19 +232,25 @@ export default function InvitePage() {
       </h1>
 
       {details.invited_by_name && (
-        <p className="mb-8 font-body text-[15px] text-on-surface-variant">
+        <p className="mb-6 font-body text-[15px] text-on-surface-variant">
           {details.invited_by_name} has invited you to join their workspace on SoarUp.
         </p>
       )}
 
       {/* Email mismatch warning */}
-      {isAuthenticated && (
-        <p className="mb-6 font-label text-[12px] text-on-surface-variant">
-          This invite was sent to{' '}
-          <span className="text-on-surface">{details.email}</span>. You can still accept
-          with a different account.
-        </p>
-      )}
+      {isAuthenticated &&
+        user?.email &&
+        details.email &&
+        user.email.toLowerCase() !== details.email.toLowerCase() && (
+          <div className="mb-6 border border-outline-variant bg-surface-high px-4 py-3">
+            <p className="font-label text-[12px] text-on-surface-variant">
+              This invite was sent to{' '}
+              <span className="text-on-surface">{details.email}</span>. You&apos;re
+              signed in as <span className="text-on-surface">{user.email}</span>. You
+              can still accept — the invite is not locked to the original email.
+            </p>
+          </div>
+        )}
 
       {acceptError && (
         <p className="mb-4 font-label text-[13px] text-error">{acceptError}</p>
@@ -226,7 +275,7 @@ export default function InvitePage() {
             ? 'Joining…'
             : isAuthenticated
               ? 'Accept invite'
-              : 'Sign in to accept'}
+              : 'Sign up to accept'}
         </span>
         {!acceptMutation.isPending && (
           <svg
@@ -245,6 +294,19 @@ export default function InvitePage() {
           </svg>
         )}
       </button>
+
+      {!isAuthenticated && (
+        <p className="mt-4 text-center font-body text-[14px] text-on-surface-variant">
+          Already have an account?{' '}
+          <button
+            type="button"
+            onClick={handleLoginInstead}
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            Sign in instead
+          </button>
+        </p>
+      )}
 
       <p className="mt-4 font-label text-[11px] text-on-surface-variant">
         By accepting, you agree to SoarUp&apos;s terms of service.
