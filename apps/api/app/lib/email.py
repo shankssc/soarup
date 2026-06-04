@@ -17,12 +17,6 @@ from app.config import settings
 logger = structlog.get_logger(__name__)
 
 
-def _get_client():
-    return resend.Resend(
-        api_key=(settings.resend_api_key.get_secret_value() if settings.resend_api_key else ""),
-    )
-
-
 async def send_invite_email(
     to_email: str,
     workspace_name: str,
@@ -33,26 +27,41 @@ async def send_invite_email(
     """
     Send a workspace invite email via Resend.
     Returns True on success, False on failure.
+
+    Local dev: RESEND_API_KEY absent → logs invite URL, skips send.
+    Local dev: RESEND_API_KEY present → sends via onboarding@resend.dev
+               (delivers only to the Resend account owner's email).
+    Production: sends via RESEND_FROM_EMAIL (e.g. invites@soarup.app).
     """
-    try:
-        client = _get_client()
-        client.emails.send(
-            {
-                "from": "SoarUp <invites@soarup.app>",
-                "to": [to_email],
-                "subject": (f"{invited_by_name} invited you to join " f"{workspace_name} on SoarUp"),
-                "html": _invite_email_html(
-                    workspace_name=workspace_name,
-                    invited_by_name=invited_by_name,
-                    invite_url=invite_url,
-                    expires_in_days=expires_in_days,
-                ),
-            }
+    if not settings.resend_api_key:
+        logger.info(
+            "invite_email_dev_mode",
+            to=to_email,
+            invite_url=invite_url,
+            note="Set RESEND_API_KEY to enable real email delivery",
         )
+        return True
+
+    try:
+        resend.api_key = settings.resend_api_key.get_secret_value()
+
+        params: resend.Emails.SendParams = {
+            "from": f"SoarUp <{settings.resend_from_email}>",
+            "to": [to_email],
+            "subject": (f"{invited_by_name} invited you to join " f"{workspace_name} on SoarUp"),
+            "html": _invite_email_html(
+                workspace_name=workspace_name,
+                invited_by_name=invited_by_name,
+                invite_url=invite_url,
+                expires_in_days=expires_in_days,
+            ),
+        }
+        resend.Emails.send(params)
         logger.info(
             "invite_email_sent",
             to=to_email,
             workspace=workspace_name,
+            from_address=settings.resend_from_email,
         )
         return True
     except Exception as e:
