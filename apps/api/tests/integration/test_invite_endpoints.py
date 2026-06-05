@@ -18,7 +18,7 @@ import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.dependencies import require_onboarded
+from app.api.dependencies import get_current_user, require_onboarded
 from app.db.session import get_db_session
 from app.routers.invites import router
 from app.schemas.invite import InviteDetailsResponse, InviteResponse, PendingInviteResponse
@@ -148,8 +148,20 @@ async def member_client():
 
 @pytest_asyncio.fixture
 async def authed_client():
-    """Authenticated client for endpoints that only need OnboardedDep (no RBAC)."""
-    app = _make_app(MEMBER_ID, INVITEE_EMAIL)
+    """Authenticated client for accept_invite — uses AuthDep (get_current_user)."""
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1")
+
+    def _user_ctx():
+        return {
+            "user_id": MEMBER_ID,
+            "email": INVITEE_EMAIL,
+        }
+
+    app.dependency_overrides[require_onboarded] = _user_ctx
+    app.dependency_overrides[get_current_user] = _user_ctx  # ← add this line
+    app.dependency_overrides[get_db_session] = lambda: AsyncMock()
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
