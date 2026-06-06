@@ -10,6 +10,7 @@ import { updateKeys, type UpdateResponse } from '@/hooks/useUpdates';
 import { subscribe } from '@/lib/websocket/registry';
 import type {
   AudioTranscriptionCompletePayload,
+  MemberUpdateSubmittedPayload,
   UpdateStatusChangedPayload,
 } from '@/lib/websocket/types';
 
@@ -73,9 +74,23 @@ export function useDashboardUpdates(workspaceId: string | undefined) {
       },
     );
 
+    // M6 — invalidate updates cache when a member submits so the
+    // pending row recalculates without a manual refresh
+    const unsubMemberUpdateSubmitted = subscribe<MemberUpdateSubmittedPayload>(
+      'member.update_submitted',
+      (payload) => {
+        if (payload.workspace_id !== workspaceId) return;
+
+        queryClient.invalidateQueries({
+          queryKey: updateKeys.byDate(workspaceId, payload.update_date),
+        });
+      },
+    );
+
     return () => {
       unsubStatusChanged();
       unsubTranscriptComplete();
+      unsubMemberUpdateSubmitted();
     };
   }, [workspaceId, queryClient]);
 }
