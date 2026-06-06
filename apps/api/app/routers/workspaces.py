@@ -12,7 +12,7 @@ from app.api import (
     create_error_response,
     create_success_response,
 )
-from app.api.dependencies import OnboardedDep
+from app.api.rbac import WorkspaceOwnerDep
 from app.schemas.workspace import (
     CreateWorkspaceRequest,
     JoinWorkspaceRequest,
@@ -176,7 +176,7 @@ async def get_workspaces(
 async def update_workspace_prompts(
     workspace_id: str,
     request: UpdateWorkspacePromptsRequest,
-    user_ctx: OnboardedDep,
+    user_ctx: WorkspaceOwnerDep,
     api_version: ApiVersionDep,
     db: DBSessionDep,
     service: WorkspaceService = Depends(get_workspace_service),
