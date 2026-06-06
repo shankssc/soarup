@@ -58,6 +58,26 @@ function toSlug(name: string): string {
     .slice(0, 50);
 }
 
+// ─── localStorage helpers ──────────────────────────────────────────────────────────────
+
+const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+
+function readPendingInviteCode(): string | null {
+  const raw = localStorage.getItem(PENDING_INVITE_KEY);
+  if (!raw) return null;
+  try {
+    const { code, storedAt } = JSON.parse(raw);
+    if (Date.now() - storedAt > SEVEN_DAYS) {
+      localStorage.removeItem(PENDING_INVITE_KEY);
+      return null;
+    }
+    return code;
+  } catch {
+    localStorage.removeItem(PENDING_INVITE_KEY);
+    return null;
+  }
+}
+
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 async function patchProfile(
@@ -598,10 +618,26 @@ export function OnboardingForm() {
         timezone: fields.timezone,
         is_onboarded: true,
       });
+
       if (user) {
         setUser({ ...user, full_name: fields.displayName });
       }
-      setStep(2);
+
+      const pendingCode = readPendingInviteCode();
+
+      if (pendingCode) {
+        try {
+          await acceptInvite(accessToken, pendingCode);
+          localStorage.removeItem(PENDING_INVITE_KEY);
+          router.replace('/dashboard');
+        } catch {
+          localStorage.removeItem(PENDING_INVITE_KEY);
+          setStep1Error('Invite link expired or invalid. Create a workspace instead.');
+          setStep(2);
+        }
+      } else {
+        setStep(2);
+      }
     } catch (err) {
       setStep1Error(
         (err as Error).message ?? 'Failed to save profile. Please try again.',
