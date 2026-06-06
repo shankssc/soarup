@@ -3,31 +3,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useAuth, useAuthStore } from '@/hooks/useAuth';
+import { MOCK_TOKENS, MOCK_USER } from '../mocks/user';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const mockUser = {
-  id: 'user-123',
-  email: 'test@soarup.app',
-  full_name: 'Test User',
-  avatar_url: null,
-  email_verified: true,
-  is_onboarded: false,
-  created_at: '2024-01-01T00:00:00Z',
-};
-
-const mockTokens = {
-  access_token: 'access-abc',
-  refresh_token: 'refresh-xyz',
-  expires_in: 3600,
-};
-
 function makeLoginResponse(overrides = {}) {
   return {
-    access_token: mockTokens.access_token,
-    refresh_token: mockTokens.refresh_token,
-    expires_in: mockTokens.expires_in,
-    user: mockUser,
+    access_token: MOCK_TOKENS.access_token,
+    refresh_token: MOCK_TOKENS.refresh_token,
+    expires_in: MOCK_TOKENS.expires_at,
+    user: MOCK_USER,
     ...overrides,
   };
 }
@@ -83,7 +68,7 @@ describe('useAuth — derived state', () => {
 
   it('isAuthenticated is false when tokens are expired', () => {
     useAuthStore.setState({
-      user: mockUser,
+      user: MOCK_USER,
       tokens: {
         access_token: 'abc',
         refresh_token: 'xyz',
@@ -96,7 +81,7 @@ describe('useAuth — derived state', () => {
 
   it('isAuthenticated is true when user and tokens are valid', () => {
     useAuthStore.setState({
-      user: mockUser,
+      user: MOCK_USER,
       tokens: {
         access_token: 'abc',
         refresh_token: 'xyz',
@@ -109,7 +94,7 @@ describe('useAuth — derived state', () => {
 
   it('needsOnboarding is true when authenticated and is_onboarded is false', () => {
     useAuthStore.setState({
-      user: { ...mockUser, is_onboarded: false },
+      user: { ...MOCK_USER, is_onboarded: false },
       tokens: {
         access_token: 'abc',
         refresh_token: 'xyz',
@@ -122,7 +107,7 @@ describe('useAuth — derived state', () => {
 
   it('needsOnboarding is false when user is already onboarded', () => {
     useAuthStore.setState({
-      user: { ...mockUser, is_onboarded: true },
+      user: { ...MOCK_USER, is_onboarded: true },
       tokens: {
         access_token: 'abc',
         refresh_token: 'xyz',
@@ -150,7 +135,7 @@ describe('useAuth — login', () => {
       await result.current.login('test@soarup.app', 'Password1');
     });
 
-    expect(result.current.user).toEqual(mockUser);
+    expect(result.current.user).toEqual(MOCK_USER);
     expect(result.current.tokens?.access_token).toBe('access-abc');
     expect(result.current.tokens?.refresh_token).toBe('refresh-xyz');
     expect(result.current.isLoading).toBe(false);
@@ -260,7 +245,7 @@ describe('useAuth — signup', () => {
       await result.current.signup('new@soarup.app', 'Password1', 'New User');
     });
 
-    expect(result.current.user).toEqual(mockUser);
+    expect(result.current.user).toEqual(MOCK_USER);
     expect(result.current.tokens?.access_token).toBe('access-abc');
     expect(result.current.error).toBeNull();
   });
@@ -273,7 +258,7 @@ describe('useAuth — signup', () => {
       await result.current.signup('new@soarup.app', 'Password1');
     });
 
-    expect(result.current.user).toEqual(mockUser);
+    expect(result.current.user).toEqual(MOCK_USER);
   });
 
   it('sets friendly error on user_already_exists', async () => {
@@ -322,7 +307,7 @@ describe('useAuth — signup', () => {
 describe('useAuth — logout', () => {
   beforeEach(() => {
     useAuthStore.setState({
-      user: mockUser,
+      user: MOCK_USER,
       tokens: {
         access_token: 'access-abc',
         refresh_token: 'refresh-xyz',
@@ -389,9 +374,9 @@ describe('useAuth — clearError', () => {
 
 describe('useAuth — setUser', () => {
   it('updates the user in the store', () => {
-    useAuthStore.setState({ user: mockUser });
+    useAuthStore.setState({ user: MOCK_USER });
     const { result } = renderHook(() => useAuth());
-    const updated = { ...mockUser, full_name: 'Updated Name' };
+    const updated = { ...MOCK_USER, full_name: 'Updated Name' };
 
     act(() => {
       result.current.setUser(updated);

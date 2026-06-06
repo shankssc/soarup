@@ -5,26 +5,10 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import React, { useEffect } from 'react';
 import { UpdateCard } from '@/components/domain/updates/update-card';
 import { useAuthStore } from '@/hooks/useAuth';
-import type { UserProfile, AuthTokens } from '@/hooks/useAuth';
 import type { UpdateResponse } from '@/hooks/useUpdates';
+import { MOCK_USER, MOCK_TOKENS } from '../../../tests/mocks/user';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
-
-const MOCK_USER: UserProfile = {
-  id: 'user-123',
-  email: 'jane@example.com',
-  full_name: 'Jane Doe',
-  avatar_url: null,
-  email_verified: true,
-  is_onboarded: true,
-  created_at: new Date().toISOString(),
-};
-
-const MOCK_TOKENS: AuthTokens = {
-  access_token: 'mock-access-token',
-  refresh_token: 'mock-refresh-token',
-  expires_at: Date.now() + 3600 * 1000,
-};
 
 const BASE_UPDATE: UpdateResponse = {
   id: 'update-abc',

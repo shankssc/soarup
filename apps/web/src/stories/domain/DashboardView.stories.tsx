@@ -3,26 +3,10 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import React, { useEffect } from 'react';
 import { DashboardView } from '@/components/domain/dashboard/dashboard-view';
 import { useAuthStore } from '@/hooks/useAuth';
-import type { UserProfile, AuthTokens } from '@/hooks/useAuth';
+import { MOCK_USER, MOCK_TOKENS } from '../../../tests/mocks/user';
 import type { UpdateResponse } from '@/hooks/useUpdates';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
-
-const MOCK_USER: UserProfile = {
-  id: 'user-123',
-  email: 'suyash@example.com',
-  full_name: 'Suyash Chaudhary',
-  avatar_url: null,
-  email_verified: true,
-  is_onboarded: true,
-  created_at: new Date().toISOString(),
-};
-
-const MOCK_TOKENS: AuthTokens = {
-  access_token: 'mock-access-token',
-  refresh_token: 'mock-refresh-token',
-  expires_at: Date.now() + 3600 * 1000,
-};
 
 const MOCK_UPDATE_PENDING: UpdateResponse = {
   id: 'update-001',
@@ -171,6 +155,7 @@ const meta = {
     workspaceId: 'workspace-123',
     todayLabel: 'Thursday, 21 May',
     today: '2026-05-21',
+    pendingMembers: [],
     onSubmitClick: noop,
     onVoiceClick: noop,
     onFormSubmit: noop,
