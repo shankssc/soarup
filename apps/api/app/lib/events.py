@@ -103,6 +103,7 @@ async def append_event(
             maxlen=STREAM_MAXLEN,
             approximate=True,
         )
+        await redis.expire(_stream_key(workspace_id), 30 * 24 * 60 * 60)
         logger.info(
             "event_appended",
             event_type=event_type,
