@@ -458,6 +458,7 @@ class AuthService:
             email=supabase_user.get("email", ""),
             full_name=(profile.full_name if profile and profile.full_name else supabase_user.get("user_metadata", {}).get("full_name")),
             avatar_url=profile.avatar_url if profile else None,
+            timezone=profile.timezone if profile else "UTC",
             email_verified=supabase_user.get("email_confirmed_at") is not None,
             is_onboarded=profile.is_onboarded if profile else False,
             created_at=supabase_user.get("created_at"),

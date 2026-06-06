@@ -39,6 +39,7 @@ class UserResponse(BaseModel):
     email: EmailStr = Field(..., description="User email address")
     full_name: str | None = Field(None, description="User's full name")
     avatar_url: str | None = Field(None, description="Profile picture URL")
+    timezone: str = Field(default="UTC")
     email_verified: bool = Field(..., description="Whether email has been verified")
     is_onboarded: bool = Field(default=False, description="Whether user has completed onboarding")
     created_at: datetime = Field(..., description="Account creation timestamp")
