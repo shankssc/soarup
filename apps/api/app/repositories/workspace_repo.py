@@ -323,3 +323,5 @@ class WorkspaceRepository:
         result = await self.db.execute(select(Profile).where(Profile.id.in_(user_ids)))
         profiles = result.scalars().all()
         return {p.id: p for p in profiles}
+
+    # === Digest methods ===
