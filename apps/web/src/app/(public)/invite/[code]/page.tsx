@@ -74,7 +74,10 @@ export default function InvitePage() {
 
   function storeInviteCode() {
     try {
-      localStorage.setItem(PENDING_INVITE_KEY, code);
+      localStorage.setItem(
+        PENDING_INVITE_KEY,
+        JSON.stringify({ code, storedAt: Date.now() }),
+      );
     } catch {
       // localStorage unavailable — silently continue
     }
