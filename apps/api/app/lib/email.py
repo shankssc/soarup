@@ -9,6 +9,8 @@
 # React Email templates are deferred to M6 when the digest email is built —
 # doing both invite and digest templates in one pass is more efficient.
 
+import asyncio
+
 import resend
 import structlog
 
@@ -56,7 +58,7 @@ async def send_invite_email(
                 expires_in_days=expires_in_days,
             ),
         }
-        resend.Emails.send(params)
+        await asyncio.to_thread(resend.Emails.send, params)
         logger.info(
             "invite_email_sent",
             to=to_email,
