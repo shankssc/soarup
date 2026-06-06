@@ -250,7 +250,7 @@ class WorkspaceRepository:
             Used by the members list endpoint and team dashboard to avoid
             N+1 profile lookups.
         """
-        result = await self.db.execute(select(WorkspaceMember, Profile).join(Profile, WorkspaceMember.user_id == Profile.id).where(WorkspaceMember.workspace_id == workspace_id).order_by(WorkspaceMember.joined_at.asc()))
+        result = await self.db.execute(select(WorkspaceMember, Profile).outerjoin(Profile, WorkspaceMember.user_id == Profile.id).where(WorkspaceMember.workspace_id == workspace_id).order_by(WorkspaceMember.joined_at.asc()))
         return [(row[0], row[1]) for row in result.all()]
 
     async def update_member_role(
