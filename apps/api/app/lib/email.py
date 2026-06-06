@@ -13,6 +13,7 @@ import asyncio
 
 import resend
 import structlog
+from resend import Emails
 
 from app.config import settings
 
@@ -47,7 +48,7 @@ async def send_invite_email(
     try:
         resend.api_key = settings.resend_api_key.get_secret_value()
 
-        params: resend.Emails.SendParams = {
+        params: Emails.SendParams = {
             "from": f"SoarUp <{settings.resend_from_email}>",
             "to": [to_email],
             "subject": (f"{invited_by_name} invited you to join " f"{workspace_name} on SoarUp"),
@@ -68,6 +69,47 @@ async def send_invite_email(
         return True
     except Exception as e:
         logger.error("invite_email_failed", to=to_email, error=str(e))
+        return False
+
+
+async def send_digest_email(
+    to_emails: list[str],
+    workspace_name: str,
+    digest_date: str,
+    html: str,
+) -> bool:
+    """
+    Send a digest email to all opted-in workspace members via Resend.
+
+    Wraps the synchronous Resend SDK call in asyncio.to_thread so it doesn't
+    block the event loop. Failures are logged and swallowed — a failed email
+    delivery should never crash the digest task or roll back the digest record.
+
+    Args:
+        to_emails:      List of recipient email addresses. Members with
+                        email_notifications=False are excluded upstream by
+                        the caller; this function sends to everyone it receives.
+        workspace_name: Used in the email subject line.
+        digest_date:    ISO date string (YYYY-MM-DD). Included in the subject
+                        so recipients can identify the digest at a glance.
+        html:           Pre-rendered HTML string from render_digest_email.
+                        This function does not render — it only sends.
+
+    Returns:
+        True if Resend accepted the request, False if any exception was raised.
+        Note: True means Resend accepted the payload, not that delivery succeeded.
+    """
+    try:
+        params: Emails.SendParams = {
+            "from": f"SoarUp <{settings.resend_from_email}>",
+            "to": to_emails,
+            "subject": f"{workspace_name} standup digest — {digest_date}",
+            "html": html,
+        }
+        await asyncio.to_thread(resend.Emails.send, params)
+        return True
+    except Exception as e:
+        logger.error("digest_email_failed", workspace=workspace_name, error=str(e))
         return False
 
 
