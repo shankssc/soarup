@@ -13,7 +13,6 @@ celery[redis]==5.4.0
 redis==5.0.8
 flower==2.0.1
 anthropic>=0.40.0
-broadcaster[redis]>=0.3.0
 faster-whisper>=1.0.0
 pydub>=0.25.1
 
