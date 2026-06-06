@@ -6,8 +6,10 @@ from typing import Annotated, Any
 import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.redis import get_redis_client
 from app.db.session import get_db_session
 from app.utils.api_versioning import ApiVersionInfo
 from app.utils.api_versioning import get_api_version as _get_api_version
@@ -91,6 +93,8 @@ AuthDep = Annotated[dict[str, str], Depends(get_current_user)]
 
 # Onboarding gate — use on all post-onboarding app routes
 OnboardedDep = Annotated[dict[str, str], Depends(require_onboarded)]
+
+RedisDep = Annotated[Redis, Depends(get_redis_client)]
 
 # Legacy alias — existing routers keep working unchanged
 UserContextDep = Annotated[dict[str, str], Depends(require_auth)]

@@ -34,8 +34,9 @@ def _make_service() -> tuple[UpdateService, MagicMock, MagicMock, MagicMock]:
     """Return (service, mock_db, mock_update_repo, mock_workspace_repo)."""
     db = MagicMock()
     db.commit = AsyncMock()
+    redis = AsyncMock()
 
-    service = UpdateService(db=db)
+    service = UpdateService(db=db, redis=redis)
 
     update_repo = MagicMock()
     workspace_repo = MagicMock()
@@ -198,6 +199,29 @@ class TestGetWorkspaceUpdatesBatch:
 
         assert result.total == 5
         assert len(result.updates) == 5
+
+    async def test_append_event_failure_does_not_raise(self):
+        """
+        A Redis failure on member.update_submitted must not propagate —
+        the update is already created and the task already enqueued.
+        """
+        service, _, update_repo, workspace_repo = _make_service()
+        update_repo.create = AsyncMock(return_value=_fake_update())
+        update_repo.get_for_user_on_date = AsyncMock(return_value=None)
+        service._redis.xadd = AsyncMock(side_effect=Exception("Redis down"))
+
+        # Should complete without raising
+        await service.submit_update(
+            WORKSPACE_ID,
+            USER_ID,
+            SimpleNamespace(
+                mode="text",
+                content="Update",
+                update_date=TODAY,
+                audio_key=None,
+                audio_duration_seconds=None,
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------

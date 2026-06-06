@@ -86,13 +86,11 @@ def make_ws_client(
     from app.main import create_app
 
     mock_redis = _make_mock_redis()
-    jwt_mock = AsyncMock(return_value={"sub": user_id}) if valid_token else AsyncMock(
-        side_effect=Exception("Invalid token"))
+    jwt_mock = AsyncMock(return_value={"sub": user_id}) if valid_token else AsyncMock(side_effect=Exception("Invalid token"))
 
     with (
         patch(_GET_REDIS, return_value=mock_redis),
-        patch(_READ_EVENTS, side_effect=_make_read_events_mock(
-            events_sequence or [])),
+        patch(_READ_EVENTS, side_effect=_make_read_events_mock(events_sequence or [])),
         patch(_VALIDATE_JWT, jwt_mock),
     ):
         app = create_app()
