@@ -116,13 +116,6 @@ export function DashboardView({
         </>
       )}
 
-      {/* Date header */}
-      <div className="border-b border-outline-variant pb-3">
-        <h2 className="font-label text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
-          Today — {todayLabel}
-        </h2>
-      </div>
-
       {/* Pending members */}
       <PendingMembersRow members={pendingMembers} />
 

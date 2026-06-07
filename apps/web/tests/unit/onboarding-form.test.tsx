@@ -192,7 +192,7 @@ describe('Step 1 — API interaction', () => {
     await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
     const headers = (vi.mocked(fetch).mock.calls[0][1] as RequestInit)
       .headers as Record<string, string>;
-    expect(headers['Authorization']).toBe('Bearer mock-token');
+    expect(headers['Authorization']).toBe('Bearer mock-access-token');
   });
 
   it('sends selected timezone in PATCH payload', async () => {

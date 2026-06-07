@@ -136,8 +136,8 @@ describe('useAuth — login', () => {
     });
 
     expect(result.current.user).toEqual(MOCK_USER);
-    expect(result.current.tokens?.access_token).toBe('access-abc');
-    expect(result.current.tokens?.refresh_token).toBe('refresh-xyz');
+    expect(result.current.tokens?.access_token).toBe(MOCK_TOKENS.access_token);
+    expect(result.current.tokens?.refresh_token).toBe(MOCK_TOKENS.refresh_token);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -246,7 +246,7 @@ describe('useAuth — signup', () => {
     });
 
     expect(result.current.user).toEqual(MOCK_USER);
-    expect(result.current.tokens?.access_token).toBe('access-abc');
+    expect(result.current.tokens?.access_token).toBe(MOCK_TOKENS.access_token);
     expect(result.current.error).toBeNull();
   });
 
