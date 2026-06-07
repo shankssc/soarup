@@ -18,20 +18,20 @@
 
 ## 📚 Documentation
 
-All architecture, specs, and decisions live in [`/specs`](./specs/):
+All architecture, specs, and decisions live in [`/specs/Scaffolding`](./specs/Scaffolding/):
 
-| Spec                                                         | Description                                    |
-| ------------------------------------------------------------ | ---------------------------------------------- |
-| [00 — Product Vision](./specs/00-product-vision.md)          | Why this exists, who it's for, success metrics |
-| [01 — Architecture](./specs/01-architecture.md)              | System overview, tech stack, request lifecycle |
-| [02 — Data Models](./specs/02-data-models.md)                | Supabase Postgres schema, RLS policies         |
-| [03 — API Contracts](./specs/03-api-contracts.md)            | REST + WebSocket endpoint specifications       |
-| [04 — Frontend Spec](./specs/04-frontend-spec.md)            | Next.js 14 App Router, TypeScript, Tailwind    |
-| [05 — Backend Spec](./specs/05-backend-spec.md)              | FastAPI, Celery, async processing pipeline     |
-| [06 — Auth & Multi-tenancy](./specs/06-auth-multitenancy.md) | Supabase Auth, workspace roles, RLS            |
-| [07 — Quality & Testing](./specs/07-quality-testing.md)      | Linting, testing, security, coverage gates     |
-| [08 — Infra & CI/CD](./specs/08-infra-cicd.md)               | Docker, GitHub Actions, deploy pipelines       |
-| [09 — Feature Roadmap](./specs/09-feature-roadmap.md)        | Milestones, acceptance criteria, sequencing    |
+| Spec                                                                     | Description                                    |
+| ------------------------------------------------------------------------ | ---------------------------------------------- |
+| [00 — Product Vision](./specs/Scaffolding/00-product-vision.md)          | Why this exists, who it's for, success metrics |
+| [01 — Architecture](./specs/Scaffolding/01-architecture.md)              | System overview, tech stack, request lifecycle |
+| [02 — Data Models](./specs/Scaffolding/02-data-models.md)                | Supabase Postgres schema, RLS policies         |
+| [03 — API Contracts](./specs/Scaffolding/03-api-contracts.md)            | REST + WebSocket endpoint specifications       |
+| [04 — Frontend Spec](./specs/Scaffolding/04-frontend-spec.md)            | Next.js 14 App Router, TypeScript, Tailwind    |
+| [05 — Backend Spec](./specs/Scaffolding/05-backend-spec.md)              | FastAPI, Celery, async processing pipeline     |
+| [06 — Auth & Multi-tenancy](./specs/Scaffolding/06-auth-multitenancy.md) | Supabase Auth, workspace roles, RLS            |
+| [07 — Quality & Testing](./specs/Scaffolding/07-quality-testing.md)      | Linting, testing, security, coverage gates     |
+| [08 — Infra & CI/CD](./specs/Scaffolding/08-infra-cicd.md)               | Docker, GitHub Actions, deploy pipelines       |
+| [09 — Feature Roadmap](./specs/Scaffolding/09-feature-roadmap.md)        | Milestones, acceptance criteria, sequencing    |
 
 ## 🛠️ Getting Started
 
