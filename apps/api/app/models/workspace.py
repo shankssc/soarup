@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -72,6 +72,30 @@ class Workspace(Base):
         Text,
         nullable=True,
         doc="Custom Claude prompt for daily digest generation (Milestone 6).",
+    )
+
+    # === Digest Configuration ===
+
+    digest_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether daily digest is enabled for this workspace",
+    )
+    digest_send_time: Mapped[str] = mapped_column(
+        String(5),
+        default="09:00",
+        doc="HH:MM in workspace timezone",
+    )
+    digest_timezone: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        doc="IANA timezone override. Falls back to owner profile timezone if null.",
+    )
+    digest_days: Mapped[str] = mapped_column(
+        String(20),
+        default="1,2,3,4,5",
+        doc="Comma-separated ISO weekday numbers. 1=Mon, 7=Sun.",
     )
 
     # === Timestamps ===
