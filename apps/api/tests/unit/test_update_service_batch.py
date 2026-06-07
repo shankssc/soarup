@@ -14,7 +14,7 @@
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.services.update_service import UpdateService
 
@@ -209,19 +209,22 @@ class TestGetWorkspaceUpdatesBatch:
         update_repo.create = AsyncMock(return_value=_fake_update())
         update_repo.get_for_user_on_date = AsyncMock(return_value=None)
         service._redis.xadd = AsyncMock(side_effect=Exception("Redis down"))
+        service._redis.expire = AsyncMock()
+        service._profile_repo.get_by_user_id = AsyncMock(return_value=None)
 
-        # Should complete without raising
-        await service.submit_update(
-            WORKSPACE_ID,
-            USER_ID,
-            SimpleNamespace(
-                mode="text",
-                content="Update",
-                update_date=TODAY,
-                audio_key=None,
-                audio_duration_seconds=None,
-            ),
-        )
+        with patch("app.services.update_service.process_update") as mock_task:
+            mock_task.delay = MagicMock()
+            await service.submit_update(
+                WORKSPACE_ID,
+                USER_ID,
+                SimpleNamespace(
+                    mode="text",
+                    content="Update",
+                    update_date=TODAY,
+                    audio_key=None,
+                    audio_duration_seconds=None,
+                ),
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -231,7 +234,7 @@ class TestGetWorkspaceUpdatesBatch:
 
 class TestToResponseBatch:
     def test_maps_all_update_fields(self):
-        service = UpdateService(db=MagicMock())
+        service = UpdateService(db=MagicMock(), redis=AsyncMock())
         update = _fake_update("u-1", USER_ID, content="My standup", status="processed")
         profile_map = {USER_ID: _fake_profile(USER_ID, "Carol")}
 
@@ -248,13 +251,13 @@ class TestToResponseBatch:
         """_to_response_batch must not be a coroutine — no await needed."""
         import inspect
 
-        service = UpdateService(db=MagicMock())
+        service = UpdateService(db=MagicMock(), redis=AsyncMock())
         update = _fake_update()
         result = service._to_response_batch(update, {})
         assert not inspect.isawaitable(result)
 
     def test_avatar_url_populated_when_present(self):
-        service = UpdateService(db=MagicMock())
+        service = UpdateService(db=MagicMock(), redis=AsyncMock())
         update = _fake_update(user_id=USER_ID)
         profile_map = {USER_ID: _fake_profile(USER_ID, avatar_url="https://cdn/avatar.jpg")}
 
@@ -263,7 +266,7 @@ class TestToResponseBatch:
         assert result.author_avatar_url == "https://cdn/avatar.jpg"
 
     def test_avatar_url_none_when_profile_missing(self):
-        service = UpdateService(db=MagicMock())
+        service = UpdateService(db=MagicMock(), redis=AsyncMock())
         update = _fake_update(user_id=USER_ID)
 
         result = service._to_response_batch(update, {})
@@ -272,7 +275,7 @@ class TestToResponseBatch:
 
     def test_does_not_mutate_profile_map(self):
         """Calling _to_response_batch should not alter the shared profile_map."""
-        service = UpdateService(db=MagicMock())
+        service = UpdateService(db=MagicMock(), redis=AsyncMock())
         update = _fake_update(user_id=USER_ID)
         profile = _fake_profile(USER_ID, "Dave")
         profile_map = {USER_ID: profile}
