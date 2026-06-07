@@ -13,6 +13,7 @@ export interface UserProfile {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
+  timezone: string | null;
   email_verified: boolean;
   is_onboarded: boolean;
   created_at: string;

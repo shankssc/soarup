@@ -61,6 +61,7 @@ const defaultProps: DashboardViewProps = {
   workspaceId: 'workspace-123',
   todayLabel: 'Monday, May 18',
   today: '2026-05-18',
+  pendingMembers: [],
   onSubmitClick: vi.fn(),
   onVoiceClick: vi.fn(),
   onFormSubmit: vi.fn().mockResolvedValue(undefined),

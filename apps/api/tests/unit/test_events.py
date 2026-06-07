@@ -37,6 +37,7 @@ def _make_redis(
 ) -> MagicMock:
     redis = MagicMock()
     redis.xadd = AsyncMock(return_value=xadd_return)
+    redis.expire = AsyncMock()
     redis.xread = AsyncMock(return_value=xread_return or [])
     return redis
 

@@ -12,7 +12,7 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, HTTPException, Response, status
 
-from app.api.dependencies import ApiVersionDep, AuthDep, DBSessionDep, OnboardedDep
+from app.api.dependencies import ApiVersionDep, AuthDep, DBSessionDep
 from app.api.rbac import WorkspaceAdminDep
 from app.repositories.invite_repo import InviteRepository
 from app.schemas.invite import (
@@ -59,7 +59,7 @@ async def create_invite(
     workspace_id: str,
     request: CreateInviteRequest,
     api_version: ApiVersionDep,
-    user_ctx: OnboardedDep,  # open to any member — see M5 known tradeoff
+    user_ctx: WorkspaceAdminDep,
     db: DBSessionDep,
 ) -> InviteResponse:
     """

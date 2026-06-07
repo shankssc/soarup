@@ -10,6 +10,7 @@ Usage:
         OnboardedDep,
         AuthDep,          # new canonical alias — use in new routers
         UserContextDep,   # legacy alias — kept for backward compatibility
+        RedisDep,
         # Error handling utilities
         create_error_response,
         create_success_response,
@@ -31,6 +32,7 @@ from app.api.dependencies import (
     AuthDep,
     DBSessionDep,
     OnboardedDep,
+    RedisDep,
     UserContextDep,
     get_current_user,
     require_auth,
@@ -43,6 +45,7 @@ __all__ = [
     "ApiVersionDep",
     "OnboardedDep",
     "AuthDep",
+    "RedisDep",
     "get_current_user",
     # Dependencies — legacy (kept for backward compatibility)
     "UserContextDep",

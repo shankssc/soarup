@@ -11,6 +11,7 @@ import {
 } from '@/hooks/useWorkspaceMembers';
 import { useAuthStore } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api/client';
+import { MOCK_TOKENS, MOCK_USER } from '../mocks/user';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -23,22 +24,6 @@ vi.mock('@/lib/api/client', () => ({
 }));
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
-
-const MOCK_USER = {
-  id: 'user-owner',
-  email: 'alice@example.com',
-  full_name: 'Alice Owner',
-  avatar_url: null,
-  email_verified: true,
-  is_onboarded: true,
-  created_at: new Date().toISOString(),
-};
-
-const MOCK_TOKENS = {
-  access_token: 'mock-access-token',
-  refresh_token: 'mock-refresh-token',
-  expires_at: Date.now() + 3600 * 1000,
-};
 
 const MOCK_WORKSPACE_ID = 'workspace-123';
 

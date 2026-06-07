@@ -8,24 +8,9 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useWebSocketStore } from '@/stores/websocket-store';
 import { useAuthStore } from '@/hooks/useAuth';
 import * as registry from '@/lib/websocket/registry';
+import { MOCK_TOKENS, MOCK_USER } from '../mocks/user';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
-
-const MOCK_USER = {
-  id: 'user-123',
-  email: 'jane@example.com',
-  full_name: 'Jane Doe',
-  avatar_url: null,
-  email_verified: true,
-  is_onboarded: true,
-  created_at: new Date().toISOString(),
-};
-
-const MOCK_TOKENS = {
-  access_token: 'mock-access-token',
-  refresh_token: 'mock-refresh-token',
-  expires_at: Date.now() + 3600 * 1000,
-};
 
 const MOCK_WORKSPACE_ID = 'workspace-123';
 

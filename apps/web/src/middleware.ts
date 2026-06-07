@@ -8,6 +8,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 // ─── Route configuration ──────────────────────────────────────────────────────
 
 // Routes that require authentication
+// PUBLIC_ROUTES — never add these to PROTECTED_ROUTES or AUTH_ROUTES
+// /invite/* — invite acceptance, requires no auth to view
+// /api/v1/invites/* — invite details endpoint, no auth required
 const PROTECTED_ROUTES = [
   '/dashboard',
   '/onboarding',

@@ -56,7 +56,12 @@ export function useWebSocket({
     if (!workspaceId || !accessToken || !enabled) return;
 
     const params = new URLSearchParams({ token: accessToken });
-    if (lastEventId) params.set('last_event_id', lastEventId);
+
+    const stored = sessionStorage.getItem('soarup_ws_last_event_id');
+    const cursor = lastEventId ?? stored ?? undefined;
+
+    if (cursor) params.set('last_event_id', cursor);
+
     const url = `${WS_BASE}/workspaces/${workspaceId}?${params.toString()}`;
     const ws = new WebSocket(url);
     socketRef.current = ws;

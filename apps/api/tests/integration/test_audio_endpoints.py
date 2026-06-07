@@ -189,8 +189,7 @@ def mock_audio_pipeline(
     mock_factory, _ = _make_mock_session_factory()
     mock_update_repo = _make_mock_update_repo(_update)
     mock_audio = _make_mock_audio_segment()
-    mock_whisper = _make_mock_whisper(
-        transcript=transcript, raises=transcription_raises)
+    mock_whisper = _make_mock_whisper(transcript=transcript, raises=transcription_raises)
     mock_tmp_file = _make_mock_tempfile()
 
     mock_s3 = MagicMock()
@@ -218,10 +217,8 @@ def mock_audio_pipeline(
     ):
         mock_audio_cls.from_file.return_value = mock_audio
         mock_update_repo_cls.from_session.return_value = mock_update_repo
-        mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
-            return_value=_workspace)
-        mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
-            return_value=_profile)
+        mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=_workspace)
+        mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=_profile)
 
         yield {
             "update": _update,
@@ -252,8 +249,7 @@ class TestHappyPath:
             return u
 
         with mock_audio_pipeline() as mocks:
-            mocks["update_repo"].update_status = AsyncMock(
-                side_effect=track_status)
+            mocks["update_repo"].update_status = AsyncMock(side_effect=track_status)
             await _process_audio_update_async(task, UPDATE_ID)
 
         assert "processing" in status_calls
@@ -282,12 +278,10 @@ class TestHappyPath:
             return u
 
         with mock_audio_pipeline() as mocks:
-            mocks["update_repo"].update_status = AsyncMock(
-                side_effect=track_status)
+            mocks["update_repo"].update_status = AsyncMock(side_effect=track_status)
             await _process_audio_update_async(task, UPDATE_ID)
 
-        assert status_calls.index(
-            "processing") < status_calls.index("processed")
+        assert status_calls.index("processing") < status_calls.index("processed")
 
     @pytest.mark.asyncio
     async def test_haiku_used_on_first_attempt(self):
@@ -337,8 +331,7 @@ class TestHappyPath:
         with mock_audio_pipeline(publish_side_effect=track_publish):
             await _process_audio_update_async(task, UPDATE_ID)
 
-        assert publish_calls.index("audio.transcription_started") < publish_calls.index(
-            "audio.transcription_complete")
+        assert publish_calls.index("audio.transcription_started") < publish_calls.index("audio.transcription_complete")
 
     @pytest.mark.asyncio
     async def test_transcription_complete_published_with_transcript(self):
@@ -368,8 +361,7 @@ class TestHappyPath:
         with mock_audio_pipeline(publish_side_effect=track_publish):
             await _process_audio_update_async(task, UPDATE_ID)
 
-        processed_payloads = [
-            p for p in publish_payloads if p.get("status") == "processed"]
+        processed_payloads = [p for p in publish_payloads if p.get("status") == "processed"]
         assert len(processed_payloads) == 1
         assert processed_payloads[0]["summary"] == MOCK_SUMMARY
 
@@ -377,8 +369,7 @@ class TestHappyPath:
     async def test_custom_workspace_prompt_passed_to_build_prompt(self):
         """workspace.summarisation_prompt forwarded as custom_prompt."""
         task = make_mock_task()
-        workspace = make_fake_workspace(
-            summarisation_prompt="Summarise as bullet points.")
+        workspace = make_fake_workspace(summarisation_prompt="Summarise as bullet points.")
         mock_build = MagicMock(return_value="built-prompt")
 
         with (
@@ -545,8 +536,7 @@ class TestMaxRetries:
             return u
 
         with mock_audio_pipeline(summarisation_raises=Exception("Claude timeout")) as mocks:
-            mocks["update_repo"].update_status = AsyncMock(
-                side_effect=track_status)
+            mocks["update_repo"].update_status = AsyncMock(side_effect=track_status)
             await _process_audio_update_async(task, UPDATE_ID)
 
         assert "failed" in status_calls
@@ -567,8 +557,7 @@ class TestMaxRetries:
         ):
             await _process_audio_update_async(task, UPDATE_ID)
 
-        failed_payloads = [
-            p for p in publish_payloads if p.get("status") == "failed"]
+        failed_payloads = [p for p in publish_payloads if p.get("status") == "failed"]
         assert len(failed_payloads) == 1
 
     @pytest.mark.asyncio

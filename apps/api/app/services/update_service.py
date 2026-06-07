@@ -3,8 +3,10 @@
 from typing import Any
 
 import structlog
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.lib.events import append_event
 from app.repositories.profile_repo import ProfileRepository
 from app.repositories.update_repo import UpdateRepository
 from app.repositories.workspace_repo import WorkspaceRepository
@@ -38,8 +40,9 @@ class UpdateService:
     Enforces ownership, duplicate submission rules, and response shaping.
     """
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, redis: Redis):
         self.db = db
+        self._redis = redis
         self._update_repo: UpdateRepository | None = None
         self._profile_repo: ProfileRepository | None = None
         self._workspace_repo: WorkspaceRepository | None = None
@@ -112,6 +115,19 @@ class UpdateService:
                 workspace_id=workspace_id,
                 user_id=user_id,
             )
+
+        await append_event(
+            self._redis,
+            "member.update_submitted",
+            workspace_id,
+            {
+                "update_id": update.id,
+                "workspace_id": workspace_id,
+                "user_id": user_id,
+                "update_date": str(request.update_date),
+            },
+        )
+
         return await self._to_response(update)
 
     async def get_workspace_updates(
