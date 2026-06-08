@@ -1,3 +1,6 @@
+# apps/api/app/schemas/digest.py
+# Pydantic request/response schemas for digest endpoints
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
