@@ -42,7 +42,7 @@ class DigestRepository:
             update_count=0,
         )
         self.db.add(digest)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(digest)
         logger.info("digest_created", workspace_id=workspace_id, digest_date=digest_date)
         return digest
@@ -73,7 +73,7 @@ class DigestRepository:
         if email_sent_at is not None:
             digest.email_sent_at = email_sent_at
 
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(digest)
         return digest
 
@@ -100,7 +100,7 @@ class DigestRepository:
             for item in items
         ]
         self.db.add_all(digest_items)
-        await self.db.commit()
+        await self.db.flush()
         logger.info("digest_items_added", digest_id=digest_id, count=len(digest_items))
         return digest_items
 

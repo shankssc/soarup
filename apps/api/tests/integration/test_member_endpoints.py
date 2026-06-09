@@ -1,4 +1,4 @@
-# apps/api/tests/integration/test_member_router.py
+# apps/api/tests/integration/test_member_endpoints.py
 # Integration tests for app/routers/members.py
 #
 # Patching strategy:
