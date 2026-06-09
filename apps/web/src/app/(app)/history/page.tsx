@@ -10,19 +10,14 @@ import { DigestCard } from '@/components/domain/digests/digest-card';
 
 export default function HistoryPage() {
   const { data: workspace } = useWorkspace();
-  const {
-    data,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-  } = useDigests(workspace?.id);
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useDigests(workspace?.id);
 
   const allDigests = data?.pages.flatMap((page) => page.digests) ?? [];
   const total = data?.pages[0]?.total ?? 0;
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-8 max-w-2xl mx-auto w-full">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-8">
       {/* Page header */}
       <div className="flex flex-col gap-1">
         <h1 className="font-headline text-[24px] italic text-on-surface">
@@ -41,7 +36,7 @@ export default function HistoryPage() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-32 w-full animate-pulse bg-surface-high border border-outline-variant"
+              className="h-32 w-full animate-pulse border border-outline-variant bg-surface-high"
             />
           ))}
         </div>
@@ -56,20 +51,16 @@ export default function HistoryPage() {
           >
             summarize
           </span>
-          <p className="font-body text-[14px] text-on-surface-variant max-w-xs">
+          <p className="max-w-xs font-body text-[14px] text-on-surface-variant">
             No digests yet. Digests are generated daily when updates exist.
           </p>
         </div>
       )}
 
       {/* Digest list */}
-      {allDigests.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {allDigests.map((digest) => (
-            <DigestCard key={digest.id} digest={digest} />
-          ))}
-        </div>
-      )}
+      {allDigests.map((digest) => (
+        <DigestCard key={digest.id} digest={digest} workspaceId={workspace?.id ?? ''} />
+      ))}
 
       {/* Load more */}
       {hasNextPage && (
@@ -84,7 +75,7 @@ export default function HistoryPage() {
               'border border-outline-variant text-on-surface-variant',
               'hover:border-primary hover:text-primary',
               'transition-colors duration-150',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
+              'disabled:cursor-not-allowed disabled:opacity-50',
             ].join(' ')}
           >
             {isFetchingNextPage ? 'Loading...' : 'Load more'}

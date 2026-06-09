@@ -1,15 +1,17 @@
 // apps/web/src/components/domain/digests/digest-card.tsx
-// Pure presentational digest card with collapsible items toggle.
+// Pure presentational digest card with lazy-loaded collapsible items.
 
 'use client';
 
 import * as React from 'react';
 import { format, parseISO } from 'date-fns';
 import type { Digest } from '@/hooks/useDigests';
+import { useDigest } from '@/hooks/useDigests';
 import { DigestItemRow } from './digest-item-row';
 
 interface DigestCardProps {
   digest: Digest;
+  workspaceId: string;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -33,8 +35,17 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function DigestCard({ digest }: DigestCardProps) {
+export function DigestCard({ digest, workspaceId }: DigestCardProps) {
   const [expanded, setExpanded] = React.useState(false);
+  // Only fetch detail once the user has expanded at least once
+  const [fetchEnabled, setFetchEnabled] = React.useState(false);
+
+  const { data: detailData, isLoading: isLoadingItems } = useDigest(
+    fetchEnabled ? workspaceId : undefined,
+    fetchEnabled ? digest.id : undefined,
+  );
+
+  const items = detailData?.items ?? [];
 
   const formattedDate = (() => {
     try {
@@ -44,7 +55,12 @@ export function DigestCard({ digest }: DigestCardProps) {
     }
   })();
 
-  const hasItems = digest.items.length > 0;
+  function handleToggle() {
+    if (!fetchEnabled) setFetchEnabled(true); // trigger fetch on first expand
+    setExpanded((prev) => !prev);
+  }
+
+  const canExpand = digest.update_count > 0;
 
   return (
     <div className="border border-outline-variant bg-surface">
@@ -84,11 +100,11 @@ export function DigestCard({ digest }: DigestCardProps) {
       )}
 
       {/* Expand toggle */}
-      {hasItems && (
+      {canExpand && (
         <div className="px-4 pb-3">
           <button
             type="button"
-            onClick={() => setExpanded((prev) => !prev)}
+            onClick={handleToggle}
             className={[
               'flex items-center gap-1.5',
               'font-label text-[11px] font-medium uppercase tracking-[0.06em]',
@@ -103,15 +119,33 @@ export function DigestCard({ digest }: DigestCardProps) {
             >
               expand_more
             </span>
-            {expanded ? 'Hide updates' : `View updates (${digest.items.length})`}
+            {expanded ? 'Hide updates' : `View updates (${digest.update_count})`}
           </button>
 
           {/* Items list */}
           {expanded && (
             <div className="mt-3">
-              {digest.items.map((item) => (
-                <DigestItemRow key={item.id} item={item} />
-              ))}
+              {isLoadingItems ? (
+                // Skeleton while detail loads
+                <div className="flex flex-col gap-2 py-1">
+                  {Array.from({ length: digest.update_count }).map((_, i) => (
+                    <div key={i} className="flex gap-3 py-2.5">
+                      <div className="h-6 w-6 shrink-0 animate-pulse rounded-full bg-surface-high" />
+                      <div className="flex flex-1 flex-col gap-1.5">
+                        <div className="h-2.5 w-20 animate-pulse bg-surface-high" />
+                        <div className="h-3 w-full animate-pulse bg-surface-high" />
+                        <div className="h-3 w-2/3 animate-pulse bg-surface-high" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : items.length > 0 ? (
+                items.map((item) => <DigestItemRow key={item.id} item={item} />)
+              ) : (
+                <p className="py-2 font-body text-[13px] text-on-surface-variant">
+                  No individual updates available.
+                </p>
+              )}
             </div>
           )}
         </div>
