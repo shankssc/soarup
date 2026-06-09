@@ -71,3 +71,31 @@ def build_summarisation_prompt(
         author_name=author_name or "the user",
         update_date=update_date,
     )
+
+
+def build_digest_prompt(
+    workspace_name: str,
+    digest_date: str,
+    summaries: str,
+    custom_prompt: str | None = None,
+) -> str:
+    """
+    Build the final digest prompt.
+    Uses workspace custom prompt if provided, falls back to DEFAULT_DIGEST_PROMPT.
+
+    Args:
+        workspace_name: Name of the workspace being digested.
+        digest_date:    ISO date string (YYYY-MM-DD).
+        summaries:      Pre-formatted string of individual update summaries.
+        custom_prompt:  Workspace-level override. Must contain
+                        {workspace_name}, {digest_date}, {summaries} placeholders.
+
+    Returns:
+        Fully-formatted prompt string ready to send to Claude.
+    """
+    template = custom_prompt or DEFAULT_DIGEST_PROMPT
+    return template.format(
+        workspace_name=workspace_name,
+        digest_date=digest_date,
+        summaries=summaries,
+    )

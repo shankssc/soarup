@@ -325,3 +325,13 @@ class WorkspaceRepository:
         return {p.id: p for p in profiles}
 
     # === Digest methods ===
+
+    async def get_digest_enabled_workspaces(self) -> list[Workspace]:
+        """
+        Fetch all workspaces with digest_enabled=True.
+        Called by the Celery beat task every 5 minutes.
+        """
+        result = await self.db.execute(
+            select(Workspace).where(Workspace.digest_enabled == True)  # noqa: E712
+        )
+        return list(result.scalars().all())

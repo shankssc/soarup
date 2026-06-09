@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+
+{% block title %}You're invited to join {{ workspace_name }}{% endblock %}
+
+{% block content %}
+  <h2 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700;
+             color: #f9f5f8; letter-spacing: -0.3px;">
+    You've been invited to join {{ workspace_name }}
+  </h2>
+  <p style="margin: 0 0 24px 0; font-size: 14px; color: #adaaad; line-height: 1.6;">
+    {{ inviter_name }} has invited you to join their workspace on SoarUp,
+    an async standup tool for developers.
+  </p>
+
+  <a href="{{ invite_url }}"
+     style="display: inline-block; background-color: #53ddfc; color: #0e0e10;
+            padding: 12px 28px; text-decoration: none; font-weight: 700;
+            font-size: 14px; font-family: system-ui, sans-serif;">
+    Accept invite
+  </a>
+
+  <p style="margin: 24px 0 0 0; font-size: 12px; color: #adaaad;">
+    This invite expires in {{ expires_in_days }} days.
+    If you didn't expect this email, you can safely ignore it.
+  </p>
+{% endblock %}
+
+{% block footer %}
+  You're receiving this because {{ inviter_name }} invited you to {{ workspace_name }} on SoarUp.
+{% endblock %}

@@ -33,6 +33,12 @@ class Profile(Base):
 
     timezone: Mapped[str] = mapped_column(String(50), default="UTC", doc="User's preferred timezone (IANA format)")
 
+    email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        doc="User email address — populated on signup for digest delivery",
+    )
+
     email_notifications: Mapped[bool] = mapped_column(Boolean, default=True, doc="Whether user receives email notifications")
 
     is_onboarded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, doc="Whether user has completed onboarding flow")
