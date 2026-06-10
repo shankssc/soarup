@@ -1,8 +1,21 @@
 // apps/web/.storybook/preview.ts
 import type { Preview } from '@storybook/nextjs-vite';
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '../src/components/providers/theme-provider';
 import '../src/app/globals.css';
+
+// Fresh QueryClient per story — prevents cache bleed between stories
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false, // no retries in Storybook
+        staleTime: Infinity, // never refetch automatically
+      },
+    },
+  });
+}
 
 const preview: Preview = {
   parameters: {
@@ -26,17 +39,21 @@ const preview: Preview = {
   },
 
   decorators: [
-    // Wraps every story in ThemeProvider with the correct forced theme.
-    // forcedTheme prevents ThemeProvider's useEffect from reading
-    // localStorage or system preference and overriding the story's theme.
-    (Story, context) => {
-      // Story-level parameters.theme takes priority
-      const storyTheme = context.parameters?.theme as 'light' | 'dark' | undefined;
+    // QueryClientProvider — required by any component that uses useQuery/useMutation
+    (Story) => {
+      const queryClient = makeQueryClient();
+      return React.createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        React.createElement(Story),
+      );
+    },
 
-      // Fall back to background switcher value
+    // ThemeProvider — forced theme from story parameters or background switcher
+    (Story, context) => {
+      const storyTheme = context.parameters?.theme as 'light' | 'dark' | undefined;
       const bg = context.globals?.backgrounds?.value;
       const bgTheme: 'light' | 'dark' = bg === '#ebfdfc' ? 'light' : 'dark';
-
       const forcedTheme = storyTheme ?? bgTheme;
 
       return React.createElement(
