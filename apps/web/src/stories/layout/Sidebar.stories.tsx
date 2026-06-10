@@ -5,19 +5,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useWebSocketStore } from '@/stores/websocket-store';
 import type { WsStatus } from '@/stores/websocket-store';
-import type { WorkspaceResponse } from '@/hooks/useWorkspace';
-import { MOCK_USER, MOCK_TOKENS } from '../../../tests/mocks/user';
-
-// ─── Fixtures ─────────────────────────────────────────────────────────────────
-
-const MOCK_WORKSPACE: WorkspaceResponse = {
-  id: 'workspace-123',
-  name: 'Ash Team',
-  slug: 'ash-team',
-  owner_id: 'user-123',
-  plan: 'free',
-  created_at: new Date().toISOString(),
-};
+import { MOCK_USER, MOCK_TOKENS, MOCK_WORKSPACE } from '../../../tests/mocks/user';
 
 // ─── Decorators ───────────────────────────────────────────────────────────────
 
