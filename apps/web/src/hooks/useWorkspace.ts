@@ -45,6 +45,10 @@ export interface WorkspaceResponse {
   owner_id: string;
   plan: string;
   created_at: string;
+  digest_enabled: boolean;
+  digest_send_time: string;
+  digest_timezone: string | null;
+  digest_days: string;
 }
 
 export const workspaceKeys = {
