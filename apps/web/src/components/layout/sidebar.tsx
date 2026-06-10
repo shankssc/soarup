@@ -17,7 +17,7 @@ interface SidebarProps {
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-  { href: '/history', label: 'History', icon: 'history' },
+  { href: '/history', label: 'History', icon: 'summarize' },
   {
     href: '/settings/members',
     label: 'Settings',
