@@ -30,7 +30,8 @@ class StorageRepository:
 
     def __init__(self) -> None:
         self.session = aioboto3.Session()
-        self.endpoint_url = settings.r2_public_endpoint_url
+        self.endpoint_url = settings.r2_endpoint_url
+        self.public_endpoint_url = settings.r2_public_endpoint_url
         self.access_key = settings.r2_access_key_id.get_secret_value() if settings.r2_access_key_id else ""
         self.secret_key = settings.r2_secret_access_key.get_secret_value() if settings.r2_secret_access_key else ""
         self.region_name = "auto"  # R2 uses "auto"
@@ -84,7 +85,7 @@ class StorageRepository:
                 )
 
                 # Construct public URL, Minio for local dev and cloudflare R2 for production
-                file_url = f"{self.endpoint_url}/{self.bucket_name}/{file_key}" if "localhost" in self.endpoint_url else f"https://{self.bucket_name}.r2.cloudflarestorage.com/{file_key}"
+                file_url = f"{self.public_endpoint_url}/{self.bucket_name}/{file_key}" if "localhost" in self.public_endpoint_url else f"https://{self.bucket_name}.r2.cloudflarestorage.com/{file_key}"
 
                 logger.info(
                     "file_uploaded",
@@ -148,7 +149,7 @@ class StorageRepository:
         try:
             async with self.session.client(
                 "s3",
-                endpoint_url=self.endpoint_url,
+                endpoint_url=self.public_endpoint_url,
                 aws_access_key_id=self.access_key,
                 aws_secret_access_key=self.secret_key,
                 region_name=self.region_name,
@@ -180,7 +181,7 @@ class StorageRepository:
         try:
             async with self.session.client(
                 "s3",
-                endpoint_url=self.endpoint_url,
+                endpoint_url=self.public_endpoint_url,
                 aws_access_key_id=self.access_key,
                 aws_secret_access_key=self.secret_key,
                 region_name=self.region_name,

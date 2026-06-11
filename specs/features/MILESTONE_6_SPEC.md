@@ -362,7 +362,7 @@ together warrants a dedicated pass.
 [x] Preview modal shows email rendering
 [x] All scaling debt items actioned (broadcaster removed, LEFT JOIN, etc.)
 [x] Backend unit tests pass for digest repo + service + router + email templates
-[ ] Frontend unit tests pass for DigestCard + useDigests + profile hooks  ← in progress
+[x] Frontend unit tests pass for DigestCard + useDigests + profile hooks  ← in progress
 [x] Storybook stories added for digest and profile components
 [ ] CI passes on feature/milestone-6 branch  ← pending frontend tests
 ```
