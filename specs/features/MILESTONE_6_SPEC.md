@@ -364,5 +364,5 @@ together warrants a dedicated pass.
 [x] Backend unit tests pass for digest repo + service + router + email templates
 [x] Frontend unit tests pass for DigestCard + useDigests + profile hooks  ← in progress
 [x] Storybook stories added for digest and profile components
-[ ] CI passes on feature/milestone-6 branch  ← pending frontend tests
+[x] CI passes on feature/milestone-6 branch  ← pending frontend tests
 ```
