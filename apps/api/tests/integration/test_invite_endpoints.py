@@ -182,12 +182,12 @@ async def public_client():
 
 
 class TestCreateInvite:
-    async def test_returns_201_with_invite(self, member_client):
+    async def test_returns_201_with_invite(self, admin_client):
         with patch(
             "app.routers.invites.InviteService.create_invite",
             new=AsyncMock(return_value=_make_invite_response()),
         ):
-            r = await member_client.post(
+            r = await admin_client.post(
                 f"/api/v1/workspaces/{WORKSPACE_ID}/invites",
                 json={"email": INVITEE_EMAIL},
             )
@@ -198,19 +198,19 @@ class TestCreateInvite:
         assert body["code"] == INVITE_CODE
         assert body["is_used"] is False
 
-    async def test_invalid_email_returns_422(self, member_client):
-        r = await member_client.post(
+    async def test_invalid_email_returns_422(self, admin_client):
+        r = await admin_client.post(
             f"/api/v1/workspaces/{WORKSPACE_ID}/invites",
             json={"email": "not-an-email"},
         )
         assert r.status_code == 422
 
-    async def test_workspace_not_found_returns_404(self, member_client):
+    async def test_workspace_not_found_returns_404(self, admin_client):
         with patch(
             "app.routers.invites.InviteService.create_invite",
             new=AsyncMock(side_effect=InviteError("workspace_not_found", "Workspace not found.")),
         ):
-            r = await member_client.post(
+            r = await admin_client.post(
                 "/api/v1/workspaces/nonexistent/invites",
                 json={"email": INVITEE_EMAIL},
             )
@@ -222,6 +222,13 @@ class TestCreateInvite:
             json={"email": INVITEE_EMAIL},
         )
         assert r.status_code == 401
+
+    async def test_member_gets_403(self, member_client):
+        r = await member_client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/invites",
+            json={"email": INVITEE_EMAIL},
+        )
+        assert r.status_code == 403
 
 
 # ---------------------------------------------------------------------------

@@ -84,12 +84,14 @@ def _mock_profile(
     full_name: str | None = "Test User",
     is_onboarded: bool = False,
     avatar_url: str | None = None,
+    timezone: str = "UTC",
 ) -> MagicMock:
     p = MagicMock()
     p.id = user_id
     p.full_name = full_name
     p.is_onboarded = is_onboarded
     p.avatar_url = avatar_url
+    p.timezone = timezone
     p.created_at = None
     p.updated_at = None
     p.last_login_at = None
