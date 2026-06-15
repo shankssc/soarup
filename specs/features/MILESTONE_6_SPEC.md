@@ -343,7 +343,7 @@ together warrants a dedicated pass.
 [x] PendingMembersRow shows on dashboard when team members haven't submitted
 [x] member.update_submitted event published and handled in useDashboardUpdates
 [x] Profile settings page — update name, timezone, upload/delete avatar
-[ ] Avatar shown in sidebar + update cards after upload  ← needs manual QA
+[x] Avatar shown in sidebar + update cards after upload  ← needs manual QA
 [x] Auto-accept invite after Step 1 — invited users skip workspace step
 [x] Invite code localStorage cleared after expiry window
 [x] Ownership transfer endpoint works

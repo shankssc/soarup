@@ -56,9 +56,9 @@ export default function ProfileSettingsPage() {
             <Image
               src={user.avatar_url}
               alt="Avatar"
-              width={32}
-              height={32}
-              className="rounded-full object-cover"
+              width={80}
+              height={80}
+              className="h-full w-full rounded-full object-cover"
             />
           ) : (
             <span className="text-2xl font-semibold text-primary-on-container">
