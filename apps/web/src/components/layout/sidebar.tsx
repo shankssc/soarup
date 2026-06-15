@@ -17,13 +17,20 @@ interface SidebarProps {
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-  { href: '/history', label: 'History', icon: 'history' },
+  { href: '/history', label: 'History', icon: 'summarize' },
   {
     href: '/settings/members',
     label: 'Settings',
     icon: 'settings',
     activePrefix: '/settings',
   },
+];
+
+const SETTINGS_LINKS = [
+  { href: '/settings/profile', label: 'Profile', icon: 'person' },
+  { href: '/settings/members', label: 'Members', icon: 'group' },
+  { href: '/settings/digest', label: 'Digest', icon: 'mail' },
+  { href: '/settings/workspace', label: 'Workspace', icon: 'business' },
 ];
 
 function NavIcon({ icon, filled }: { icon: string; filled?: boolean }) {
@@ -150,6 +157,31 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
               </Link>
             );
           })}
+
+          {/* Settings sub-links — shown when on any /settings/* route */}
+          {pathname.startsWith('/settings') && (
+            <div className="flex flex-col gap-0.5 px-3 py-1">
+              {SETTINGS_LINKS.map(({ href, label, icon }) => {
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={cn(
+                      'flex items-center gap-2.5 rounded px-3 py-2 font-label text-xs uppercase tracking-[0.06em] transition-colors',
+                      isActive
+                        ? 'text-primary'
+                        : 'text-on-surface-variant hover:text-on-surface',
+                    )}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <NavIcon icon={icon} filled={isActive} />
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Connection indicator */}

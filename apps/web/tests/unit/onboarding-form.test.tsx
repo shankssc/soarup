@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe';
 import * as axeMatchers from 'vitest-axe/matchers';
 import { OnboardingForm } from '@/components/domain/auth/onboarding-form';
 import { useAuthStore } from '@/hooks/useAuth';
+import { MOCK_TOKENS, MOCK_USER } from '../mocks/user';
 
 expect.extend(axeMatchers);
 
@@ -33,26 +34,10 @@ vi.mock('@/lib/utils/timezones', async (importOriginal) => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const mockUser = {
-  id: 'user-123',
-  email: 'test@example.com',
-  full_name: null as string | null,
-  avatar_url: null,
-  email_verified: true,
-  is_onboarded: false,
-  created_at: new Date().toISOString(),
-};
-
-const mockTokens = {
-  access_token: 'mock-token',
-  refresh_token: 'mock-refresh',
-  expires_at: Date.now() + 3600 * 1000,
-};
-
-function seedStore(overrides: Partial<typeof mockUser> = {}) {
+function seedStore(overrides: Partial<typeof MOCK_USER> = {}) {
   useAuthStore.setState({
-    user: { ...mockUser, ...overrides },
-    tokens: mockTokens,
+    user: { ...MOCK_USER, ...overrides },
+    tokens: MOCK_TOKENS,
     isLoading: false,
     error: null,
   });
@@ -207,7 +192,7 @@ describe('Step 1 — API interaction', () => {
     await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
     const headers = (vi.mocked(fetch).mock.calls[0][1] as RequestInit)
       .headers as Record<string, string>;
-    expect(headers['Authorization']).toBe('Bearer mock-token');
+    expect(headers['Authorization']).toBe('Bearer mock-access-token');
   });
 
   it('sends selected timezone in PATCH payload', async () => {

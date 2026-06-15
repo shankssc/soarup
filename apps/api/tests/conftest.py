@@ -86,6 +86,7 @@ async def test_engine(test_settings):
     engine = create_async_engine(test_settings.database_url, echo=False)
 
     # Import all models so their tables register on Base.metadata
+    import app.models.digest  # noqa: F401
     import app.models.invite  # noqa: F401
     import app.models.profile  # noqa: F401
     import app.models.update  # noqa: F401
@@ -414,10 +415,33 @@ async def seeded_profile(db_session, test_user_id):
 
 
 @pytest_asyncio.fixture
+async def seeded_workspace(db_session, seeded_profile, test_user_id):
+    """Workspace owned by test_user_id — satisfies FK constraints for digest tests."""
+    from app.models.workspace import Workspace
+
+    workspace = Workspace(
+        owner_id=test_user_id,
+        name="Test Workspace",
+        slug=f"test-ws-{test_user_id[:8]}",
+        plan="free",
+    )  # type: ignore[call-arg]
+    db_session.add(workspace)
+    await db_session.flush()
+    return workspace
+
+
+@pytest_asyncio.fixture
 async def workspace_repo(db_session):
     from app.repositories.workspace_repo import WorkspaceRepository
 
     return WorkspaceRepository.from_session(db_session)
+
+
+@pytest_asyncio.fixture
+async def digest_repo(db_session):
+    from app.repositories.digest_repo import DigestRepository
+
+    return DigestRepository.from_session(db_session)
 
 
 # Expose helpers for use in test files

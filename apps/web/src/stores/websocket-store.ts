@@ -28,7 +28,10 @@ export const useWebSocketStore = create<WebSocketState>()((set) => ({
   lastEventId: null,
   reconnectAttempts: 0,
   setStatus: (status) => set({ status }),
-  setLastEventId: (id) => set({ lastEventId: id }),
+  setLastEventId: (id) => {
+    sessionStorage.setItem('soarup_ws_last_event_id', id);
+    set({ lastEventId: id });
+  },
   incrementReconnectAttempts: () =>
     set((s) => ({ reconnectAttempts: s.reconnectAttempts + 1 })),
   resetReconnectAttempts: () => set({ reconnectAttempts: 0 }),

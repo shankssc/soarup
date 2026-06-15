@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AudioPlayer } from '@/components/ui/audio-player';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useAudioPlaybackUrl } from '@/hooks/useAudio';
+import { MOCK_TOKENS, MOCK_USER } from '../mocks/user';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -22,22 +23,6 @@ vi.mock('@/hooks/useAudio', () => ({
 }));
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
-
-const MOCK_USER = {
-  id: 'user-123',
-  email: 'jane@example.com',
-  full_name: 'Jane Doe',
-  avatar_url: null,
-  email_verified: true,
-  is_onboarded: true,
-  created_at: new Date().toISOString(),
-};
-
-const MOCK_TOKENS = {
-  access_token: 'mock-access-token',
-  refresh_token: 'mock-refresh-token',
-  expires_at: Date.now() + 3600 * 1000,
-};
 
 const MOCK_WORKSPACE_ID = 'workspace-123';
 const MOCK_UPDATE_ID = 'update-voice-abc';

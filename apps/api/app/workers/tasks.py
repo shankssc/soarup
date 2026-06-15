@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -460,3 +461,325 @@ def preload_whisper_model(**kwargs: Any) -> None:
     logger.info("preloading_whisper_model")
     get_whisper_model()
     logger.info("whisper_model_ready")
+
+
+# ---------------------------------------------------------------------------
+# Digest tasks
+# ---------------------------------------------------------------------------
+
+
+@celery_app.task(  # type: ignore[misc]
+    bind=True,
+    base=ProcessUpdateTask,
+    name="app.workers.tasks.check_and_send_digests",
+    max_retries=0,  # Polling task — no retries, next tick will re-check
+    acks_late=True,
+)
+def check_and_send_digests(self: ProcessUpdateTask) -> None:
+    """
+    Polling task run every 5 minutes by Celery Beat.
+    Checks all digest-enabled workspaces and enqueues send_workspace_digest
+    for any workspace whose send_time + digest_days conditions are met.
+    """
+    asyncio.run(_check_and_send_digests_async(self))
+
+
+@celery_app.task(  # type: ignore[misc]
+    bind=True,
+    base=ProcessUpdateTask,
+    name="app.workers.tasks.send_workspace_digest",
+    max_retries=2,
+    default_retry_delay=60,
+    retry_backoff=True,
+    retry_backoff_max=300,
+    retry_jitter=True,
+    acks_late=True,
+)
+def send_workspace_digest(self: ProcessUpdateTask, workspace_id: str, digest_date: str) -> None:
+    """
+    Generate and send the daily digest for a single workspace.
+
+    Flow:
+        1. Idempotency check — skip if digest already sent today
+        2. Create Digest record (status=pending)
+        3. Fetch all processed updates for workspace + date
+        4. Skip + mark failed if no updates exist
+        5. Set status → processing
+        6. Build prompt from update summaries
+        7. Call Claude Sonnet (Haiku fallback on retry)
+        8. Store DigestItems + update Digest (status=processing→sent pending email)
+        9. Fetch member emails (email_notifications=True only)
+        10. Render digest email HTML via Jinja2
+        11. Send via Resend, set status → sent | failed
+    """
+    asyncio.run(_send_workspace_digest_async(self, workspace_id, digest_date))
+
+
+async def _check_and_send_digests_async(task: ProcessUpdateTask) -> None:
+    """
+    Async implementation of the digest polling task.
+    Timezone-aware: converts workspace send_time to UTC before comparing
+    against current UTC time, accurate to the nearest 5-minute window.
+    """
+    from datetime import datetime
+
+    import pytz  # type: ignore
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.repositories.profile_repo import ProfileRepository
+    from app.repositories.workspace_repo import WorkspaceRepository
+
+    async_session = async_sessionmaker(task.db_engine, expire_on_commit=False)
+
+    async with async_session() as db:
+        workspace_repo = WorkspaceRepository.from_session(db)
+        profile_repo = ProfileRepository.from_session(db)
+
+        workspaces = await workspace_repo.get_digest_enabled_workspaces()
+        now_utc = datetime.now(UTC)
+
+        logger.info(
+            "check_digests_tick",
+            workspace_count=len(workspaces),
+            utc_time=now_utc.isoformat(),
+        )
+
+        for workspace in workspaces:
+            try:
+                # 1. Resolve timezone — workspace override or owner profile fallback
+                tz_str = workspace.digest_timezone
+                if not tz_str:
+                    owner = await profile_repo.get_by_user_id(workspace.owner_id)
+                    tz_str = owner.timezone if owner and owner.timezone else "UTC"
+
+                try:
+                    tz = pytz.timezone(tz_str)
+                except pytz.UnknownTimeZoneError:
+                    logger.warning(
+                        "unknown_digest_timezone",
+                        workspace_id=workspace.id,
+                        tz_str=tz_str,
+                    )
+                    tz = pytz.UTC
+
+                # 2. Current time in workspace timezone
+                now_local = now_utc.astimezone(tz)
+                today_str = now_local.strftime("%Y-%m-%d")
+
+                # 3. Check digest_days — comma-separated ISO weekday (1=Mon, 7=Sun)
+                enabled_days = [d.strip() for d in workspace.digest_days.split(",")]
+                current_iso_weekday = str(now_local.isoweekday())
+                if current_iso_weekday not in enabled_days:
+                    continue
+
+                # 4. Check send_time — HH:MM match within 5-minute window
+                send_h, send_m = map(int, workspace.digest_send_time.split(":"))
+                current_h = now_local.hour
+                current_m = now_local.minute
+
+                # Window: [send_time, send_time + 5min)
+                send_total = send_h * 60 + send_m
+                current_total = current_h * 60 + current_m
+                if not (send_total <= current_total < send_total + 5):
+                    continue
+
+                # 5. All conditions met — enqueue per-workspace digest task
+                logger.info(
+                    "enqueuing_workspace_digest",
+                    workspace_id=workspace.id,
+                    digest_date=today_str,
+                )
+                send_workspace_digest.delay(workspace.id, today_str)
+
+            except Exception as e:
+                # Never let one workspace failure block the others
+                logger.error(
+                    "check_digest_workspace_error",
+                    workspace_id=workspace.id,
+                    error=str(e),
+                )
+                continue
+
+
+async def _send_workspace_digest_async(
+    task: ProcessUpdateTask,
+    workspace_id: str,
+    digest_date: str,
+) -> None:
+    """
+    Async implementation of the per-workspace digest send pipeline.
+    """
+    from datetime import datetime
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.lib.claude import summarise
+    from app.lib.email import render_digest_email, send_digest_email
+    from app.repositories.digest_repo import DigestRepository
+    from app.repositories.update_repo import UpdateRepository
+    from app.repositories.workspace_repo import WorkspaceRepository
+    from app.workers.prompts import build_digest_prompt
+
+    async_session = async_sessionmaker(task.db_engine, expire_on_commit=False)
+
+    async with async_session() as db:
+        digest_repo = DigestRepository.from_session(db)
+        update_repo = UpdateRepository.from_session(db)
+        workspace_repo = WorkspaceRepository.from_session(db)
+
+        workspace = await workspace_repo.get_by_id(workspace_id)
+        if not workspace:
+            logger.warning(
+                "send_digest_workspace_not_found",
+                workspace_id=workspace_id,
+            )
+            return
+
+        # 1. Idempotency — skip if a sent digest already exists for this date
+        existing = await digest_repo.get_for_workspace_date(workspace_id, digest_date)
+        if existing and existing.status == "sent":
+            logger.info(
+                "digest_already_sent",
+                workspace_id=workspace_id,
+                digest_date=digest_date,
+            )
+            return
+
+        # 2. Create digest record (or reuse existing failed/pending one)
+        if existing:
+            digest = existing
+        else:
+            digest = await digest_repo.create(
+                workspace_id=workspace_id,
+                digest_date=digest_date,
+            )
+
+        # 3. Fetch all processed updates for this workspace + date
+        all_updates = await update_repo.get_workspace_updates_for_date(
+            workspace_id=workspace_id,
+            update_date=digest_date,
+        )
+        updates = [u for u in all_updates if u.status == "processed"]
+
+        # 4. No processed updates — mark failed and exit
+        if not updates:
+            await digest_repo.update_status(digest.id, status="failed")
+            logger.info(
+                "digest_skipped_no_updates",
+                workspace_id=workspace_id,
+                digest_date=digest_date,
+            )
+            return
+
+        # 5. Set status → processing
+        await digest_repo.update_status(digest.id, status="processing")
+
+        # 6. Build prompt from individual summaries
+        summaries_text = "\n\n".join(f"- {u.summary or u.content}" for u in updates)
+        prompt = build_digest_prompt(
+            workspace_name=workspace.name,
+            digest_date=digest_date,
+            summaries=summaries_text,
+            custom_prompt=getattr(workspace, "digest_prompt", None),
+        )
+
+        # 7. Call Claude — Sonnet primary, Haiku fallback on retry
+        use_fallback = task.request.retries > 0
+        try:
+            team_summary = await summarise(prompt, use_fallback=use_fallback)
+        except Exception as exc:
+            logger.warning(
+                "digest_summarise_failed",
+                workspace_id=workspace_id,
+                attempt=task.request.retries + 1,
+                error=str(exc),
+            )
+            if task.request.retries >= task.max_retries:
+                await digest_repo.update_status(digest.id, status="failed")
+            raise exc
+
+        # 8. Persist DigestItems + update count on digest record
+        user_ids = [u.user_id for u in updates]
+        profiles_by_id = await workspace_repo.get_profiles_for_updates(user_ids)
+
+        items_payload = []
+        for u in updates:
+            profile = profiles_by_id.get(u.user_id)
+            items_payload.append(
+                {
+                    "update_id": u.id,
+                    "author_name": profile.full_name if profile else None,
+                    "summary_snapshot": u.summary,
+                }
+            )
+
+        await digest_repo.add_items(digest.id, items_payload)
+        await digest_repo.update_status(
+            digest.id,
+            status="processing",  # still processing — email not sent yet
+            summary=team_summary,
+            update_count=len(updates),
+        )
+
+        # 9. Fetch recipients — members with email_notifications=True + email set
+        rows = await workspace_repo.get_workspace_members_with_profiles(workspace_id)
+        to_emails = [
+            profile.email
+            for _, profile in rows
+            if profile
+            and profile.email_notifications  # on Profile, not WorkspaceMember
+            and profile.email
+        ]
+
+        if not to_emails:
+            logger.warning(
+                "digest_no_recipients",
+                workspace_id=workspace_id,
+                digest_date=digest_date,
+            )
+            # Still mark sent — digest was generated, delivery is best-effort
+            await digest_repo.update_status(
+                digest.id,
+                status="sent",
+                email_sent_at=datetime.now(UTC),
+            )
+            return
+
+        # 10. Render email HTML
+        items_for_template = [
+            {
+                "author_name": item["author_name"],
+                "summary_snapshot": item["summary_snapshot"],
+            }
+            for item in items_payload
+        ]
+        html = render_digest_email(
+            workspace_name=workspace.name,
+            digest_date=digest_date,
+            team_summary=team_summary,
+            items=items_for_template,
+            unsubscribe_url="",  # post-M6 feature
+        )
+
+        # 11. Send + finalize status
+        sent = await send_digest_email(
+            to_emails=to_emails,
+            workspace_name=workspace.name,
+            digest_date=digest_date,
+            html=html,
+        )
+
+        final_status = "sent" if sent else "failed"
+        await digest_repo.update_status(
+            digest.id,
+            status=final_status,
+            email_sent_at=datetime.now(UTC) if sent else None,
+        )
+
+        logger.info(
+            "digest_complete",
+            workspace_id=workspace_id,
+            digest_date=digest_date,
+            status=final_status,
+            recipient_count=len(to_emails),
+        )

@@ -84,10 +84,17 @@ def require_workspace_role(required_role: str) -> Callable[..., Coroutine[Any, A
     return checker
 
 
+# Capture the checker functions at module load time — these are the exact
+# objects FastAPI registers as dependencies. Exposing them allows tests to
+# override them via app.dependency_overrides without needing lru_cache.
+_member_checker = require_workspace_role("member")
+_admin_checker = require_workspace_role("admin")
+_owner_checker = require_workspace_role("owner")
+
 # ---------------------------------------------------------------------------
 # Convenience type aliases — use these in router signatures
 # ---------------------------------------------------------------------------
 
-WorkspaceMemberDep = Annotated[dict[str, Any], Depends(require_workspace_role("member"))]
-WorkspaceAdminDep = Annotated[dict[str, Any], Depends(require_workspace_role("admin"))]
-WorkspaceOwnerDep = Annotated[dict[str, Any], Depends(require_workspace_role("owner"))]
+WorkspaceMemberDep = Annotated[dict[str, Any], Depends(_member_checker)]
+WorkspaceAdminDep = Annotated[dict[str, Any], Depends(_admin_checker)]
+WorkspaceOwnerDep = Annotated[dict[str, Any], Depends(_owner_checker)]

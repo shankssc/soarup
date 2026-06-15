@@ -4,7 +4,7 @@ import structlog
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 
-from app.api import ApiVersionDep, DBSessionDep, OnboardedDep, create_error_response, create_success_response, handle_update_error
+from app.api import ApiVersionDep, DBSessionDep, OnboardedDep, RedisDep, create_error_response, create_success_response, handle_update_error
 from app.schemas.update import SubmitUpdateRequest, UpdateUpdateRequest
 from app.services.update_service import UpdateError, UpdateService
 
@@ -12,8 +12,8 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/workspaces", tags=["updates"])
 
 
-def get_update_service(db: DBSessionDep) -> UpdateService:
-    return UpdateService(db)
+def get_update_service(db: DBSessionDep, redis: RedisDep) -> UpdateService:
+    return UpdateService(db, redis=redis)
 
 
 @router.post("/{workspace_id}/updates", status_code=202)

@@ -5,18 +5,71 @@
 # raise exceptions. The invite record is already created in the DB at the
 # point this is called. A failed email means the admin can still copy and
 # share the invite link manually from the pending invites list.
-#
-# React Email templates are deferred to M6 when the digest email is built —
-# doing both invite and digest templates in one pass is more efficient.
 
 import asyncio
+from pathlib import Path
+from typing import Any
 
 import resend
 import structlog
+from jinja2 import Environment, FileSystemLoader
+from resend import Emails
 
 from app.config import settings
 
 logger = structlog.get_logger(__name__)
+
+# ---------------------------------------------------------------------------
+# Jinja2 environment
+# ---------------------------------------------------------------------------
+
+_TEMPLATE_DIR = Path(__file__).parent.parent / "email_templates"
+_jinja = Environment(
+    loader=FileSystemLoader(str(_TEMPLATE_DIR)),
+    autoescape=True,
+)
+
+
+# ---------------------------------------------------------------------------
+# Template renderers
+# ---------------------------------------------------------------------------
+
+
+def render_invite_email(
+    workspace_name: str,
+    inviter_name: str,
+    invite_url: str,
+    expires_in_days: int = 7,
+) -> str:
+    tmpl = _jinja.get_template("invite_email.html")
+    return tmpl.render(
+        workspace_name=workspace_name,
+        inviter_name=inviter_name,
+        invite_url=invite_url,
+        expires_in_days=expires_in_days,
+    )
+
+
+def render_digest_email(
+    workspace_name: str,
+    digest_date: str,
+    team_summary: str,
+    items: list[dict[str, Any]],
+    unsubscribe_url: str,
+) -> str:
+    tmpl = _jinja.get_template("digest_email.html")
+    return tmpl.render(
+        workspace_name=workspace_name,
+        digest_date=digest_date,
+        team_summary=team_summary,
+        items=items,
+        unsubscribe_url=unsubscribe_url,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Senders
+# ---------------------------------------------------------------------------
 
 
 async def send_invite_email(
@@ -47,13 +100,13 @@ async def send_invite_email(
     try:
         resend.api_key = settings.resend_api_key.get_secret_value()
 
-        params: resend.Emails.SendParams = {
+        params: Emails.SendParams = {
             "from": f"SoarUp <{settings.resend_from_email}>",
             "to": [to_email],
             "subject": (f"{invited_by_name} invited you to join " f"{workspace_name} on SoarUp"),
-            "html": _invite_email_html(
+            "html": render_invite_email(
                 workspace_name=workspace_name,
-                invited_by_name=invited_by_name,
+                inviter_name=invited_by_name,
                 invite_url=invite_url,
                 expires_in_days=expires_in_days,
             ),
@@ -71,35 +124,58 @@ async def send_invite_email(
         return False
 
 
-def _invite_email_html(
+async def send_digest_email(
+    to_emails: list[str],
     workspace_name: str,
-    invited_by_name: str,
-    invite_url: str,
-    expires_in_days: int,
-) -> str:
+    digest_date: str,
+    html: str,
+) -> bool:
     """
-    Plain HTML invite email — minimal styling, high deliverability.
-    React Email template pass deferred to M6 alongside digest email.
+    Send a digest email to all opted-in workspace members via Resend.
+
+    Args:
+        to_emails:      List of recipient email addresses. Members with
+                        email_notifications=False are excluded upstream
+                        by the caller.
+        workspace_name: Used in the email subject line.
+        digest_date:    ISO date string (YYYY-MM-DD).
+        html:           Pre-rendered HTML from render_digest_email.
+
+    Returns:
+        True if Resend accepted the request, False on any exception.
     """
-    return f"""<!DOCTYPE html>
-<html>
-<body style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-  <h2 style="font-size: 20px; margin-bottom: 8px;">
-    You've been invited to join {workspace_name}
-  </h2>
-  <p style="color: #666; margin-bottom: 24px;">
-    {invited_by_name} has invited you to join their workspace on SoarUp,
-    an async standup tool for developers.
-  </p>
-  <a href="{invite_url}"
-     style="display: inline-block; background: #00687a; color: white;
-            padding: 12px 24px; text-decoration: none; font-weight: 600;
-            font-family: system-ui, sans-serif;">
-    Accept invite
-  </a>
-  <p style="color: #999; font-size: 12px; margin-top: 24px;">
-    This invite expires in {expires_in_days} days.
-    If you didn't expect this email, you can safely ignore it.
-  </p>
-</body>
-</html>"""
+    if not settings.resend_api_key:
+        logger.info(
+            "digest_email_dev_mode",
+            to=to_emails,
+            workspace=workspace_name,
+            digest_date=digest_date,
+            note="Set RESEND_API_KEY to enable real email delivery",
+        )
+        return True
+
+    try:
+        resend.api_key = settings.resend_api_key.get_secret_value()
+
+        params: Emails.SendParams = {
+            "from": f"SoarUp <{settings.resend_from_email}>",
+            "to": to_emails,
+            "subject": f"{workspace_name} standup digest — {digest_date}",
+            "html": html,
+        }
+        await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(
+            "digest_email_sent",
+            workspace=workspace_name,
+            digest_date=digest_date,
+            recipient_count=len(to_emails),
+        )
+        return True
+    except Exception as e:
+        logger.error(
+            "digest_email_failed",
+            workspace=workspace_name,
+            digest_date=digest_date,
+            error=str(e),
+        )
+        return False

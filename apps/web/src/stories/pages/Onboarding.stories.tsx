@@ -16,6 +16,7 @@ const MOCK_USER_NEEDS_ONBOARDING: UserProfile = {
   avatar_url: null,
   email_verified: true,
   is_onboarded: false,
+  timezone: 'UTC',
   created_at: new Date().toISOString(),
 };
 

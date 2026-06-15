@@ -9,6 +9,8 @@ import { UpdateForm } from '@/components/domain/updates/update-form';
 import { VoiceRecorder } from '@/components/domain/updates/voice-recorder';
 import { Button } from '@/components/ui/button';
 import type { UpdateResponse } from '@/hooks/useUpdates';
+import type { WorkspaceMember } from '@/hooks/useWorkspaceMembers';
+import { PendingMembersRow } from '@/components/domain/dashboard/pending-members-row';
 
 export interface DashboardViewProps {
   updates: UpdateResponse[];
@@ -20,6 +22,7 @@ export interface DashboardViewProps {
   workspaceId: string;
   todayLabel: string;
   today: string;
+  pendingMembers: WorkspaceMember[];
   onSubmitClick: () => void;
   onVoiceClick: () => void;
   onFormSubmit: (content: string) => Promise<void>;
@@ -45,6 +48,7 @@ export function DashboardView({
   workspaceId,
   todayLabel,
   today,
+  pendingMembers,
   onSubmitClick,
   onVoiceClick,
   onFormSubmit,
@@ -111,6 +115,9 @@ export function DashboardView({
           )}
         </>
       )}
+
+      {/* Pending members */}
+      <PendingMembersRow members={pendingMembers} />
 
       {/* Updates list */}
       {isLoading ? (

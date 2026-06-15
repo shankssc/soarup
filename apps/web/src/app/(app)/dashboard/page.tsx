@@ -15,6 +15,7 @@ import {
 } from '@/hooks/useUpdates';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useDashboardUpdates } from '@/hooks/useDashboardUpdates';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { DashboardView } from '@/components/domain/dashboard/dashboard-view';
 
 export default function DashboardPage() {
@@ -28,6 +29,11 @@ export default function DashboardPage() {
 
   const { data: updatesData, isLoading } = useUpdates(workspace?.id, today);
   const updates = updatesData?.updates ?? [];
+
+  const { data: membersData } = useWorkspaceMembers(workspace?.id);
+  const pendingMembers = (membersData?.members ?? []).filter(
+    (m) => !updates.some((u) => u.user_id === m.user_id),
+  );
 
   const submitMutation = useSubmitUpdate(workspace?.id ?? '');
   const editMutation = useEditUpdate(workspace?.id ?? '');
@@ -84,6 +90,7 @@ export default function DashboardPage() {
       workspaceId={workspace?.id ?? ''}
       todayLabel={todayLabel}
       today={today}
+      pendingMembers={pendingMembers}
       onSubmitClick={() => setShowForm(true)}
       onVoiceClick={() => setShowVoiceRecorder(true)}
       onFormSubmit={handleSubmit}

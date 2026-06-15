@@ -5,29 +5,14 @@ import React, { useEffect } from 'react';
 import { OnboardingForm } from '@/components/domain/auth/onboarding-form';
 import AuthLayout from '@/app/(auth)/layout';
 import { useAuthStore } from '@/hooks/useAuth';
-import type { UserProfile, AuthTokens } from '@/hooks/useAuth';
+import type { UserProfile } from '@/hooks/useAuth';
+import { MOCK_USER, MOCK_TOKENS } from '../../../tests/mocks/user';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
-
-const MOCK_USER: UserProfile = {
-  id: 'user-123',
-  email: 'jane@example.com',
-  full_name: null,
-  avatar_url: null,
-  email_verified: true,
-  is_onboarded: false,
-  created_at: new Date().toISOString(),
-};
 
 const MOCK_USER_OAUTH: UserProfile = {
   ...MOCK_USER,
   full_name: 'Jane Doe',
-};
-
-const MOCK_TOKENS: AuthTokens = {
-  access_token: 'mock-access-token',
-  refresh_token: 'mock-refresh-token',
-  expires_at: Date.now() + 3600 * 1000,
 };
 
 // ─── Store seeder ─────────────────────────────────────────────────────────────

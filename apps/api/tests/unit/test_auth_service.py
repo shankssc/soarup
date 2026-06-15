@@ -592,6 +592,7 @@ class TestMapUserToResponse:
     def test_avatar_url_from_profile(self):
         service, _, _ = _make_service()
         profile = _mock_profile(avatar_url="https://cdn.example.com/avatar.jpg")
+        profile.timezone = "UTC"
 
         result = service._map_user_to_response(_supabase_user(), profile)
 

@@ -250,7 +250,7 @@ class WorkspaceRepository:
             Used by the members list endpoint and team dashboard to avoid
             N+1 profile lookups.
         """
-        result = await self.db.execute(select(WorkspaceMember, Profile).join(Profile, WorkspaceMember.user_id == Profile.id).where(WorkspaceMember.workspace_id == workspace_id).order_by(WorkspaceMember.joined_at.asc()))
+        result = await self.db.execute(select(WorkspaceMember, Profile).outerjoin(Profile, WorkspaceMember.user_id == Profile.id).where(WorkspaceMember.workspace_id == workspace_id).order_by(WorkspaceMember.joined_at.asc()))
         return [(row[0], row[1]) for row in result.all()]
 
     async def update_member_role(
@@ -323,3 +323,15 @@ class WorkspaceRepository:
         result = await self.db.execute(select(Profile).where(Profile.id.in_(user_ids)))
         profiles = result.scalars().all()
         return {p.id: p for p in profiles}
+
+    # === Digest methods ===
+
+    async def get_digest_enabled_workspaces(self) -> list[Workspace]:
+        """
+        Fetch all workspaces with digest_enabled=True.
+        Called by the Celery beat task every 5 minutes.
+        """
+        result = await self.db.execute(
+            select(Workspace).where(Workspace.digest_enabled == True)  # noqa: E712
+        )
+        return list(result.scalars().all())

@@ -55,7 +55,7 @@ class ProfileRepository:
     async def create(
         self,
         user_id: str,
-        email: str,  # noqa: ARG002 - kept for API consistency
+        email: str,
         full_name: str | None = None,
     ) -> Profile:
         """
@@ -77,6 +77,7 @@ class ProfileRepository:
             full_name=full_name,
             email_notifications=True,
             timezone="UTC",
+            email=email,
         )
         self.db.add(profile)
         try:
