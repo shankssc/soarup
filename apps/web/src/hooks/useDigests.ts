@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { useAuth } from '@/hooks/useAuth';
+import { workspaceKeys } from '@/hooks/useWorkspace';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -129,6 +130,9 @@ export function useUpdateDigestSettings(workspaceId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: digestKeys.settings(workspaceId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: workspaceKeys.mine(),
       });
     },
   });

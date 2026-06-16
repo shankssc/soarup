@@ -5,8 +5,9 @@
 'use client';
 
 import * as React from 'react';
-import { useWorkspace } from '@/hooks/useWorkspace';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateDigestSettings, useDigestPreview } from '@/hooks/useDigests';
+import { useWorkspace, workspaceKeys } from '@/hooks/useWorkspace';
 import {
   DigestSettingsPanel,
   type DigestSettingsValues,
@@ -18,6 +19,7 @@ export default function DigestSettingsPage() {
 
   const updateSettings = useUpdateDigestSettings(workspaceId);
   const digestPreview = useDigestPreview(workspaceId);
+  const queryClient = useQueryClient();
 
   // Local form state — initialised from workspace once loaded
   const [values, setValues] = React.useState<DigestSettingsValues>({
@@ -41,6 +43,18 @@ export default function DigestSettingsPage() {
     setIsDirty(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace?.id]); // only re-sync on workspace change, not on every render
+
+  React.useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible' && !isDirty) {
+        queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isDirty, queryClient]);
 
   function update(patch: Partial<DigestSettingsValues>) {
     setValues((prev) => ({ ...prev, ...patch }));

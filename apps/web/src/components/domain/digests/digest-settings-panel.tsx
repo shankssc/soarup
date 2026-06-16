@@ -174,7 +174,7 @@ export function DigestSettingsPanel({
   }
 
   async function handlePreviewClick() {
-    await onPreview();
+    if (!previewHtml) await onPreview();
     setShowPreview(true);
   }
 
