@@ -128,7 +128,7 @@ export function DigestCard({ digest, workspaceId }: DigestCardProps) {
               {isLoadingItems ? (
                 // Skeleton while detail loads
                 <div className="flex flex-col gap-2 py-1">
-                  {Array.from({ length: digest.update_count }).map((_, i) => (
+                  {Array.from({ length: Math.min(digest.update_count, 5) }).map((_, i) => (
                     <div key={i} className="flex gap-3 py-2.5">
                       <div className="h-6 w-6 shrink-0 animate-pulse rounded-full bg-surface-high" />
                       <div className="flex flex-1 flex-col gap-1.5">
