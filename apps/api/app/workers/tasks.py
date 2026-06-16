@@ -522,8 +522,8 @@ async def _check_and_send_digests_async(task: ProcessUpdateTask) -> None:
     against current UTC time, accurate to the nearest 5-minute window.
     """
     from datetime import datetime
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-    import pytz  # type: ignore
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.repositories.profile_repo import ProfileRepository
@@ -553,14 +553,14 @@ async def _check_and_send_digests_async(task: ProcessUpdateTask) -> None:
                     tz_str = owner.timezone if owner and owner.timezone else "UTC"
 
                 try:
-                    tz = pytz.timezone(tz_str)
-                except pytz.UnknownTimeZoneError:
+                    tz = ZoneInfo(tz_str)
+                except ZoneInfoNotFoundError:
                     logger.warning(
                         "unknown_digest_timezone",
                         workspace_id=workspace.id,
                         tz_str=tz_str,
                     )
-                    tz = pytz.UTC
+                    tz = ZoneInfo("UTC")
 
                 # 2. Current time in workspace timezone
                 now_local = now_utc.astimezone(tz)
