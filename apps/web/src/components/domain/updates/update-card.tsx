@@ -274,7 +274,7 @@ export function UpdateCard({
   });
 
   return (
-    <div className="flex flex-col gap-4 border border-outline-variant bg-surface-high p-6">
+    <div className="shadow-card card-interactive flex flex-col gap-4 border border-outline-variant bg-surface-high p-6">
       {/* Header: avatar + meta + badges + menu */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
@@ -401,7 +401,7 @@ export function UpdateCard({
           {/* Summary — shown for both text and voice once processed */}
           {update.status === 'processed' && update.summary && (
             <CollapsibleSection label="Summary" defaultOpen={!isVoice}>
-              <div className="border-l-2 border-primary-container pl-3">
+              <div className="border-l-2 border-primary pl-3">
                 <p className="font-headline text-sm italic leading-relaxed text-on-surface-variant">
                   {update.summary}
                 </p>

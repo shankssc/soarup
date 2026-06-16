@@ -107,7 +107,7 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
     <>
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <nav
-        className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-outline-variant bg-surface-lowest md:flex"
+        className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-outline-variant bg-surface-low md:flex"
         aria-label="Main navigation"
       >
         {/* Brand */}
@@ -147,8 +147,8 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
                 className={cn(
                   'flex items-center gap-3 px-6 py-2.5 font-label text-sm font-bold uppercase tracking-[0.06em] transition-colors',
                   isActive
-                    ? 'border-r-2 border-primary bg-surface-high text-primary'
-                    : 'text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
+                    ? 'shadow-card border-l-2 border-primary bg-surface-high text-primary'
+                    : 'border-l-2 border-transparent text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
                 )}
                 aria-current={isActive ? 'page' : undefined}
               >
@@ -170,8 +170,8 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
                     className={cn(
                       'flex items-center gap-2.5 rounded px-3 py-2 font-label text-xs uppercase tracking-[0.06em] transition-colors',
                       isActive
-                        ? 'text-primary'
-                        : 'text-on-surface-variant hover:text-on-surface',
+                        ? 'border-l-2 border-primary pl-2.5 text-primary'
+                        : 'border-l-2 border-transparent pl-2.5 text-on-surface-variant hover:text-on-surface',
                     )}
                     aria-current={isActive ? 'page' : undefined}
                   >

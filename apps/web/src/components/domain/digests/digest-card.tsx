@@ -63,7 +63,7 @@ export function DigestCard({ digest, workspaceId }: DigestCardProps) {
   const canExpand = digest.update_count > 0;
 
   return (
-    <div className="border border-outline-variant bg-surface">
+    <div className="shadow-card card-interactive border border-outline-variant bg-surface">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 border-b border-outline-variant p-4">
         <div className="flex flex-col gap-1.5">
