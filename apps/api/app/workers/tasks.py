@@ -664,6 +664,7 @@ async def _send_workspace_digest_async(
         # 4. No processed updates — mark failed and exit
         if not updates:
             await digest_repo.update_status(digest.id, status="failed")
+            await db.commit()
             logger.info(
                 "digest_skipped_no_updates",
                 workspace_id=workspace_id,
@@ -743,6 +744,7 @@ async def _send_workspace_digest_async(
                 status="sent",
                 email_sent_at=datetime.now(UTC),
             )
+            await db.commit()
             return
 
         # 10. Render email HTML
@@ -775,6 +777,7 @@ async def _send_workspace_digest_async(
             status=final_status,
             email_sent_at=datetime.now(UTC) if sent else None,
         )
+        await db.commit()
 
         logger.info(
             "digest_complete",
