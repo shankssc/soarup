@@ -216,4 +216,15 @@
   .card-interactive:hover {
     @apply shadow-card-hover;
   }
+
+  @keyframes page-load {
+    from {
+      width: 0%;
+      opacity: 1;
+    }
+    to {
+      width: 100%;
+      opacity: 0;
+    }
+  }
 }

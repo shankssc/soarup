@@ -98,7 +98,7 @@ const config: Config = {
       },
 
       fontFamily: {
-        headline: ["DM Sans", "system-ui", "sans-serif"],
+        headline: ["var(--font-dm-sans)", "system-ui", "sans-serif"],
         body:     ["Space Grotesk", "system-ui", "sans-serif"],
         label:    ["Space Grotesk", "system-ui", "sans-serif"],
         sans:     ["var(--font-space-grotesk)", "system-ui", "sans-serif"],
