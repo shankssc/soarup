@@ -160,7 +160,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
       </form>
 
       {/* Sign up link */}
-      <p className="text-center font-headline text-lg italic text-primary">
+      <p className="text-center font-headline text-lg text-primary">
         <button
           type="button"
           onClick={() => router.push('/signup')}

@@ -52,47 +52,83 @@ function NavIcon({ icon, filled }: { icon: string; filled?: boolean }) {
 function ConnectionIndicator() {
   const status = useWebSocketStore((s) => s.status);
 
-  if (status === 'connected' || status === 'idle') {
-    return (
-      <span
-        className="inline-block h-2 w-2 rounded-full bg-primary"
-        aria-label="Connected"
-      />
-    );
-  }
+  const PILL_STYLES = {
+    connected: {
+      pill: 'bg-emerald-50 border-emerald-200',
+      dot: 'bg-emerald-500',
+      text: 'text-emerald-800',
+      label: 'Live',
+      pulse: false,
+    },
+    idle: {
+      pill: 'bg-emerald-50 border-emerald-200',
+      dot: 'bg-emerald-500',
+      text: 'text-emerald-800',
+      label: 'Live',
+      pulse: false,
+    },
+    connecting: {
+      pill: 'bg-amber-50 border-amber-200',
+      dot: 'bg-amber-500',
+      text: 'text-amber-800',
+      label: 'Connecting',
+      pulse: true,
+    },
+    reconnecting: {
+      pill: 'bg-amber-50 border-amber-200',
+      dot: 'bg-amber-500',
+      text: 'text-amber-800',
+      label: 'Reconnecting...',
+      pulse: true,
+    },
+    disconnected: null,
+    error: null,
+  } as const;
 
-  if (status === 'connecting') {
-    return (
-      <span
-        className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400"
-        aria-label="Connecting"
-      />
-    );
-  }
-
-  if (status === 'reconnecting') {
-    return (
-      <span className="flex items-center gap-1.5 font-label text-[10px] text-outline">
-        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400" />
-        Reconnecting...
-      </span>
-    );
-  }
+  const config = PILL_STYLES[status as keyof typeof PILL_STYLES];
 
   if (status === 'disconnected' || status === 'error') {
     return (
       <button
         onClick={() => window.location.reload()}
-        className="flex items-center gap-1.5 font-label text-[10px] text-error hover:underline"
+        className="flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 transition-opacity hover:opacity-80"
         aria-label="Connection lost — click to reconnect"
       >
-        <span className="inline-block h-2 w-2 rounded-full bg-error" />
-        Connection lost — reconnect
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+        <span className="font-label text-[10px] font-medium uppercase tracking-[0.08em] text-red-800">
+          Connection lost · Reconnect
+        </span>
       </button>
     );
   }
 
-  return null;
+  if (!config) return null;
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 rounded-full border px-3 py-1.5',
+        config.pill,
+      )}
+      aria-label={config.label}
+    >
+      <span
+        className={cn(
+          'h-1.5 w-1.5 shrink-0 rounded-full',
+          config.dot,
+          config.pulse && 'animate-pulse',
+        )}
+      />
+      <span
+        className={cn(
+          'font-label text-[10px] font-medium uppercase tracking-[0.08em]',
+          config.text,
+        )}
+      >
+        {config.label}
+      </span>
+    </div>
+  );
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -107,7 +143,7 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
     <>
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <nav
-        className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-outline-variant bg-surface-lowest md:flex"
+        className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-outline-variant bg-surface-low md:flex"
         aria-label="Main navigation"
       >
         {/* Brand */}
@@ -147,8 +183,8 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
                 className={cn(
                   'flex items-center gap-3 px-6 py-2.5 font-label text-sm font-bold uppercase tracking-[0.06em] transition-colors',
                   isActive
-                    ? 'border-r-2 border-primary bg-surface-high text-primary'
-                    : 'text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
+                    ? 'shadow-card border-l-2 border-primary bg-surface-high text-primary'
+                    : 'border-l-2 border-transparent text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
                 )}
                 aria-current={isActive ? 'page' : undefined}
               >
@@ -170,8 +206,8 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
                     className={cn(
                       'flex items-center gap-2.5 rounded px-3 py-2 font-label text-xs uppercase tracking-[0.06em] transition-colors',
                       isActive
-                        ? 'text-primary'
-                        : 'text-on-surface-variant hover:text-on-surface',
+                        ? 'border-l-2 border-primary pl-2.5 text-primary'
+                        : 'border-l-2 border-transparent pl-2.5 text-on-surface-variant hover:text-on-surface',
                     )}
                     aria-current={isActive ? 'page' : undefined}
                   >

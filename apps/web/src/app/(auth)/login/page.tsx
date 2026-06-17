@@ -25,7 +25,7 @@ export default async function LoginPage() {
   return (
     <div className="space-y-8">
       <div className="mb-2 space-y-1">
-        <h1 className="font-headline text-4xl italic leading-tight text-on-surface md:text-5xl">
+        <h1 className="font-headline text-4xl leading-tight text-on-surface md:text-5xl">
           Welcome back
         </h1>
         <p className="font-label text-[10px] uppercase tracking-[0.2em] text-outline">

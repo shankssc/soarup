@@ -8,14 +8,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <div
       className={[
         'flex min-h-screen flex-col',
-        'bg-[#ebfdfc] dark:bg-[#0e0e10]',
-        'text-[#0e1e1e] dark:text-[#f9f5f8]',
+        'bg-background',
+        'text-on-surface',
         'dot-grid',
       ].join(' ')}
-      style={{ color: 'rgba(118, 117, 119, 0.12)' }}
     >
       <header className="flex items-center justify-between px-6 py-5 md:px-10">
-        <span className="font-headline text-2xl italic text-primary">SoarUp</span>
+        <span className="font-headline text-2xl text-primary">SoarUp</span>
         <ThemeToggle />
       </header>
 
@@ -23,10 +22,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div
           className={[
             'w-full max-w-lg',
-            'bg-white dark:bg-[#1f1f22]',
-            'border-outline-variant/30 border',
+            'bg-surface-lowest dark:bg-surface-high',
+            'border border-outline-variant',
             'px-8 py-10 md:px-12 md:py-12',
-            'dark:shadow-[0_0_60px_rgba(83,221,252,0.04)]',
+            'shadow-card',
+            'dark:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_40px_rgba(83,221,252,0.10)]',
           ].join(' ')}
         >
           {children}
