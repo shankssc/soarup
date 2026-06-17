@@ -341,7 +341,7 @@ function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
       <p className="mb-1 font-label text-[10px] font-medium uppercase tracking-[0.08em] text-outline">
         TELL US A BIT ABOUT YOURSELF
       </p>
-      <h1 className="mb-8 font-headline text-4xl italic leading-tight text-on-surface md:text-5xl">
+      <h1 className="mb-8 font-headline text-4xl leading-tight text-on-surface md:text-5xl">
         Set up your profile
       </h1>
 
@@ -473,7 +473,7 @@ function StepTwo({ onComplete, accessToken, pendingInviteCode }: StepTwoProps) {
       <p className="mb-1 font-label text-[10px] font-medium uppercase tracking-[0.08em] text-outline">
         {hasInvite ? "YOU'VE BEEN INVITED" : "WHERE YOUR TEAM'S UPDATES WILL LIVE"}
       </p>
-      <h1 className="mb-6 font-headline text-4xl italic leading-tight text-on-surface md:text-5xl">
+      <h1 className="mb-6 font-headline text-4xl leading-tight text-on-surface md:text-5xl">
         {hasInvite ? 'Join your workspace' : 'Create your workspace'}
       </h1>
 

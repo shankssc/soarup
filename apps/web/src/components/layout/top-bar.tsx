@@ -28,10 +28,8 @@ export function TopBar() {
 
   return (
     <header className="bg-background/90 sticky top-0 z-30 flex h-16 items-center justify-between border-b border-outline-variant px-8 backdrop-blur">
-      {/* Page title — Newsreader italic per design system */}
-      <h1 className="font-headline text-2xl italic leading-none text-on-surface">
-        {title}
-      </h1>
+      {/* Page title */}
+      <h1 className="font-headline text-2xl leading-none text-on-surface">{title}</h1>
 
       {/* Right side controls */}
       <div className="flex items-center gap-2">

@@ -98,7 +98,7 @@ const config: Config = {
       },
 
       fontFamily: {
-        headline: ["Newsreader", "Georgia", "serif"],
+        headline: ["DM Sans", "system-ui", "sans-serif"],
         body:     ["Space Grotesk", "system-ui", "sans-serif"],
         label:    ["Space Grotesk", "system-ui", "sans-serif"],
         sans:     ["var(--font-space-grotesk)", "system-ui", "sans-serif"],
