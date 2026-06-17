@@ -87,7 +87,10 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
   const isSubmitting = isLoading || oauthLoading;
 
   return (
-    <div className={cn('w-full space-y-8', className)}>
+    <div className={cn('relative w-full space-y-8', className)}>
+      {isSubmitting && (
+        <div className="bg-surface/60 absolute inset-0 z-10 rounded-sm backdrop-blur-[1px]" />
+      )}
       {/* OAuth buttons */}
       <OAuthButtons disabled={isSubmitting} onLoadingChange={setOAuthLoading} />
 
