@@ -74,7 +74,12 @@ export function DashboardView({
           {/* Mode toggle — shown when neither form nor recorder is open */}
           {!showForm && !showVoiceRecorder && (
             <div className="flex items-center gap-2">
-              <Button variant="primary" asymmetric onClick={onSubmitClick}>
+              <Button
+                variant="primary"
+                asymmetric
+                onClick={onSubmitClick}
+                data-testid="submit-update-cta"
+              >
                 Submit update
                 <span
                   className="material-symbols-outlined text-[18px]"
@@ -83,7 +88,11 @@ export function DashboardView({
                   keyboard
                 </span>
               </Button>
-              <Button variant="secondary" onClick={onVoiceClick}>
+              <Button
+                variant="secondary"
+                onClick={onVoiceClick}
+                data-testid="voice-note-cta"
+              >
                 <span
                   className="material-symbols-outlined text-[18px]"
                   aria-hidden="true"

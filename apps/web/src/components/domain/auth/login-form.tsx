@@ -112,6 +112,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
           disabled={isSubmitting}
           autoComplete="email"
           autoFocus
+          data-testid="email-input"
         />
 
         {/* Password */}
@@ -124,6 +125,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
             error={errors.password?.message}
             disabled={isSubmitting}
             autoComplete="current-password"
+            data-testid="password-input"
           />
 
           {/* Forgot password link — sits below the password field */}
@@ -156,6 +158,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
           loading={isLoading}
           disabled={isSubmitting}
           className="w-full"
+          data-testid="login-submit"
         >
           Sign in
           <span className="material-symbols-outlined text-[18px]">arrow_forward</span>

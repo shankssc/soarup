@@ -43,6 +43,7 @@ function StatusBadge({ status }: { status: string }) {
         'flex items-center gap-1.5 border border-current px-2 py-1',
         config.color,
       )}
+      data-testid="update-status-badge"
     >
       <div className={cn('h-1.5 w-1.5 rounded-full', config.dot)} aria-hidden="true" />
       <span className="font-label text-[10px] uppercase tracking-[0.08em]">
@@ -274,7 +275,10 @@ export function UpdateCard({
   });
 
   return (
-    <div className="shadow-card card-interactive flex flex-col gap-4 border border-outline-variant bg-surface-high p-6">
+    <div
+      className="shadow-card card-interactive flex flex-col gap-4 border border-outline-variant bg-surface-high p-6"
+      data-testid="update-card"
+    >
       {/* Header: avatar + meta + badges + menu */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
@@ -401,7 +405,10 @@ export function UpdateCard({
           {/* Summary — shown for both text and voice once processed */}
           {update.status === 'processed' && update.summary && (
             <CollapsibleSection label="Summary" defaultOpen={!isVoice}>
-              <div className="border-l-2 border-primary pl-3">
+              <div
+                className="border-l-2 border-primary pl-3"
+                data-testid="update-summary"
+              >
                 <p className="font-headline text-sm italic leading-relaxed text-on-surface-variant">
                   {update.summary}
                 </p>

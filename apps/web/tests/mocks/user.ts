@@ -1,3 +1,5 @@
+//apps/web/test/mocks/user.ts
+
 import type { AuthTokens, UserProfile } from '@/hooks/useAuth';
 import type { WorkspaceMember } from '@/hooks/useWorkspaceMembers';
 import type { Digest, DigestItem } from '@/hooks/useDigests';

@@ -121,6 +121,7 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
           disabled={isSubmitting}
           autoComplete="name"
           autoFocus
+          data-testid="full-name-input"
         />
 
         {/* Email */}
@@ -132,6 +133,7 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
           error={errors.email?.message}
           disabled={isSubmitting}
           autoComplete="email"
+          data-testid="email-input"
         />
 
         {/* Password */}
@@ -144,6 +146,7 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
           hint="Min 8 characters, one uppercase letter, one digit."
           disabled={isSubmitting}
           autoComplete="new-password"
+          data-testid="password-input"
         />
 
         {/* Confirm password */}
@@ -155,6 +158,7 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
           error={errors.confirm_password?.message}
           disabled={isSubmitting}
           autoComplete="new-password"
+          data-testid="confirm-password-input"
         />
 
         {/* Submit */}
@@ -166,6 +170,7 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
           loading={isLoading}
           disabled={isSubmitting}
           className="w-full"
+          data-testid="signup-submit"
         >
           Create account
           <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
