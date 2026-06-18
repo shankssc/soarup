@@ -82,7 +82,9 @@ export async function middleware(request: NextRequest) {
   // page.tsx handles the redirect — middleware doesn't need to intervene
   // because /onboarding is not in AUTH_ROUTES.
   if (isAuthRoute(pathname) && isAuthenticated) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    const next = request.nextUrl.searchParams.get('next');
+    const destination = next ? decodeURIComponent(next) : '/dashboard';
+    return NextResponse.redirect(new URL(destination, request.url));
   }
 
   return response;
