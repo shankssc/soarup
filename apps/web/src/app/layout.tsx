@@ -1,10 +1,12 @@
 //apps/web/src/app/layout.tsx
 
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import type { Viewport } from 'next';
-import { Space_Grotesk, Newsreader } from 'next/font/google';
+import { Space_Grotesk, DM_Sans } from 'next/font/google';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { QueryProvider } from '@/components/providers/query-provider';
+import { PageTransition } from '@/components/ui/page-transition';
 import './globals.css';
 
 // ─── Fonts ────────────────────────────────────────────────────────────────────
@@ -16,13 +18,11 @@ const spaceGrotesk = Space_Grotesk({
   display: 'swap',
 });
 
-const newsreader = Newsreader({
+const dmSans = DM_Sans({
   subsets: ['latin'],
-  weight: ['400', '700'],
-  style: ['normal', 'italic'],
-  variable: '--font-newsreader',
+  weight: ['400', '500', '700'],
+  variable: '--font-dm-sans',
   display: 'swap',
-  adjustFontFallback: false,
 });
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
@@ -89,12 +89,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body
-        className={` ${spaceGrotesk.variable} ${newsreader.variable} min-h-screen bg-background font-body text-on-surface antialiased`}
+        className={` ${spaceGrotesk.variable} ${dmSans.variable} min-h-screen bg-background font-body text-on-surface antialiased`}
       >
         <ThemeProvider>
           {/*QueryProvider sits inside themeprovider as theme has no dependency
           on React Query but some query-driven components may eventually want to read the theme */}
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <Suspense fallback={null}>
+              <PageTransition />
+            </Suspense>
+            {children}
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
