@@ -31,7 +31,7 @@ async function globalSetup() {
   // Always delete seed user first — clean slate every run
   await deleteExistingSeedUser();
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ headless: false, slowMo: 500 });
   const context = await browser.newContext();
   const page = await context.newPage();
 

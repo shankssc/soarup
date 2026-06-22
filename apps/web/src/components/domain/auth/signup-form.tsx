@@ -88,6 +88,7 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
         // The pending invite code is in localStorage and onboarding will
         // pre-fill it. Redirecting to the invite page before onboarding
         // completes causes OnboardedDep to reject the accept call.
+        await new Promise((resolve) => setTimeout(resolve, 500));
         router.push('/onboarding');
       }
     } catch {

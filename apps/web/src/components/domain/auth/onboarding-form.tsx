@@ -360,6 +360,7 @@ function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
           placeholder="Jane Doe"
           error={errors.displayName}
           autoFocus
+          data-testid="display-name-input"
         />
 
         <SelectField
@@ -374,7 +375,12 @@ function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
         />
       </div>
 
-      <CtaButton label="Continue" onClick={handleContinue} isLoading={isLoading} />
+      <CtaButton
+        label="Continue"
+        onClick={handleContinue}
+        isLoading={isLoading}
+        data-testid="onboarding-step1-submit"
+      />
     </div>
   );
 }
@@ -534,6 +540,7 @@ function StepTwo({ onComplete, accessToken, pendingInviteCode }: StepTwoProps) {
             placeholder="Acme Team"
             error={errors.name}
             autoFocus
+            data-testid="workspace-name-input"
           />
           <InputField
             id="workspace-slug"
@@ -590,6 +597,7 @@ function StepTwo({ onComplete, accessToken, pendingInviteCode }: StepTwoProps) {
         onClick={path === 'create' ? handleCreate : handleJoin}
         isLoading={isLoading}
         variant={path === 'create' ? 'primary' : 'secondary'}
+        data-testid="create-workspace-submit"
       />
     </div>
   );

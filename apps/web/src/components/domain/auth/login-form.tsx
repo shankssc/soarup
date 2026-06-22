@@ -71,6 +71,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
       if (onSuccess) {
         onSuccess();
       } else {
+        await new Promise((resolve) => setTimeout(resolve, 500));
         const { user } = useAuthStore.getState();
         if (user?.is_onboarded === false) {
           router.push('/onboarding');
