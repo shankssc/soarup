@@ -189,13 +189,16 @@ export function VoiceRecorder({
   return (
     <div
       className={cn(
-        'flex flex-col gap-6 border bg-surface-high p-6',
+        'shadow-card flex flex-col gap-6 border bg-surface-high p-6',
         recorderState === 'error' ? 'border-error' : 'border-outline-variant',
       )}
     >
       {/* ── IDLE ── */}
       {recorderState === 'idle' && (
-        <div className="flex flex-col items-center gap-4 py-4">
+        <div
+          className="flex flex-col items-center gap-4 py-4"
+          data-testid="voice-recorder-idle"
+        >
           <button
             onClick={startRecording}
             className={cn(
@@ -205,6 +208,7 @@ export function VoiceRecorder({
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2',
             )}
             aria-label="Start recording"
+            data-testid="record-btn"
           >
             <span
               className="material-symbols-outlined text-[36px]"
@@ -222,7 +226,10 @@ export function VoiceRecorder({
 
       {/* ── REQUESTING PERMISSION ── */}
       {recorderState === 'requesting_permission' && (
-        <div className="flex flex-col items-center gap-3 py-4">
+        <div
+          className="flex flex-col items-center gap-3 py-4"
+          data-testid="voice-recorder-requesting-permission"
+        >
           <div className="h-20 w-20 animate-pulse rounded-full border border-outline-variant bg-surface-highest" />
           <span className="font-label text-[10px] uppercase tracking-[0.15em] text-on-surface-variant">
             Requesting microphone...
@@ -232,7 +239,10 @@ export function VoiceRecorder({
 
       {/* ── RECORDING ── */}
       {recorderState === 'recording' && (
-        <div className="flex flex-col items-center gap-4 py-4">
+        <div
+          className="flex flex-col items-center gap-4 py-4"
+          data-testid="voice-recorder-recording"
+        >
           {/* Pulsing ring + stop button */}
           <div className="relative flex items-center justify-center">
             <div className="absolute h-24 w-24 animate-ping rounded-full border-2 border-error opacity-20" />
@@ -246,6 +256,7 @@ export function VoiceRecorder({
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2',
               )}
               aria-label="Stop recording"
+              data-testid="stop-btn"
             >
               <span
                 className="material-symbols-outlined text-[28px]"
@@ -281,7 +292,7 @@ export function VoiceRecorder({
 
       {/* ── PREVIEW ── */}
       {recorderState === 'preview' && audioUrl && (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4" data-testid="voice-recorder-preview">
           <div className="flex items-center justify-between">
             <span className="font-label text-[10px] uppercase tracking-[0.15em] text-on-surface-variant">
               Preview
@@ -306,6 +317,7 @@ export function VoiceRecorder({
               asymmetric
               onClick={handleSubmit}
               className="flex-1"
+              data-testid="submit-voice-btn"
             >
               Submit update
               <span
@@ -315,7 +327,7 @@ export function VoiceRecorder({
                 arrow_forward
               </span>
             </Button>
-            <Button variant="secondary" onClick={reRecord}>
+            <Button variant="secondary" onClick={reRecord} data-testid="rerecord-btn">
               Re-record
             </Button>
             <Button variant="ghost" onClick={onCancel}>
@@ -327,7 +339,10 @@ export function VoiceRecorder({
 
       {/* ── UPLOADING ── */}
       {recorderState === 'uploading' && (
-        <div className="flex flex-col gap-4 py-4">
+        <div
+          className="flex flex-col gap-4 py-4"
+          data-testid="voice-recorder-uploading"
+        >
           <div className="flex items-center justify-between">
             <span className="font-label text-[10px] uppercase tracking-[0.15em] text-on-surface-variant">
               Uploading...

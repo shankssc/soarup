@@ -17,6 +17,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useDashboardUpdates } from '@/hooks/useDashboardUpdates';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { DashboardView } from '@/components/domain/dashboard/dashboard-view';
+import { DashboardSkeleton } from '@/components/domain/dashboard/dashboard-skeleton';
 
 export default function DashboardPage() {
   const { user, tokens } = useAuth();
@@ -77,6 +78,14 @@ export default function DashboardPage() {
       audio_duration_seconds: durationSeconds,
     });
     setShowVoiceRecorder(false);
+  }
+
+  if (!workspace?.id) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <DashboardSkeleton />
+      </div>
+    );
   }
 
   return (

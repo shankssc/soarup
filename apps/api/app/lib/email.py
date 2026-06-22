@@ -124,6 +124,9 @@ async def send_invite_email(
         return False
 
 
+RESEND_BATCH_SIZE = 50
+
+
 async def send_digest_email(
     to_emails: list[str],
     workspace_name: str,
@@ -144,6 +147,9 @@ async def send_digest_email(
     Returns:
         True if Resend accepted the request, False on any exception.
     """
+    if not to_emails:
+        return True
+
     if not settings.resend_api_key:
         logger.info(
             "digest_email_dev_mode",
@@ -157,13 +163,16 @@ async def send_digest_email(
     try:
         resend.api_key = settings.resend_api_key.get_secret_value()
 
-        params: Emails.SendParams = {
-            "from": f"SoarUp <{settings.resend_from_email}>",
-            "to": to_emails,
-            "subject": f"{workspace_name} standup digest — {digest_date}",
-            "html": html,
-        }
-        await asyncio.to_thread(resend.Emails.send, params)
+        for i in range(0, len(to_emails), RESEND_BATCH_SIZE):
+            batch = to_emails[i : i + RESEND_BATCH_SIZE]
+            params: Emails.SendParams = {
+                "from": f"SoarUp <{settings.resend_from_email}>",
+                "to": batch,
+                "subject": f"{workspace_name} standup digest — {digest_date}",
+                "html": html,
+            }
+            await asyncio.to_thread(resend.Emails.send, params)
+
         logger.info(
             "digest_email_sent",
             workspace=workspace_name,

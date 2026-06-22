@@ -522,8 +522,8 @@ async def _check_and_send_digests_async(task: ProcessUpdateTask) -> None:
     against current UTC time, accurate to the nearest 5-minute window.
     """
     from datetime import datetime
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-    import pytz  # type: ignore
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.repositories.profile_repo import ProfileRepository
@@ -553,14 +553,14 @@ async def _check_and_send_digests_async(task: ProcessUpdateTask) -> None:
                     tz_str = owner.timezone if owner and owner.timezone else "UTC"
 
                 try:
-                    tz = pytz.timezone(tz_str)
-                except pytz.UnknownTimeZoneError:
+                    tz = ZoneInfo(tz_str)
+                except ZoneInfoNotFoundError:
                     logger.warning(
                         "unknown_digest_timezone",
                         workspace_id=workspace.id,
                         tz_str=tz_str,
                     )
-                    tz = pytz.UTC
+                    tz = ZoneInfo("UTC")
 
                 # 2. Current time in workspace timezone
                 now_local = now_utc.astimezone(tz)
@@ -664,6 +664,7 @@ async def _send_workspace_digest_async(
         # 4. No processed updates — mark failed and exit
         if not updates:
             await digest_repo.update_status(digest.id, status="failed")
+            await db.commit()
             logger.info(
                 "digest_skipped_no_updates",
                 workspace_id=workspace_id,
@@ -743,6 +744,7 @@ async def _send_workspace_digest_async(
                 status="sent",
                 email_sent_at=datetime.now(UTC),
             )
+            await db.commit()
             return
 
         # 10. Render email HTML
@@ -775,6 +777,7 @@ async def _send_workspace_digest_async(
             status=final_status,
             email_sent_at=datetime.now(UTC) if sent else None,
         )
+        await db.commit()
 
         logger.info(
             "digest_complete",

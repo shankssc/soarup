@@ -11,9 +11,9 @@
     --color-surface-bright: #ebfdfc;
     --color-surface-lowest: #ffffff;
     --color-surface-low: #e5f7f6;
-    --color-surface-high: #daeceb;
+    --color-surface-high: #d0e6e5;
     --color-surface-highest: #d4e6e5;
-    --color-container: #dff1f0;
+    --color-container: #e2f2ed;
     --color-container-low: #e5f7f6;
     --color-container-high: #daeceb;
     --color-container-highest: #d4e6e5;
@@ -164,5 +164,67 @@
   .glass-panel {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+@layer utilities {
+  /* ─── Card shadows ───────────────────────────────────────────────────────── */
+
+  /* Light mode — classic drop shadow */
+  .shadow-card {
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.08),
+      0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .shadow-card-hover {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Dark mode — cyan glow */
+  .dark .shadow-card {
+    box-shadow:
+      0 0 0 1px var(--color-outline-variant),
+      0 0 12px rgba(83, 221, 252, 0.07);
+  }
+  .dark .shadow-card-hover {
+    box-shadow:
+      0 0 0 1px var(--color-primary),
+      0 0 20px rgba(83, 221, 252, 0.18);
+  }
+
+  /* Modal elevation */
+  .shadow-modal {
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+  .dark .shadow-modal {
+    box-shadow:
+      0 0 0 1px var(--color-outline-variant),
+      0 8px 40px rgba(0, 0, 0, 0.6),
+      0 0 24px rgba(83, 221, 252, 0.1);
+  }
+
+  /* ─── Card transition helper ─────────────────────────────────────────────── */
+  .card-interactive {
+    transition:
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .card-interactive:hover {
+    @apply shadow-card-hover;
+  }
+
+  @keyframes page-load {
+    from {
+      width: 0%;
+      opacity: 1;
+    }
+    to {
+      width: 100%;
+      opacity: 0;
+    }
   }
 }

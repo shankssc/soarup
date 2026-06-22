@@ -198,6 +198,7 @@ interface InputFieldProps {
   autoFocus?: boolean;
   id: string;
   readOnly?: boolean;
+  'data-testid'?: string;
 }
 
 function InputField({
@@ -210,6 +211,7 @@ function InputField({
   autoFocus,
   id,
   readOnly = false,
+  'data-testid': dataTestId,
 }: InputFieldProps) {
   return (
     <div className="flex flex-col gap-1">
@@ -230,6 +232,7 @@ function InputField({
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         readOnly={readOnly}
+        data-testid={dataTestId}
         className={[
           'w-full bg-transparent px-0 py-2',
           'border-0 border-b',
@@ -259,6 +262,7 @@ interface CtaButtonProps {
   onClick: () => void;
   isLoading?: boolean;
   variant?: 'primary' | 'secondary';
+  'data-testid'?: string;
 }
 
 function CtaButton({
@@ -266,6 +270,7 @@ function CtaButton({
   onClick,
   isLoading = false,
   variant = 'primary',
+  'data-testid': dataTestId,
 }: CtaButtonProps) {
   const isPrimary = variant === 'primary';
   return (
@@ -273,6 +278,7 @@ function CtaButton({
       type="button"
       onClick={onClick}
       disabled={isLoading}
+      data-testid={dataTestId}
       className={[
         'h-12 w-full px-6',
         'flex items-center justify-between',
@@ -341,7 +347,7 @@ function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
       <p className="mb-1 font-label text-[10px] font-medium uppercase tracking-[0.08em] text-outline">
         TELL US A BIT ABOUT YOURSELF
       </p>
-      <h1 className="mb-8 font-headline text-4xl italic leading-tight text-on-surface md:text-5xl">
+      <h1 className="mb-8 font-headline text-4xl leading-tight text-on-surface md:text-5xl">
         Set up your profile
       </h1>
 
@@ -354,6 +360,7 @@ function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
           placeholder="Jane Doe"
           error={errors.displayName}
           autoFocus
+          data-testid="display-name-input"
         />
 
         <SelectField
@@ -368,7 +375,12 @@ function StepOne({ onComplete, initialDisplayName }: StepOneProps) {
         />
       </div>
 
-      <CtaButton label="Continue" onClick={handleContinue} isLoading={isLoading} />
+      <CtaButton
+        label="Continue"
+        onClick={handleContinue}
+        isLoading={isLoading}
+        data-testid="onboarding-step1-submit"
+      />
     </div>
   );
 }
@@ -473,7 +485,7 @@ function StepTwo({ onComplete, accessToken, pendingInviteCode }: StepTwoProps) {
       <p className="mb-1 font-label text-[10px] font-medium uppercase tracking-[0.08em] text-outline">
         {hasInvite ? "YOU'VE BEEN INVITED" : "WHERE YOUR TEAM'S UPDATES WILL LIVE"}
       </p>
-      <h1 className="mb-6 font-headline text-4xl italic leading-tight text-on-surface md:text-5xl">
+      <h1 className="mb-6 font-headline text-4xl leading-tight text-on-surface md:text-5xl">
         {hasInvite ? 'Join your workspace' : 'Create your workspace'}
       </h1>
 
@@ -528,6 +540,7 @@ function StepTwo({ onComplete, accessToken, pendingInviteCode }: StepTwoProps) {
             placeholder="Acme Team"
             error={errors.name}
             autoFocus
+            data-testid="workspace-name-input"
           />
           <InputField
             id="workspace-slug"
@@ -584,6 +597,7 @@ function StepTwo({ onComplete, accessToken, pendingInviteCode }: StepTwoProps) {
         onClick={path === 'create' ? handleCreate : handleJoin}
         isLoading={isLoading}
         variant={path === 'create' ? 'primary' : 'secondary'}
+        data-testid="create-workspace-submit"
       />
     </div>
   );

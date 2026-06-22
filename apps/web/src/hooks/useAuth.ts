@@ -183,6 +183,10 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             throw new Error('Refresh token was not sent by the server');
           }
 
+          // Sync tokens into Supabase JS client so server-side cookie is set.
+          // This allows createServerSupabaseClient() to read the session.
+          await syncSupabaseSession(data.access_token, data.refresh_token ?? '');
+
           set({
             user: data.user,
             tokens: {
@@ -193,10 +197,6 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isLoading: false,
             error: null,
           });
-
-          // Sync tokens into Supabase JS client so server-side cookie is set.
-          // This allows createServerSupabaseClient() to read the session.
-          await syncSupabaseSession(data.access_token, data.refresh_token ?? '');
         } catch (err) {
           set({
             isLoading: false,
@@ -221,6 +221,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             throw new Error('Refresh token was not sent by the server');
           }
 
+          // Sync tokens into Supabase JS client so server-side cookie is set.
+          await syncSupabaseSession(data.access_token, data.refresh_token ?? '');
+
           set({
             user: data.user,
             tokens: {
@@ -231,9 +234,6 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isLoading: false,
             error: null,
           });
-
-          // Sync tokens into Supabase JS client so server-side cookie is set.
-          await syncSupabaseSession(data.access_token, data.refresh_token ?? '');
         } catch (err) {
           set({
             isLoading: false,

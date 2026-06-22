@@ -111,7 +111,7 @@ function DigestPreviewModal({ html, onClose }: { html: string; onClose: () => vo
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={handleBackdrop}
     >
-      <div className="relative mx-4 flex h-[80vh] w-full max-w-2xl flex-col border border-outline-variant bg-surface">
+      <div className="shadow-modal relative mx-4 flex h-[80vh] w-full max-w-2xl flex-col border border-outline-variant bg-surface">
         {/* Modal header */}
         <div className="flex items-center justify-between border-b border-outline-variant px-6 py-4">
           <span className="font-label text-[11px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">
@@ -174,7 +174,10 @@ export function DigestSettingsPanel({
   }
 
   async function handlePreviewClick() {
-    await onPreview();
+    if (!previewHtml || previewHtml === '') {
+      setShowPreview(false);
+      await onPreview();
+    }
     setShowPreview(true);
   }
 
@@ -342,8 +345,32 @@ export function DigestSettingsPanel({
       </div>
 
       {/* Preview modal */}
-      {showPreview && previewHtml !== null && (
+      {showPreview && previewHtml !== null && previewHtml !== '' && (
         <DigestPreviewModal html={previewHtml} onClose={() => setShowPreview(false)} />
+      )}
+
+      {showPreview && previewHtml === '' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowPreview(false)}
+        >
+          <div className="shadow-modal mx-4 w-full max-w-md border border-outline-variant bg-surface p-8">
+            <p className="font-label text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
+              No updates today
+            </p>
+            <p className="mt-3 font-body text-sm leading-relaxed text-on-surface-variant">
+              The digest preview requires at least one processed update for today.
+              Submit an update first, wait for it to be summarised, then try again.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowPreview(false)}
+              className="mt-6 font-label text-[10px] uppercase tracking-[0.08em] text-primary hover:underline"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -71,6 +71,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
       if (onSuccess) {
         onSuccess();
       } else {
+        await new Promise((resolve) => setTimeout(resolve, 500));
         const { user } = useAuthStore.getState();
         if (user?.is_onboarded === false) {
           router.push('/onboarding');
@@ -87,7 +88,10 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
   const isSubmitting = isLoading || oauthLoading;
 
   return (
-    <div className={cn('w-full space-y-8', className)}>
+    <div className={cn('relative w-full space-y-8', className)}>
+      {isSubmitting && (
+        <div className="bg-surface/60 absolute inset-0 z-10 rounded-sm backdrop-blur-[1px]" />
+      )}
       {/* OAuth buttons */}
       <OAuthButtons disabled={isSubmitting} onLoadingChange={setOAuthLoading} />
 
@@ -109,6 +113,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
           disabled={isSubmitting}
           autoComplete="email"
           autoFocus
+          data-testid="email-input"
         />
 
         {/* Password */}
@@ -121,6 +126,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
             error={errors.password?.message}
             disabled={isSubmitting}
             autoComplete="current-password"
+            data-testid="password-input"
           />
 
           {/* Forgot password link — sits below the password field */}
@@ -153,6 +159,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
           loading={isLoading}
           disabled={isSubmitting}
           className="w-full"
+          data-testid="login-submit"
         >
           Sign in
           <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
@@ -160,7 +167,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
       </form>
 
       {/* Sign up link */}
-      <p className="text-center font-headline text-lg italic text-primary">
+      <p className="text-center font-headline text-lg text-primary">
         <button
           type="button"
           onClick={() => router.push('/signup')}

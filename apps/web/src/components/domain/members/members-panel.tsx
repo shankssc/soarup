@@ -148,6 +148,7 @@ function InviteForm({
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder="colleague@company.com"
           disabled={isInviting}
+          data-testid="invite-email-input"
           className={[
             'flex-1 bg-transparent px-0 py-2',
             'border-0 border-b',
@@ -163,6 +164,7 @@ function InviteForm({
           type="button"
           onClick={handleSubmit}
           disabled={isInviting || !email.trim()}
+          data-testid="invite-send-btn"
           className={[
             'shrink-0 px-4 py-2',
             'font-label text-[12px] font-medium uppercase tracking-[0.06em]',
@@ -273,7 +275,10 @@ function PendingInviteRow({
   );
 
   return (
-    <div className="flex items-center gap-3 border-b border-outline-variant py-3 last:border-0">
+    <div
+      className="flex items-center gap-3 border-b border-outline-variant py-3 last:border-0"
+      data-testid="pending-invite-row"
+    >
       {/* Placeholder avatar for pending */}
       <div className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-outline-variant">
         <span
