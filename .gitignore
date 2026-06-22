@@ -85,6 +85,8 @@ coverage/
 playwright-report/
 test-results/
 *.lcov
+.auth/
+debug-*.png
 
 # --- Storybook ---
 storybook-static/
@@ -95,6 +97,7 @@ logs/
 
 # --- Environment (keep example, ignore actual) ---
 .env
+.env.local
 !.env.example
 
 # --- Specs (keep, but ignore local drafts) ---

@@ -47,7 +47,7 @@ export default function ProfileSettingsPage() {
 
   return (
     <div className="max-w-lg px-6 py-10">
-      <h1 className="mb-8 font-serif text-3xl italic text-on-surface">Profile</h1>
+      <h1 className="mb-8 font-serif text-3xl text-on-surface">Profile</h1>
 
       {/* Avatar */}
       <div className="mb-8 flex flex-col items-start gap-3">
@@ -126,7 +126,7 @@ export default function ProfileSettingsPage() {
         <button
           onClick={handleSave}
           disabled={!isDirty || updateProfile.isPending}
-          className="relative rounded-bl-lg rounded-br-3xl rounded-tl-3xl rounded-tr-lg bg-primary px-6 py-2.5 text-sm font-semibold text-[#004b58] transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="asymmetric-btn bg-primary px-6 py-2.5 font-label text-[12px] font-medium uppercase tracking-[0.06em] text-primary-on transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {updateProfile.isPending ? 'Saving…' : 'Save changes'}
         </button>

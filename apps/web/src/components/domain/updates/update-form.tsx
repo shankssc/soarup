@@ -66,6 +66,7 @@ export function UpdateForm({ onSubmit, onCancel, isSubmitting }: UpdateFormProps
         <textarea
           ref={textareaRef}
           id="update-content"
+          data-testid="update-textarea"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -115,6 +116,7 @@ export function UpdateForm({ onSubmit, onCancel, isSubmitting }: UpdateFormProps
             onClick={handleSubmit}
             loading={isSubmitting}
             disabled={isEmpty || isOverLimit}
+            data-testid="update-submit-btn"
           >
             Submit →
           </Button>

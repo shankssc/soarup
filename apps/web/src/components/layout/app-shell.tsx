@@ -1,9 +1,9 @@
 // apps/web/src/components/layout/app-shell.tsx
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, useAuthStore } from '@/hooks/useAuth';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
 import { useWorkspace } from '@/hooks/useWorkspace';
@@ -22,10 +22,22 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const { isAuthenticated, needsOnboarding, isLoading: authLoading } = useAuth();
   const { data: workspace, isLoading: workspaceLoading } = useWorkspace();
+  const [hydrated, setHydrated] = useState(false);
+
+  // ── Zustand hydration guard ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = useAuthStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+    if (useAuthStore.persist.hasHydrated()) {
+      setHydrated(true);
+    }
+    return unsub;
+  }, []);
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (authLoading) return;
+    if (!hydrated || authLoading) return;
     if (!isAuthenticated) {
       const loginUrl = isSafeNextPath(pathname)
         ? `/login?next=${encodeURIComponent(pathname)}`
@@ -36,10 +48,10 @@ export function AppShell({ children }: AppShellProps) {
     if (needsOnboarding) {
       router.replace('/onboarding');
     }
-  }, [isAuthenticated, needsOnboarding, authLoading, router, pathname]);
+  }, [hydrated, isAuthenticated, needsOnboarding, authLoading, router, pathname]);
 
   // ── Loading state ─────────────────────────────────────────────────────────
-  if (authLoading || !isAuthenticated) {
+  if (!hydrated || authLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <span
