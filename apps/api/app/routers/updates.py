@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 
 from app.api import ApiVersionDep, DBSessionDep, OnboardedDep, RedisDep, create_error_response, create_success_response, handle_update_error
+from app.api.rbac import WorkspaceMemberDep
 from app.schemas.update import SubmitUpdateRequest, UpdateUpdateRequest
 from app.services.update_service import UpdateError, UpdateService
 
@@ -14,6 +15,48 @@ router = APIRouter(prefix="/workspaces", tags=["updates"])
 
 def get_update_service(db: DBSessionDep, redis: RedisDep) -> UpdateService:
     return UpdateService(db, redis=redis)
+
+
+@router.get("/{workspace_id}/updates/history", status_code=200)
+async def get_update_history(
+    api_version: ApiVersionDep,
+    user_ctx: WorkspaceMemberDep,
+    workspace_id: str,
+    cursor: str | None = None,
+    limit: int = 20,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    user_id: str | None = None,
+    service: UpdateService = Depends(get_update_service),
+) -> Response:
+    """
+    Paginated update history across date ranges.
+    Returns updates newest-first with cursor for next page.
+    Optional filters: from_date, to_date, user_id.
+    Any workspace member can access — scoped to their workspace.
+    """
+    try:
+        result = await service.get_update_history(
+            workspace_id=workspace_id,
+            cursor=cursor,
+            limit=min(limit, 50),
+            from_date=from_date,
+            to_date=to_date,
+            user_id=user_id,
+        )
+        return create_success_response(result, api_version=api_version)
+    except Exception as e:
+        logger.exception(
+            "get_update_history_error",
+            workspace_id=workspace_id,
+            error=str(e),
+        )
+        return create_error_response(
+            "internal_error",
+            "Failed to retrieve update history",
+            500,
+            api_version=api_version,
+        )
 
 
 @router.post("/{workspace_id}/updates", status_code=202)
