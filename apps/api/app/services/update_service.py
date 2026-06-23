@@ -12,6 +12,7 @@ from app.repositories.update_repo import UpdateRepository
 from app.repositories.workspace_repo import WorkspaceRepository
 from app.schemas.update import (
     SubmitUpdateRequest,
+    UpdateHistoryResponse,
     UpdateListResponse,
     UpdateResponse,
     UpdateUpdateRequest,
@@ -191,6 +192,39 @@ class UpdateService:
             raise UpdateError("unauthorized", "You can only delete your own updates.")
         await repo.soft_delete(update)
         logger.info("update_deleted", update_id=update_id, user_id=user_id)
+
+    async def get_update_history(
+        self,
+        workspace_id: str,
+        cursor: str | None,
+        limit: int,
+        from_date: str | None,
+        to_date: str | None,
+        user_id: str | None,
+    ) -> UpdateHistoryResponse:
+        repo = self._get_update_repo()
+        updates, next_cursor = await repo.get_workspace_updates_paginated(
+            workspace_id=workspace_id,
+            limit=limit,
+            cursor=cursor,
+            from_date=from_date,
+            to_date=to_date,
+            user_id=user_id,
+        )
+
+        if not updates:
+            return UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+
+        user_ids = list({u.user_id for u in updates})
+        profile_map = await self._get_profile_repo().get_by_user_ids(user_ids)
+
+        responses = [self._to_response_batch(u, profile_map) for u in updates]
+
+        return UpdateHistoryResponse(
+            updates=responses,
+            next_cursor=next_cursor,
+            total_in_range=len(responses),
+        )
 
     async def _to_response(self, update: Any) -> UpdateResponse:
         """

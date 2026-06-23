@@ -52,6 +52,18 @@ class ProfileRepository:
         result = await self.db.execute(select(Profile).where(Profile.id == user_id))
         return result.scalar_one_or_none()
 
+    async def get_by_user_ids(self, user_ids: list[str]) -> dict[str, Profile]:
+        """
+        Batch fetch profiles by user IDs.
+        Returns a dict of user_id → Profile for efficient N+1 avoidance.
+        Missing user_ids are simply absent from the result dict.
+        """
+        if not user_ids:
+            return {}
+        result = await self.db.execute(select(Profile).where(Profile.id.in_(user_ids)))
+        profiles = result.scalars().all()
+        return {p.id: p for p in profiles}
+
     async def create(
         self,
         user_id: str,
