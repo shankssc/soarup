@@ -51,3 +51,23 @@ class UpdateResponse(BaseModel):
 class UpdateListResponse(BaseModel):
     updates: list[UpdateResponse]
     total: int
+
+
+class UpdateHistoryResponse(BaseModel):
+    """Response for paginated update history."""
+
+    updates: list[UpdateResponse]
+    next_cursor: str | None
+    # Approximate count — equals the number of items in the current page,
+    # NOT a true total. Named total_in_range (not total) to communicate this.
+    total_in_range: int
+
+
+class UpdateHistoryParams(BaseModel):
+    """Query params for GET /workspaces/:id/updates/history."""
+
+    cursor: str | None = None
+    limit: int = Field(default=20, ge=1, le=50)
+    from_date: str | None = Field(None, description="ISO date YYYY-MM-DD — start of range")
+    to_date: str | None = Field(None, description="ISO date YYYY-MM-DD — end of range")
+    user_id: str | None = Field(None, description="Filter to a specific user's updates")
