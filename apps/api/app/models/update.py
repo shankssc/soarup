@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -28,6 +28,12 @@ class Update(Base):
             "update_date",
             name="uq_updates_user_workspace_date",
         ),
+        # History queries — filter by workspace + date range, order by date
+        Index("ix_updates_workspace_date", "workspace_id", "update_date"),
+        # User history — filter by user + workspace
+        Index("ix_updates_user_workspace", "user_id", "workspace_id"),
+        # Streak calculation — filter by user + date, order by date desc
+        Index("ix_updates_user_date", "user_id", "update_date"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_new_uuid)

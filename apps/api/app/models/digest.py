@@ -4,7 +4,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -21,6 +21,13 @@ class Digest(Base):
     """
 
     __tablename__ = "digests"
+
+    __table_args__ = (
+        # History queries — filter by workspace, order by created_at desc
+        Index("ix_digests_workspace_created", "workspace_id", "created_at"),
+        # Date lookup — get digest for a specific date
+        Index("ix_digests_workspace_date", "workspace_id", "digest_date"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_new_uuid)
     workspace_id: Mapped[str] = mapped_column(
