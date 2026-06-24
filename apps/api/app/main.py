@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import audio, auth, digests, health, invites, members, updates, workspaces
+from app.routers import analytics, audio, auth, digests, health, invites, members, updates, workspaces
 from app.routers.websockets import router as websocket_router
 
 
@@ -50,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(members.router, prefix="/api/v1")
     app.include_router(invites.router, prefix="/api/v1")
     app.include_router(digests.router, prefix="/api/v1")
+    app.include_router(analytics.router, prefix="/api/v1")
 
     return app
 
