@@ -41,7 +41,7 @@ exclude = ["venv", ".venv", "alembic", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "S", "B", "A", "COM", "C4", "DTZ", "T20", "RET", "SIM", "ARG", "PTH"]
-ignore = ["S101", "COM812", "ARG001", "ARG002", "B008",] # Allow assert in tests and trailing comma and ignoring FastAPI dependencies
+ignore = ["S101", "COM812", "ARG001", "ARG002", "B008", "DTZ011"] # Allow assert in tests and trailing comma and ignoring FastAPI dependencies
 
 [tool.ruff.format]
 quote-style = "double"

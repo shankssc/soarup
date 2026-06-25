@@ -1,6 +1,6 @@
 # apps/api/app/repositories/update_repo.py
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.update import Update
@@ -145,3 +145,60 @@ class UpdateRepository:
         await self.db.commit()
         await self.db.refresh(update)
         return update
+
+    async def get_workspace_updates_paginated(
+        self,
+        workspace_id: str,
+        limit: int = 20,
+        cursor: str | None = None,
+        from_date: str | None = None,
+        to_date: str | None = None,
+        user_id: str | None = None,
+    ) -> tuple[list[Update], str | None]:
+        """
+        Cursor-based pagination for update history.
+        Cursor is the update.id of the last seen item.
+        Uses keyset pagination on (update_date DESC, id DESC) for stable ordering.
+        Returns (updates, next_cursor).  next_cursor is None on the last page.
+        """
+        query = (
+            select(Update)
+            .where(
+                Update.workspace_id == workspace_id,
+                Update.is_deleted == False,  # noqa: E712
+            )
+            .order_by(Update.update_date.desc(), Update.id.desc())
+        )
+
+        if from_date:
+            query = query.where(Update.update_date >= from_date)
+        if to_date:
+            query = query.where(Update.update_date <= to_date)
+        if user_id:
+            query = query.where(Update.user_id == user_id)
+
+        if cursor:
+            cursor_update = await self.get_by_id(cursor)
+            if cursor_update:
+                # Keyset: fetch updates older than the cursor item.
+                # Handles ties on update_date by also comparing id.
+                query = query.where(
+                    or_(
+                        Update.update_date < cursor_update.update_date,
+                        and_(
+                            Update.update_date == cursor_update.update_date,
+                            Update.id < cursor_update.id,
+                        ),
+                    )
+                )
+
+        query = query.limit(limit + 1)
+        result = await self.db.execute(query)
+        updates = list(result.scalars().all())
+
+        next_cursor: str | None = None
+        if len(updates) > limit:
+            updates = updates[:limit]
+            next_cursor = updates[-1].id
+
+        return updates, next_cursor
