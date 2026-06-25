@@ -10,7 +10,7 @@
 
 from datetime import UTC, datetime
 from typing import Any, cast
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -20,7 +20,7 @@ from app.api.dependencies import require_onboarded
 from app.db.session import get_db_session
 from app.main import create_app
 from app.routers.updates import get_update_service
-from app.schemas.update import UpdateListResponse, UpdateResponse
+from app.schemas.update import UpdateHistoryResponse, UpdateListResponse, UpdateResponse
 from app.services.update_service import UpdateError
 
 pytestmark = pytest.mark.db
@@ -30,7 +30,7 @@ UPDATE_ID = "update-xyz"
 USER_ID = "user-abc"
 EMAIL = "test@example.com"
 TODAY = "2026-05-14"
-
+RBAC_GET_MEMBER = "app.api.rbac.WorkspaceRepository.get_member"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -66,6 +66,7 @@ def _make_mock_update_service() -> MagicMock:
     svc.get_workspace_updates = AsyncMock()
     svc.edit_update = AsyncMock()
     svc.delete_update = AsyncMock(return_value=None)
+    svc.get_update_history = AsyncMock()
     return svc
 
 
@@ -141,6 +142,37 @@ async def unauthed_client(db_session):
         base_url="http://test",
     ) as client:
         yield client
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def history_client(db_session, mock_update_service):
+    """
+    Like update_client but also patches RBAC get_member —
+    required because the history endpoint uses WorkspaceMemberDep.
+    """
+    from unittest.mock import AsyncMock
+
+    def _member_side_effect(workspace_id: str, user_id: str):
+        if user_id == USER_ID:
+            m = MagicMock()
+            m.user_id = USER_ID
+            m.role = "member"
+            return m
+        return None
+
+    app = create_app()
+    app.dependency_overrides[get_db_session] = lambda: db_session
+    app.dependency_overrides[get_update_service] = lambda: mock_update_service
+    app.dependency_overrides[require_onboarded] = lambda: _onboarded_user_ctx()
+
+    with patch(RBAC_GET_MEMBER, new=AsyncMock(side_effect=_member_side_effect)):
+        async with AsyncClient(
+            transport=ASGITransport(app=cast(Any, app)),
+            base_url="http://test",
+        ) as client:
+            yield client, mock_update_service
 
     app.dependency_overrides.clear()
 
@@ -500,3 +532,127 @@ class TestDeleteUpdate:
         )
 
         svc.delete_update.assert_awaited_once_with(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/workspaces/{workspace_id}/updates/history
+# ---------------------------------------------------------------------------
+
+
+class TestGetUpdateHistory:
+    @pytest.mark.asyncio
+    async def test_returns_200_with_pagination_fields(self, history_client, auth_headers):
+        client, svc = history_client
+        svc.get_update_history.return_value = UpdateHistoryResponse(
+            updates=[_fake_update_response()],
+            next_cursor=None,
+            total_in_range=1,
+        )
+
+        response = await client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
+            headers=auth_headers(USER_ID),
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert "updates" in body
+        assert "next_cursor" in body
+        assert "total_in_range" in body
+
+    @pytest.mark.asyncio
+    async def test_calls_service_with_workspace_id(self, history_client, auth_headers):
+        client, svc = history_client
+        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+
+        await client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
+            headers=auth_headers(USER_ID),
+        )
+
+        svc.get_update_history.assert_awaited_once()
+        call_kwargs = svc.get_update_history.call_args.kwargs
+        assert call_kwargs["workspace_id"] == WORKSPACE_ID
+
+    @pytest.mark.asyncio
+    async def test_cursor_param_passed_to_service(self, history_client, auth_headers):
+        client, svc = history_client
+        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+
+        await client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
+            params={"cursor": "some-cursor-id"},
+            headers=auth_headers(USER_ID),
+        )
+
+        call_kwargs = svc.get_update_history.call_args.kwargs
+        assert call_kwargs["cursor"] == "some-cursor-id"
+
+    @pytest.mark.asyncio
+    async def test_date_filters_passed_to_service(self, history_client, auth_headers):
+        client, svc = history_client
+        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+
+        await client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
+            params={"from_date": "2026-06-01", "to_date": "2026-06-23"},
+            headers=auth_headers(USER_ID),
+        )
+
+        call_kwargs = svc.get_update_history.call_args.kwargs
+        assert call_kwargs["from_date"] == "2026-06-01"
+        assert call_kwargs["to_date"] == "2026-06-23"
+
+    @pytest.mark.asyncio
+    async def test_limit_capped_at_50(self, history_client, auth_headers):
+        client, svc = history_client
+        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+
+        await client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
+            params={"limit": 999},
+            headers=auth_headers(USER_ID),
+        )
+
+        call_kwargs = svc.get_update_history.call_args.kwargs
+        assert call_kwargs["limit"] == 50
+
+    @pytest.mark.asyncio
+    async def test_next_cursor_returned_when_more_pages(self, history_client, auth_headers):
+        client, svc = history_client
+        svc.get_update_history.return_value = UpdateHistoryResponse(
+            updates=[_fake_update_response()],
+            next_cursor="next-page-cursor",
+            total_in_range=1,
+        )
+
+        response = await client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
+            headers=auth_headers(USER_ID),
+        )
+
+        assert response.json()["next_cursor"] == "next-page-cursor"
+
+    @pytest.mark.asyncio
+    async def test_empty_range_returns_empty_list_and_null_cursor(self, history_client, auth_headers):
+        client, svc = history_client
+        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+
+        response = await client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
+            params={"from_date": "2000-01-01", "to_date": "2000-01-31"},
+            headers=auth_headers(USER_ID),
+        )
+
+        body = response.json()
+        assert body["updates"] == []
+        assert body["next_cursor"] is None
+        assert body["total_in_range"] == 0
+
+    @pytest.mark.asyncio
+    async def test_no_token_returns_401_or_403(self, unauthed_client):
+        response = await unauthed_client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
+        )
+
+        assert response.status_code in (401, 403)
