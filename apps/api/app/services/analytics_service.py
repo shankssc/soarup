@@ -79,6 +79,7 @@ def _build_heatmap(
 def _calculate_streak(
     submission_date_strs: list[str],
     digest_days: list[int] | None,
+    today: date | None = None,
 ) -> tuple[int, int]:
     """
     Calculate current and best streak from a list of submission dates.
@@ -90,6 +91,9 @@ def _calculate_streak(
         digest_days:
             ISO weekday numbers (1=Mon … 7=Sun) that count toward the streak.
             None or [] means every calendar day counts (no schedule configured).
+        today:
+            Override the current date. Defaults to UTC today.
+            Pass explicitly in tests to pin the date.
 
     Returns:
         (current_streak, best_streak)
@@ -108,7 +112,7 @@ def _calculate_streak(
 
     submission_dates: set[date] = {date.fromisoformat(d) for d in submission_date_strs}
 
-    today = datetime.now(UTC).date()
+    _today = today or datetime.now(UTC).date()
     use_digest_days = bool(digest_days)
 
     def is_counting_day(d: date) -> bool:
@@ -126,7 +130,7 @@ def _calculate_streak(
         return candidate  # fall back even if no counting day found
 
     # Start from today (or the most recent counting day if today doesn't count)
-    check_day = today
+    check_day = _today
     if not is_counting_day(check_day):
         check_day = prev_counting_day(check_day)
 
