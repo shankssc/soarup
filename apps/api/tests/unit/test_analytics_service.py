@@ -333,11 +333,10 @@ class TestGetTeamAnalytics:
         workspace_repo.get_by_id = AsyncMock(return_value=_fake_workspace())
         analytics_repo.get_workspace_total_updates = AsyncMock(return_value=30)
         analytics_repo.get_workspace_daily_counts = AsyncMock(return_value={})
-        analytics_repo.get_user_submission_dates = AsyncMock(
-            side_effect=[all_30_days, []]  # Alice submitted all 30, Bob none
+        analytics_repo.get_all_member_submission_dates = AsyncMock(
+            return_value={"user-1": all_30_days, "user-2": []}
         )
-        analytics_repo.get_member_submission_counts = AsyncMock(
-            return_value={})
+        analytics_repo.get_all_member_sparklines = AsyncMock(return_value={})
 
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # Noqa: ARG005
@@ -368,9 +367,9 @@ class TestGetTeamAnalytics:
         workspace_repo.get_by_id = AsyncMock(return_value=_fake_workspace())
         analytics_repo.get_workspace_total_updates = AsyncMock(return_value=0)
         analytics_repo.get_workspace_daily_counts = AsyncMock(return_value={})
-        analytics_repo.get_user_submission_dates = AsyncMock(return_value=[])
-        analytics_repo.get_member_submission_counts = AsyncMock(
+        analytics_repo.get_all_member_submission_dates = AsyncMock(
             return_value={})
+        analytics_repo.get_all_member_sparklines = AsyncMock(return_value={})
 
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # Noqa: ARG005

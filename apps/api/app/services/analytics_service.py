@@ -244,37 +244,25 @@ class AnalyticsService:
         )
         avg_updates_per_day = total_updates_30d / 30 if total_updates_30d > 0 else 0.0
 
-        # Per-member rows — N queries per member (acceptable at current scale;
-        # see Known Tradeoffs in MILESTONE_7_SPEC.md)
+        # Per-member rows — 2 batch queries replace 2N per-member queries.
+        # Reduces team analytics from 2N queries to 4 total regardless of member count.
+        all_dates = await analytics_repo.get_all_member_submission_dates(workspace_id, twelve_weeks_ago, today)
+        all_sparklines = await analytics_repo.get_all_member_sparklines(workspace_id, fourteen_days_ago, today)
+
         member_rows: list[MemberParticipationRow] = []
         total_participation = 0.0
 
         for member, profile in members_with_profiles:
-            # Submission dates for streak (12-week window covers streak + 30d rate)
-            submission_dates = await analytics_repo.get_user_submission_dates(
-                workspace_id=workspace_id,
-                user_id=member.user_id,
-                from_date=twelve_weeks_ago,
-                to_date=today,
-            )
-            current_streak, _ = _calculate_streak(submission_dates, digest_days)
+            uid = member.user_id
+            member_dates = all_dates.get(uid, [])
+            current_streak, _ = _calculate_streak(member_dates, digest_days)
 
-            # Participation rate — count 30d submissions from the already-fetched dates
-            submissions_30d = sum(1 for d in submission_dates if d >= thirty_days_ago.isoformat())
+            submissions_30d = sum(1 for d in member_dates if d >= thirty_days_ago.isoformat())
             participation_rate = submissions_30d / digest_day_count_30d if digest_day_count_30d > 0 else 0.0
             total_participation += participation_rate
 
-            # Sparkline: 14-day per-day counts (oldest → newest)
-            sparkline_counts = await analytics_repo.get_member_submission_counts(
-                workspace_id=workspace_id,
-                user_id=member.user_id,
-                from_date=fourteen_days_ago,
-                to_date=today,
-            )
-            sparkline = [
-                sparkline_counts.get((today - timedelta(days=i)).isoformat(), 0)
-                for i in range(13, -1, -1)  # index 13 = oldest, 0 = today
-            ]
+            sparkline_map = all_sparklines.get(uid, {})
+            sparkline = [sparkline_map.get((today - timedelta(days=i)).isoformat(), 0) for i in range(13, -1, -1)]
 
             member_rows.append(
                 MemberParticipationRow(
