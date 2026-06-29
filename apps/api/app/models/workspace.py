@@ -98,6 +98,26 @@ class Workspace(Base):
         doc="Comma-separated ISO weekday numbers. 1=Mon, 7=Sun.",
     )
 
+    # === Slack Integration ===
+
+    slack_webhook_url_encrypted: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        doc="Fernet-encrypted Slack incoming webhook URL. " "Decrypt with settings.slack_encryption_key before use.",
+    )
+    slack_digest_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to post daily digest to Slack channel.",
+    )
+    slack_updates_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to post update notifications to Slack when processed.",
+    )
+
     # === Timestamps ===
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
