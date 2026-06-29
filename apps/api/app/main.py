@@ -4,6 +4,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from apps.api.app.lib import slack
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(invites.router, prefix="/api/v1")
     app.include_router(digests.router, prefix="/api/v1")
     app.include_router(analytics.router, prefix="/api/v1")
+    app.include_router(slack.router, prefix="/api/v1")
 
     return app
 
