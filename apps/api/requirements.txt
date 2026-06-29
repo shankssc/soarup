@@ -55,6 +55,3 @@ websockets==15.0.1
 # === Email + Notifications ===
 resend>=2.0.0
 jinja2>=3.1.0
-
-# === Encryption ===
-cryptography>=42.0.0
