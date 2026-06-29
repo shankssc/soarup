@@ -71,8 +71,8 @@ export function useWebSocket({
       setStatus('connected');
       resetReconnectAttempts();
 
-      // Belt-and-suspenders alongside last_event_id stream replay.
-      queryClient.invalidateQueries({
+      // substituting invalidateQueries with refetchQueries to prevent stale data fetching.
+      queryClient.refetchQueries({
         queryKey: updateKeys.byDate(workspaceId, format(new Date(), 'yyyy-MM-dd')),
       });
     };

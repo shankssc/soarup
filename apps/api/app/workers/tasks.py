@@ -37,6 +37,12 @@ class ProcessUpdateTask(Task):  # type: ignore[misc]
             from sqlalchemy.ext.asyncio import create_async_engine
             from sqlalchemy.pool import NullPool
 
+            # NullPool is intentional — do not remove.
+            # Celery tasks call asyncio.run() which creates a new event loop
+            # per task invocation. SQLAlchemy connection pool state does not
+            # survive across event loop boundaries, causing asyncpg
+            # InterfaceError on reuse. NullPool disables pooling so each
+            # operation gets a fresh connection that is closed immediately.
             self._db_engine = create_async_engine(
                 settings.database_url,
                 poolclass=NullPool,

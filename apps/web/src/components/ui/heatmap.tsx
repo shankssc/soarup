@@ -24,7 +24,11 @@ const CELL_GAP = 2;
 const CELL_STEP = CELL_SIZE + CELL_GAP;
 
 // Intensity → hex color
-// Dark mode: cyan tints against #1f1f22 (surface-high)
+// These hex values are hardcoded because SVG fill attributes do not
+// reliably support CSS custom properties across all browsers.
+// If design tokens change in globals.css, update these values to match:
+//   Dark intensity 3  → --color-primary dark mode    (#53ddfc)
+//   Light intensity 3 → --color-primary light mode   (#00687a)
 const DARK: Record<0 | 1 | 2 | 3, string> = {
   0: '#1f1f22', // surface-high — empty cell
   1: '#1a3d4a', // very light cyan tint
@@ -34,10 +38,10 @@ const DARK: Record<0 | 1 | 2 | 3, string> = {
 
 // Light mode: cyan tints against #daeceb (surface-high light)
 const LIGHT: Record<0 | 1 | 2 | 3, string> = {
-  0: '#daeceb',
-  1: '#a8d8df',
-  2: '#4ab8cf',
-  3: '#00687a', // primary light
+  0: '#daeceb', // --color-surface-high light
+  1: '#a8d8df', // tint of --color-primary light
+  2: '#4ab8cf', // mid --color-primary light
+  3: '#00687a', // --color-primary light
 };
 
 // Day labels shown on left axis (M W F only — matching GitHub's convention)

@@ -150,9 +150,11 @@ class TestCalculateStreak:
     def test_best_streak_found_in_past_not_current(self):
         today = date.today()
         # Current run: 2 days
-        current_run = [today.isoformat(), (today - timedelta(days=1)).isoformat()]
+        current_run = [
+            today.isoformat(), (today - timedelta(days=1)).isoformat()]
         # Past run of 10 starting 30 days ago
-        past_run = [(today - timedelta(days=30 + i)).isoformat() for i in range(10)]
+        past_run = [(today - timedelta(days=30 + i)).isoformat()
+                    for i in range(10)]
         dates = current_run + past_run
 
         current, best = _calculate_streak(dates, None)
@@ -165,6 +167,46 @@ class TestCalculateStreak:
         assert current == 1
         assert best == 1
 
+    def test_saturday_does_not_break_monday_friday_streak(self):
+        """
+        Mon-Fri workspace. User submits Mon-Fri for two consecutive weeks.
+        Today is Saturday. Current streak should be 10 (Friday's submission
+        is the most recent counting day and it has a submission).
+        """
+        dates = [
+            "2026-06-19",  # Friday week 2
+            "2026-06-18",  # Thursday week 2
+            "2026-06-17",  # Wednesday week 2
+            "2026-06-16",  # Tuesday week 2
+            "2026-06-15",  # Monday week 2
+            "2026-06-12",  # Friday week 1
+            "2026-06-11",  # Thursday week 1
+            "2026-06-10",  # Wednesday week 1
+            "2026-06-09",  # Tuesday week 1
+            "2026-06-08",  # Monday week 1
+        ]
+        digest_days = [1, 2, 3, 4, 5]  # Mon-Fri
+        saturday = date(2026, 6, 20)
+
+        current, best = _calculate_streak(dates, digest_days, today=saturday)
+
+        assert current == 10
+        assert best == 10
+
+    def test_gap_on_counting_day_breaks_streak(self):
+        """Missing a configured digest day resets current streak to 0."""
+        dates = [
+            "2026-06-19",  # Friday — submission
+            # Thursday missing — gap
+            "2026-06-17",  # Wednesday — submission
+        ]
+        digest_days = [1, 2, 3, 4, 5]
+        friday = date(2026, 6, 19)
+
+        current, best = _calculate_streak(dates, digest_days, today=friday)
+
+        assert current == 1
+        assert best == 1
 
 # ===========================================================================
 # AnalyticsService — mocked repos
@@ -279,7 +321,8 @@ class TestGetTeamAnalytics:
 
         # Two members: one submitted every day in last 30d, one submitted nothing
         today = date.today()
-        all_30_days = [(today - timedelta(days=i)).isoformat() for i in range(30)]
+        all_30_days = [(today - timedelta(days=i)).isoformat()
+                       for i in range(30)]
 
         workspace_repo.get_workspace_members_with_profiles = AsyncMock(
             return_value=[
@@ -290,10 +333,10 @@ class TestGetTeamAnalytics:
         workspace_repo.get_by_id = AsyncMock(return_value=_fake_workspace())
         analytics_repo.get_workspace_total_updates = AsyncMock(return_value=30)
         analytics_repo.get_workspace_daily_counts = AsyncMock(return_value={})
-        analytics_repo.get_user_submission_dates = AsyncMock(
-            side_effect=[all_30_days, []]  # Alice submitted all 30, Bob none
+        analytics_repo.get_all_member_submission_dates = AsyncMock(
+            return_value={"user-1": all_30_days, "user-2": []}
         )
-        analytics_repo.get_member_submission_counts = AsyncMock(return_value={})
+        analytics_repo.get_all_member_sparklines = AsyncMock(return_value={})
 
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # Noqa: ARG005
@@ -324,8 +367,9 @@ class TestGetTeamAnalytics:
         workspace_repo.get_by_id = AsyncMock(return_value=_fake_workspace())
         analytics_repo.get_workspace_total_updates = AsyncMock(return_value=0)
         analytics_repo.get_workspace_daily_counts = AsyncMock(return_value={})
-        analytics_repo.get_user_submission_dates = AsyncMock(return_value=[])
-        analytics_repo.get_member_submission_counts = AsyncMock(return_value={})
+        analytics_repo.get_all_member_submission_dates = AsyncMock(
+            return_value={})
+        analytics_repo.get_all_member_sparklines = AsyncMock(return_value={})
 
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # Noqa: ARG005
