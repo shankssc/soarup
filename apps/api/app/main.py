@@ -4,12 +4,11 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from apps.api.app.lib import slack
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import analytics, audio, auth, digests, health, invites, members, updates, workspaces
+from app.routers import analytics, audio, auth, digests, health, invites, members, slack, updates, workspaces
 from app.routers.websockets import router as websocket_router
 
 
