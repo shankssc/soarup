@@ -28,6 +28,8 @@ export interface Digest {
   status: string;
   update_count: number;
   email_sent_at: string | null;
+  delivered_to_slack: boolean;
+  slack_delivered_at: string | null;
   created_at: string;
   items: DigestItem[];
 }
