@@ -75,6 +75,17 @@ export function DigestCard({ digest, workspaceId }: DigestCardProps) {
             <span className="font-label text-[11px] text-on-surface-variant">
               {digest.update_count} update{digest.update_count !== 1 ? 's' : ''}
             </span>
+            {digest.delivered_to_slack && (
+              <span className="flex items-center gap-1 font-label text-[9px] uppercase tracking-[0.1em] text-outline">
+                <span
+                  className="material-symbols-outlined text-[11px]"
+                  aria-hidden="true"
+                >
+                  tag
+                </span>
+                Slack
+              </span>
+            )}
           </div>
         </div>
       </div>
