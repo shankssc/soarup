@@ -37,6 +37,21 @@ class DigestError(Exception):
 
 
 class DigestService:
+    """
+    Async business logic layer for digest management.
+
+    Responsibilities:
+    - List and retrieve workspace digests with cursor pagination
+    - Update digest schedule settings on the workspace
+    - Generate live digest previews for admin review
+    - Map ORM objects to response schemas
+
+    This layer should NOT contain:
+    - Digest generation or email delivery (see app.workers.tasks)
+    - Direct Celery task calls
+    - Raw DB queries (use repositories)
+    """
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self._digest_repo: DigestRepository | None = None
@@ -64,6 +79,8 @@ class DigestService:
         cursor: str | None = None,
         limit: int = 20,
     ) -> DigestListResponse:
+        """Return cursor-paginated list of digests for a workspace, newest first."""
+
         digest_repo = self._get_digest_repo()
         try:
             digests, next_cursor, total = await digest_repo.get_workspace_digests(
@@ -85,6 +102,12 @@ class DigestService:
         workspace_id: str,
         digest_id: str,
     ) -> DigestResponse:
+        """
+        Fetch a single digest with its items.
+        Raises DigestError('digest_not_found') if the digest doesn't exist
+        or belongs to a different workspace.
+        """
+
         digest_repo = self._get_digest_repo()
 
         digest = await digest_repo.get_by_id(digest_id)
@@ -110,6 +133,12 @@ class DigestService:
         workspace_id: str,
         request: UpdateDigestSettingsRequest,
     ) -> DigestResponse:
+        """
+        Persist digest schedule changes on the workspace.
+        Returns the most recent digest as context, or a minimal placeholder
+        if no digests exist yet.
+        """
+
         workspace_repo = self._get_workspace_repo()
 
         workspace = await workspace_repo.get_by_id(workspace_id)
@@ -160,6 +189,12 @@ class DigestService:
         )
 
     async def preview_digest(self, workspace_id: str) -> DigestPreviewResponse:
+        """
+        Generate a live digest preview from today's processed updates.
+        Calls Claude to produce a real team summary — not cached.
+        Returns empty html and update_count=0 if no processed updates exist today.
+        """
+
         from app.lib.email import render_digest_email
         from app.workers.prompts import build_digest_prompt
 

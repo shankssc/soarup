@@ -84,6 +84,23 @@ class Settings(BaseSettings):
         description=("From address for transactional emails. " "Defaults to Resend's shared test address for local dev. " "Set RESEND_FROM_EMAIL=invites@soarup.app in production."),
     )
 
+    # === Slack Integration ===
+    slack_integration_enabled: bool = Field(
+        default=False,
+        description="Enable Slack integration features. " "Set SLACK_INTEGRATION_ENABLED=true to activate.",
+    )
+    slack_encryption_key: SecretStr | None = Field(
+        None,
+        description="Fernet key for encrypting Slack webhook URLs at rest. " "Generate with: python -c 'from cryptography.fernet import " "Fernet; print(Fernet.generate_key().decode())'",
+    )
+
+    @field_validator("slack_encryption_key", mode="after")
+    @classmethod
+    def validate_slack_key(cls, v: SecretStr | None, info: ValidationInfo) -> SecretStr | None:
+        if info.data.get("environment") == "production" and info.data.get("slack_integration_enabled") and not v:
+            raise ValueError("SLACK_ENCRYPTION_KEY is required in production " "when SLACK_INTEGRATION_ENABLED=true")
+        return v
+
     # === Observability ===
     sentry_dsn: str | None = None
 

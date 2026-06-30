@@ -4,7 +4,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -60,6 +60,17 @@ class Digest(Base):
         Integer,
         default=0,
         doc="Number of updates included in this digest",
+    )
+    delivered_to_slack: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether this digest was successfully delivered to Slack.",
+    )
+    slack_delivered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp when digest was delivered to Slack channel.",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

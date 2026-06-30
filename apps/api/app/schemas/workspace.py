@@ -71,6 +71,9 @@ class WorkspaceResponse(BaseModel):
     owner_id: str = Field(..., description="Supabase user ID of the workspace owner")
     plan: str = Field(..., description="Billing plan — 'free' or 'pro'")
     created_at: datetime = Field(..., description="Workspace creation timestamp")
+    slack_configured: bool = Field(default=False, description="Whether a Slack webhook URL is configured")
+    slack_digest_enabled: bool = Field(default=False, description="Whether digest delivery to Slack is enabled")
+    slack_updates_enabled: bool = Field(default=False, description="Whether update notifications to Slack are enabled")
 
     model_config = ConfigDict(from_attributes=True)
 

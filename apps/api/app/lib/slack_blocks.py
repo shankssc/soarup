@@ -1,0 +1,185 @@
+# apps/api/app/lib/slack_blocks.py
+# Block Kit message builders for digest and update notifications.
+# Matches Electric Atelier aesthetic as closely as Slack allows:
+# - Section headers use bold text (no color in Block Kit)
+# - Summaries use > blockquote style via mrkdwn
+# - Update cards use dividers for separation
+# - Footer includes "View in SoarUp" button
+
+from typing import Any
+
+
+def build_digest_blocks(
+    workspace_name: str,
+    digest_date: str,
+    team_summary: str,
+    items: list[dict[str, Any]],
+    app_url: str,
+) -> list[dict[str, Any]]:
+    """
+    Build Block Kit blocks for the daily digest message.
+
+    Args:
+        workspace_name: Display name of the workspace
+        digest_date: ISO date string YYYY-MM-DD
+        team_summary: Claude-generated team-level summary
+        items: List of {author_name, summary_snapshot} dicts
+        app_url: Base URL for "View in SoarUp" deep link
+
+    Returns:
+        List of Block Kit block dicts ready for Slack API
+    """
+    blocks: list[dict[str, Any]] = [
+        # Header
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": f"🚀 {workspace_name} — Daily Standup",
+                "emoji": True,
+            },
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": f"*{digest_date}* · {len(items)} update{'s' if len(items) != 1 else ''}",
+                }
+            ],
+        },
+        {"type": "divider"},
+        # Team summary
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Team Summary*\n>{team_summary}",
+            },
+        },
+        {"type": "divider"},
+        # Individual updates header
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Individual Updates*",
+            },
+        },
+    ]
+
+    # One section block per update
+    for item in items:
+        name = item.get("author_name") or "A team member"
+        summary = item.get("summary_snapshot") or "_No summary available_"
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*{name}*\n{summary}",
+                },
+            }
+        )
+
+    # Footer with deep link
+    blocks.extend(
+        [
+            {"type": "divider"},
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "View in SoarUp →"},
+                        "url": f"{app_url}/history",
+                        "style": "primary",
+                    }
+                ],
+            },
+        ]
+    )
+
+    return blocks
+
+
+def build_update_notification_blocks(
+    author_name: str,
+    workspace_name: str,
+    update_date: str,
+    content: str,
+    summary: str,
+    app_url: str,
+    mode: str = "text",
+) -> list[dict[str, Any]]:
+    """
+    Build Block Kit blocks for an individual update notification.
+    Fires after AI processing is complete — includes both raw text and summary.
+    """
+    mode_label = "🎙️ Voice standup" if mode == "voice" else "📝 Standup update"
+
+    blocks: list[dict[str, Any]] = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (f"{mode_label} from *{author_name}*\n" f"_{workspace_name} · {update_date}_"),
+            },
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Update*\n{content}",
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Summary*\n>{summary}",
+            },
+        },
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "View dashboard →",
+                    },
+                    "url": f"{app_url}/dashboard",
+                }
+            ],
+        },
+    ]
+
+    return blocks
+
+
+def build_test_blocks(
+    workspace_name: str,
+    app_url: str,
+) -> list[dict[str, Any]]:
+    """
+    Sample digest preview for the test message.
+    Clearly labelled as a test so channel members aren't confused.
+    """
+    return build_digest_blocks(
+        workspace_name=workspace_name,
+        digest_date="Sample digest",
+        team_summary=("This is a sample team summary showing how your daily digest " "will appear in Slack. Real summaries are generated by Claude " "from your team's standup updates."),
+        items=[
+            {
+                "author_name": "Alex Chen",
+                "summary_snapshot": ("Completed the WebSocket reconnect fix and started " "on the Slack integration. No blockers."),
+            },
+            {
+                "author_name": "Jordan Kim",
+                "summary_snapshot": ("Reviewed PRs for milestone 7 and updated the " "analytics spec document."),
+            },
+        ],
+        app_url=app_url,
+    )
