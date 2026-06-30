@@ -30,7 +30,7 @@ const SETTINGS_LINKS = [
   { href: '/settings/profile', label: 'Profile', icon: 'person' },
   { href: '/settings/members', label: 'Members', icon: 'group' },
   { href: '/settings/digest', label: 'Digest', icon: 'mail' },
-  { href: '/settings/slack', label: 'Slack', icon: 'tag' },
+  { href: '/settings/slack', label: 'Slack', icon: 'label' },
   { href: '/settings/workspace', label: 'Workspace', icon: 'business' },
 ];
 
