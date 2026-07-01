@@ -23,6 +23,8 @@ class DigestResponse(BaseModel):
     status: str
     update_count: int
     email_sent_at: datetime | None
+    delivered_to_slack: bool = False
+    slack_delivered_at: datetime | None = None
     created_at: datetime
     items: list[DigestItemResponse] = []
 

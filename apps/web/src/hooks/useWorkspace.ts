@@ -49,6 +49,9 @@ export interface WorkspaceResponse {
   digest_send_time: string;
   digest_timezone: string | null;
   digest_days: string;
+  slack_configured: boolean;
+  slack_digest_enabled: boolean;
+  slack_updates_enabled: boolean;
 }
 
 export const workspaceKeys = {

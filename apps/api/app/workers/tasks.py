@@ -37,6 +37,12 @@ class ProcessUpdateTask(Task):  # type: ignore[misc]
             from sqlalchemy.ext.asyncio import create_async_engine
             from sqlalchemy.pool import NullPool
 
+            # NullPool is intentional — do not remove.
+            # Celery tasks call asyncio.run() which creates a new event loop
+            # per task invocation. SQLAlchemy connection pool state does not
+            # survive across event loop boundaries, causing asyncpg
+            # InterfaceError on reuse. NullPool disables pooling so each
+            # operation gets a fresh connection that is closed immediately.
             self._db_engine = create_async_engine(
                 settings.database_url,
                 poolclass=NullPool,
@@ -204,6 +210,31 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
                     "summary": summary,
                 },
             )
+            # 6. Post update notification to Slack (non-fatal)
+            if workspace and workspace.slack_updates_enabled and workspace.slack_webhook_url_encrypted:
+                try:
+                    from app.services.slack_service import SlackService
+
+                    author_name = profile.full_name if profile is not None else "A team member"
+                    author_name = (profile.full_name if profile is not None else None) or "A team member"
+
+                    slack_service = SlackService(db)
+                    await slack_service.post_update_notification(
+                        workspace_id=update.workspace_id,
+                        author_name=author_name,
+                        workspace_name=workspace.name,
+                        update_date=update.update_date,
+                        content=update.content,
+                        summary=summary,
+                        mode=update.mode,
+                    )
+                except Exception as slack_exc:
+                    logger.warning(
+                        "slack_update_notification_failed",
+                        update_id=update_id,
+                        error=str(slack_exc),
+                    )
+
             logger.info(
                 "process_update_complete",
                 update_id=update_id,
@@ -418,6 +449,31 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
                     "summary": summary,
                 },
             )
+            # 10. Post update notification to Slack (non-fatal)
+            if workspace and workspace.slack_updates_enabled and workspace.slack_webhook_url_encrypted:
+                try:
+                    from app.services.slack_service import SlackService
+
+                    author_name = profile.full_name if profile is not None else "A team member"
+                    author_name = (profile.full_name if profile is not None else None) or "A team member"
+
+                    slack_service = SlackService(db)
+                    await slack_service.post_update_notification(
+                        workspace_id=update.workspace_id,
+                        author_name=author_name,
+                        workspace_name=workspace.name,
+                        update_date=update.update_date,
+                        content=update.content,
+                        summary=summary,
+                        mode=update.mode,
+                    )
+                except Exception as slack_exc:
+                    logger.warning(
+                        "slack_audio_update_notification_failed",
+                        update_id=update_id,
+                        error=str(slack_exc),
+                    )
+
             logger.info(
                 "process_audio_update_complete",
                 update_id=update_id,
@@ -778,6 +834,35 @@ async def _send_workspace_digest_async(
             email_sent_at=datetime.now(UTC) if sent else None,
         )
         await db.commit()
+
+        # 12. Post digest to Slack after email delivery (non-fatal)
+        if final_status == "sent" and workspace.slack_digest_enabled and workspace.slack_webhook_url_encrypted:
+            try:
+                from app.services.slack_service import SlackService
+
+                slack_service = SlackService(db)
+                slack_delivered = await slack_service.post_digest_to_slack(
+                    workspace_id=workspace_id,
+                    workspace_name=workspace.name,
+                    digest_date=digest_date,
+                    team_summary=team_summary,
+                    items=items_for_template,
+                )
+                if slack_delivered:
+                    await digest_repo.update_status(
+                        digest.id,
+                        status=final_status,
+                        delivered_to_slack=True,
+                        slack_delivered_at=datetime.now(UTC),
+                    )
+                    await db.commit()
+                    logger.info("digest_slack_delivered", workspace_id=workspace_id)
+            except Exception as slack_exc:
+                logger.warning(
+                    "slack_digest_delivery_failed",
+                    workspace_id=workspace_id,
+                    error=str(slack_exc),
+                )
 
         logger.info(
             "digest_complete",

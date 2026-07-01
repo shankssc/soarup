@@ -44,6 +44,73 @@ class AnalyticsRepository:
         )
         return [row[0] for row in result.all()]
 
+    async def get_all_member_submission_dates(
+        self,
+        workspace_id: str,
+        from_date: date,
+        to_date: date,
+    ) -> dict[str, list[str]]:
+        """
+        Return {user_id: [date_str, ...]} for all members in one query.
+        Dates sorted descending — ready for _calculate_streak.
+        Replaces per-member get_user_submission_dates calls in team analytics.
+        """
+        result = await self.db.execute(
+            select(Update.user_id, Update.update_date)
+            .where(
+                and_(
+                    Update.workspace_id == workspace_id,
+                    Update.is_deleted == False,  # noqa: E712
+                    Update.update_date >= from_date.isoformat(),
+                    Update.update_date <= to_date.isoformat(),
+                )
+            )
+            .order_by(Update.user_id, Update.update_date.desc())
+        )
+        rows = result.all()
+
+        result_map: dict[str, list[str]] = {}
+        for user_id, update_date in rows:
+            if user_id not in result_map:
+                result_map[user_id] = []
+            result_map[user_id].append(update_date)
+        return result_map
+
+    async def get_all_member_sparklines(
+        self,
+        workspace_id: str,
+        from_date: date,
+        to_date: date,
+    ) -> dict[str, dict[str, int]]:
+        """
+        Return {user_id: {date_str: count}} for sparklines in one query.
+        Replaces per-member get_member_submission_counts calls in team analytics.
+        """
+        result = await self.db.execute(
+            select(
+                Update.user_id,
+                Update.update_date,
+                func.count(Update.id).label("count"),
+            )
+            .where(
+                and_(
+                    Update.workspace_id == workspace_id,
+                    Update.is_deleted == False,  # noqa: E712
+                    Update.update_date >= from_date.isoformat(),
+                    Update.update_date <= to_date.isoformat(),
+                )
+            )
+            .group_by(Update.user_id, Update.update_date)
+        )
+        rows = result.all()
+
+        result_map: dict[str, dict[str, int]] = {}
+        for user_id, update_date, count in rows:
+            if user_id not in result_map:
+                result_map[user_id] = {}
+            result_map[user_id][update_date] = count
+        return result_map
+
     async def get_workspace_daily_counts(
         self,
         workspace_id: str,

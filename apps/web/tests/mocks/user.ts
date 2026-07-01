@@ -3,6 +3,7 @@
 import type { AuthTokens, UserProfile } from '@/hooks/useAuth';
 import type { WorkspaceMember } from '@/hooks/useWorkspaceMembers';
 import type { Digest, DigestItem } from '@/hooks/useDigests';
+import type { SlackSettings } from '@/hooks/useSlack';
 import { WorkspaceResponse } from '@/hooks/useWorkspace';
 
 export const MOCK_USER: UserProfile = {
@@ -33,6 +34,9 @@ export const MOCK_WORKSPACE: WorkspaceResponse = {
   digest_send_time: '09:00',
   digest_timezone: null,
   digest_days: '1,2,3,4,5',
+  slack_configured: false,
+  slack_digest_enabled: false,
+  slack_updates_enabled: false,
 };
 
 export const MOCK_WORKSPACE_MEMBER: WorkspaceMember = {
@@ -59,6 +63,8 @@ export const MOCK_DIGEST: Digest = {
   status: 'sent',
   update_count: 2,
   email_sent_at: '2026-06-07T09:00:00Z',
+  delivered_to_slack: false,
+  slack_delivered_at: null,
   created_at: '2026-06-07T09:00:00Z',
   items: [MOCK_DIGEST_ITEM],
 };
@@ -80,4 +86,18 @@ export const MOCK_DIGEST_PROCESSING: Digest = {
   status: 'processing',
   email_sent_at: null,
   items: [],
+};
+
+export const MOCK_SLACK_SETTINGS: SlackSettings = {
+  slack_configured: true,
+  slack_digest_enabled: true,
+  slack_updates_enabled: true,
+  webhook_url_hint: '...8Y5TV0HJ',
+};
+
+export const MOCK_SLACK_SETTINGS_NOT_CONNECTED: SlackSettings = {
+  slack_configured: false,
+  slack_digest_enabled: false,
+  slack_updates_enabled: false,
+  webhook_url_hint: null,
 };

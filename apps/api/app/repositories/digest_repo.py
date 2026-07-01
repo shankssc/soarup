@@ -54,6 +54,8 @@ class DigestRepository:
         summary: str | None = None,
         update_count: int | None = None,
         email_sent_at: datetime | None = None,
+        delivered_to_slack: bool | None = None,
+        slack_delivered_at: datetime | None = None,
     ) -> Digest | None:
         """
         Update digest status + optional fields atomically.
@@ -72,6 +74,10 @@ class DigestRepository:
             digest.update_count = update_count
         if email_sent_at is not None:
             digest.email_sent_at = email_sent_at
+        if delivered_to_slack is not None:
+            digest.delivered_to_slack = delivered_to_slack
+        if slack_delivered_at is not None:
+            digest.slack_delivered_at = slack_delivered_at
 
         await self.db.flush()
         await self.db.refresh(digest)
