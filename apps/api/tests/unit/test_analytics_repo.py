@@ -8,7 +8,7 @@
 #   - All queries exclude soft-deleted rows via is_deleted == False
 
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -19,7 +19,7 @@ from app.repositories.analytics_repo import AnalyticsRepository
 pytestmark = pytest.mark.db
 
 TODAY = date.today().isoformat()
-YESTERDAY = (date.today().replace(day=date.today().day - 1)).isoformat()
+YESTERDAY = (date.today() - timedelta(days=1)).isoformat()
 
 
 # ---------------------------------------------------------------------------

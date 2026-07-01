@@ -36,6 +36,8 @@ const makeDigest = (
   email_sent_at: status === 'sent' ? `${date}T09:00:00Z` : null,
   created_at: `${date}T09:00:00Z`,
   items: [],
+  delivered_to_slack: false,
+  slack_delivered_at: null,
 });
 
 const DIGESTS: Digest[] = [
