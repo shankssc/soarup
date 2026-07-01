@@ -66,6 +66,7 @@ def test_settings():
         anthropic_api_key="test-key",  # noqa: S106 # pragma: allowlist secret
         resend_api_key="test-key",  # noqa: S106 # pragma: allowlist secret
         novu_api_key="test-key",  # noqa: S106 # pragma: allowlist secret
+        slack_encryption_key="m-9YEzBRPdTFIn74Wt-df2HVIOUa3TJQwSBxhnVpqCU=",  # noqa: S106 # pragma: allowlist secret
         debug=True,
     )
 
