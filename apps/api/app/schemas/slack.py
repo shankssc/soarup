@@ -27,8 +27,8 @@ class UpdateSlackSettingsRequest(BaseModel):
     @field_validator("webhook_url", mode="after")
     @classmethod
     def validate_webhook_url(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
+        if v is None or v == "":
+            return v
         if not v.startswith("https://hooks.slack.com/"):
             raise ValueError("Webhook URL must be a valid Slack incoming webhook URL " "starting with https://hooks.slack.com/")
         return v
