@@ -160,6 +160,22 @@ describe('DigestCard — rendering', () => {
     );
     expect(screen.getByText(/view updates/i)).toBeInTheDocument();
   });
+
+  it('renders Slack delivery badge when delivered_to_slack is true', () => {
+    const slackDeliveredDigest = {
+      ...MOCK_DIGEST,
+      delivered_to_slack: true,
+      slack_delivered_at: '2026-06-07T09:00:05Z',
+    };
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <DigestCard digest={slackDeliveredDigest} workspaceId={WORKSPACE_ID} />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText(/slack/i)).toBeInTheDocument();
+  });
 });
 
 // ─── Lazy load expand ─────────────────────────────────────────────────────────
