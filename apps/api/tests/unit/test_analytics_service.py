@@ -150,11 +150,9 @@ class TestCalculateStreak:
     def test_best_streak_found_in_past_not_current(self):
         today = date.today()
         # Current run: 2 days
-        current_run = [
-            today.isoformat(), (today - timedelta(days=1)).isoformat()]
+        current_run = [today.isoformat(), (today - timedelta(days=1)).isoformat()]
         # Past run of 10 starting 30 days ago
-        past_run = [(today - timedelta(days=30 + i)).isoformat()
-                    for i in range(10)]
+        past_run = [(today - timedelta(days=30 + i)).isoformat() for i in range(10)]
         dates = current_run + past_run
 
         current, best = _calculate_streak(dates, None)
@@ -207,6 +205,7 @@ class TestCalculateStreak:
 
         assert current == 1
         assert best == 1
+
 
 # ===========================================================================
 # AnalyticsService — mocked repos
@@ -321,8 +320,7 @@ class TestGetTeamAnalytics:
 
         # Two members: one submitted every day in last 30d, one submitted nothing
         today = date.today()
-        all_30_days = [(today - timedelta(days=i)).isoformat()
-                       for i in range(30)]
+        all_30_days = [(today - timedelta(days=i)).isoformat() for i in range(30)]
 
         workspace_repo.get_workspace_members_with_profiles = AsyncMock(
             return_value=[
@@ -333,9 +331,7 @@ class TestGetTeamAnalytics:
         workspace_repo.get_by_id = AsyncMock(return_value=_fake_workspace())
         analytics_repo.get_workspace_total_updates = AsyncMock(return_value=30)
         analytics_repo.get_workspace_daily_counts = AsyncMock(return_value={})
-        analytics_repo.get_all_member_submission_dates = AsyncMock(
-            return_value={"user-1": all_30_days, "user-2": []}
-        )
+        analytics_repo.get_all_member_submission_dates = AsyncMock(return_value={"user-1": all_30_days, "user-2": []})
         analytics_repo.get_all_member_sparklines = AsyncMock(return_value={})
 
         with pytest.MonkeyPatch().context() as mp:
@@ -367,8 +363,7 @@ class TestGetTeamAnalytics:
         workspace_repo.get_by_id = AsyncMock(return_value=_fake_workspace())
         analytics_repo.get_workspace_total_updates = AsyncMock(return_value=0)
         analytics_repo.get_workspace_daily_counts = AsyncMock(return_value={})
-        analytics_repo.get_all_member_submission_dates = AsyncMock(
-            return_value={})
+        analytics_repo.get_all_member_submission_dates = AsyncMock(return_value={})
         analytics_repo.get_all_member_sparklines = AsyncMock(return_value={})
 
         with pytest.MonkeyPatch().context() as mp:

@@ -443,3 +443,22 @@ class TestUpdateStatus:
         final = await digest_repo.update_status(digest.id, status="sent")
 
         assert final.status == "sent"
+
+    @pytest.mark.asyncio
+    async def test_update_status_sets_delivered_to_slack(self, digest_repo, db_session, seeded_workspace):
+        digest = await _create_digest(db_session, seeded_workspace.id)
+
+        updated = await digest_repo.update_status(digest.id, status="sent", delivered_to_slack=True)
+
+        assert updated.delivered_to_slack is True
+
+    @pytest.mark.asyncio
+    async def test_update_status_sets_slack_delivered_at(self, digest_repo, db_session, seeded_workspace):
+        from datetime import UTC, datetime
+
+        digest = await _create_digest(db_session, seeded_workspace.id)
+        now = datetime.now(UTC)
+
+        updated = await digest_repo.update_status(digest.id, status="sent", slack_delivered_at=now)
+
+        assert updated.slack_delivered_at is not None
