@@ -18,6 +18,8 @@ const DIGEST_WITH_SUMMARY: Digest = {
   status: 'sent',
   update_count: 3,
   email_sent_at: '2026-06-07T09:00:00Z',
+  delivered_to_slack: false,
+  slack_delivered_at: null,
   created_at: '2026-06-07T09:00:00Z',
   items: [
     {
@@ -71,6 +73,13 @@ const DIGEST_NO_UPDATES: Digest = {
   update_count: 0,
   email_sent_at: null,
   items: [],
+};
+
+const DIGEST_WITH_SLACK: Digest = {
+  ...DIGEST_WITH_SUMMARY,
+  id: 'digest-5',
+  delivered_to_slack: true,
+  slack_delivered_at: '2026-06-07T09:00:05Z',
 };
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
@@ -155,6 +164,26 @@ export const NoUpdatesDark: Story = {
   },
 };
 
+export const WithSlackDeliveryDark: Story = {
+  name: 'With Slack Delivery Badge (Dark)',
+  parameters: { theme: 'dark' },
+  decorators: [CardShell],
+  args: {
+    digest: DIGEST_WITH_SLACK,
+    workspaceId: WORKSPACE_ID,
+  },
+};
+
+export const WithSlackDeliveryLight: Story = {
+  name: 'With Slack Delivery Badge (Light)',
+  parameters: { theme: 'light' },
+  decorators: [CardShell],
+  args: {
+    digest: DIGEST_WITH_SLACK,
+    workspaceId: WORKSPACE_ID,
+  },
+};
+
 export const LoadingSkeletonDark: Story = {
   name: 'Loading Skeleton (Dark)',
   parameters: { theme: 'dark' },
@@ -189,6 +218,7 @@ export const MultipleDark: Story = {
     <div className="min-h-screen bg-background p-8">
       <div className="mx-auto flex max-w-2xl flex-col gap-3">
         <DigestCard digest={DIGEST_WITH_SUMMARY} workspaceId={WORKSPACE_ID} />
+        <DigestCard digest={DIGEST_WITH_SLACK} workspaceId={WORKSPACE_ID} />
         <DigestCard digest={DIGEST_PROCESSING} workspaceId={WORKSPACE_ID} />
         <DigestCard digest={DIGEST_NO_SUMMARY} workspaceId={WORKSPACE_ID} />
       </div>
