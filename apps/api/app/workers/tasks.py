@@ -210,12 +210,12 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
                     "summary": summary,
                 },
             )
+
             # 6. Post update notification to Slack (non-fatal)
-            if workspace and workspace.slack_updates_enabled and workspace.slack_webhook_url_encrypted:
+            if settings.slack_integration_enabled and workspace and workspace.slack_updates_enabled and workspace.slack_webhook_url_encrypted:
                 try:
                     from app.services.slack_service import SlackService
 
-                    author_name = profile.full_name if profile is not None else "A team member"
                     author_name = (profile.full_name if profile is not None else None) or "A team member"
 
                     slack_service = SlackService(db)
@@ -284,7 +284,7 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
     import os
     import tempfile
 
-    import boto3
+    import aioboto3
     from pydub import AudioSegment
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -319,19 +319,17 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
         # 2. Set status → processing
         await update_repo.update_status(update, "processing")
 
-        # 3. Download audio from Minio/R2
-        # Sync boto3 used here — this runs inside asyncio.run() in a dedicated
-        # Celery process, not in the FastAPI event loop, so blocking is acceptable.
-        # Replace with aioboto3 when moving to a proper async task runner.
-        s3 = boto3.client(
+        # 3. Download audio from R2 via aioboto3
+        session = aioboto3.Session()
+        audio_buffer = io.BytesIO()
+        async with session.client(
             "s3",
             endpoint_url=settings.r2_endpoint_url,
             aws_access_key_id=(settings.r2_access_key_id.get_secret_value() if settings.r2_access_key_id else ""),
             aws_secret_access_key=(settings.r2_secret_access_key.get_secret_value() if settings.r2_secret_access_key else ""),
             region_name="auto",
-        )
-        audio_buffer = io.BytesIO()
-        s3.download_fileobj(settings.r2_bucket_name, update.audio_key, audio_buffer)
+        ) as s3:
+            await s3.download_fileobj(settings.r2_bucket_name, update.audio_key, audio_buffer)
         audio_buffer.seek(0)
 
         # 4. Transcode to WAV/16kHz mono via pydub + ffmpeg
@@ -449,12 +447,12 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
                     "summary": summary,
                 },
             )
+
             # 10. Post update notification to Slack (non-fatal)
-            if workspace and workspace.slack_updates_enabled and workspace.slack_webhook_url_encrypted:
+            if settings.slack_integration_enabled and workspace and workspace.slack_updates_enabled and workspace.slack_webhook_url_encrypted:
                 try:
                     from app.services.slack_service import SlackService
 
-                    author_name = profile.full_name if profile is not None else "A team member"
                     author_name = (profile.full_name if profile is not None else None) or "A team member"
 
                     slack_service = SlackService(db)
@@ -836,7 +834,7 @@ async def _send_workspace_digest_async(
         await db.commit()
 
         # 12. Post digest to Slack after email delivery (non-fatal)
-        if final_status == "sent" and workspace.slack_digest_enabled and workspace.slack_webhook_url_encrypted:
+        if final_status == "sent" and settings.slack_integration_enabled and workspace.slack_digest_enabled and workspace.slack_webhook_url_encrypted:
             try:
                 from app.services.slack_service import SlackService
 

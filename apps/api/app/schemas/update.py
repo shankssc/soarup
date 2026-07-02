@@ -58,9 +58,6 @@ class UpdateHistoryResponse(BaseModel):
 
     updates: list[UpdateResponse]
     next_cursor: str | None
-    # Approximate count — equals the number of items in the current page,
-    # NOT a true total. Named total_in_range (not total) to communicate this.
-    total_in_range: int
 
 
 class UpdateHistoryParams(BaseModel):

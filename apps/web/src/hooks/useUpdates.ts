@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { apiClient } from '@/lib/api/client';
 import { useAuth } from '@/hooks/useAuth';
+import { analyticsKeys } from '@/hooks/useAnalytics';
 
 export interface UpdateResponse {
   id: string;
@@ -84,6 +85,9 @@ export function useSubmitUpdate(workspaceId: string) {
           total: (old?.total ?? 0) + 1,
         }),
       );
+      queryClient.invalidateQueries({
+        queryKey: analyticsKeys.personal(workspaceId),
+      });
     },
   });
 }
