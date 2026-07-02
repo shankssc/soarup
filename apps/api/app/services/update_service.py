@@ -213,7 +213,7 @@ class UpdateService:
         )
 
         if not updates:
-            return UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+            return UpdateHistoryResponse(updates=[], next_cursor=None)
 
         user_ids = list({u.user_id for u in updates})
         profile_map = await self._get_profile_repo().get_by_user_ids(user_ids)
@@ -223,7 +223,6 @@ class UpdateService:
         return UpdateHistoryResponse(
             updates=responses,
             next_cursor=next_cursor,
-            total_in_range=len(responses),
         )
 
     async def _to_response(self, update: Any) -> UpdateResponse:

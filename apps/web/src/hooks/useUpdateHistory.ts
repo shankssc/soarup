@@ -15,8 +15,6 @@ export type DateRangePreset = '7d' | '30d' | '90d';
 export interface UpdateHistoryResponse {
   updates: UpdateResponse[];
   next_cursor: string | null;
-  /** Approximate — equals items in the current page, not total across all pages */
-  total_in_range: number;
 }
 
 // ---------------------------------------------------------------------------
