@@ -24,6 +24,17 @@ export default function SlackSettingsPage() {
   } | null>(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = React.useState(false);
 
+  // auto-clearing test result after 8 seconds
+  React.useEffect(() => {
+    if (!testResult) return;
+    const timer = setTimeout(() => setTestResult(null), 8000);
+    return () => clearTimeout(timer);
+  }, [testResult]);
+
+  // inline webhook URL validation
+  const isValidWebhookUrl =
+    !webhookUrl || webhookUrl.startsWith('https://hooks.slack.com/');
+
   async function handleSave() {
     await updateSettings.mutateAsync({
       webhook_url: webhookUrl || undefined,
@@ -102,6 +113,7 @@ export default function SlackSettingsPage() {
             onChange={(e) => {
               setWebhookUrl(e.target.value);
               setIsDirty(true);
+              setTestResult(null);
             }}
             placeholder={
               settings?.slack_configured
@@ -110,6 +122,13 @@ export default function SlackSettingsPage() {
             }
             className="w-full border-b border-outline-variant bg-transparent pb-2 text-sm text-on-surface outline-none transition-colors placeholder:text-outline focus:border-primary"
           />
+          {/* inline validation error */}
+          {webhookUrl && !isValidWebhookUrl && (
+            <p className="mt-1 font-label text-[10px] text-error">
+              Must be a valid Slack incoming webhook URL starting with
+              https://hooks.slack.com/
+            </p>
+          )}
           <p className="font-label text-[10px] text-outline">
             Create an incoming webhook in your Slack workspace settings and paste the
             URL here.{' '}
@@ -192,7 +211,7 @@ export default function SlackSettingsPage() {
             <button
               type="button"
               onClick={handleSave}
-              disabled={updateSettings.isPending}
+              disabled={!isValidWebhookUrl || updateSettings.isPending}
               className="asymmetric-btn text-on-primary bg-primary px-6 py-2 font-label text-xs uppercase tracking-[0.15em] disabled:opacity-60"
             >
               {updateSettings.isPending ? 'Saving...' : 'Save settings →'}
@@ -237,13 +256,14 @@ export default function SlackSettingsPage() {
                     type="button"
                     onClick={handleRemove}
                     disabled={removeIntegration.isPending}
-                    className="font-label text-xs text-error hover:underline disabled:opacity-40"
+                    className="font-label text-xs text-error hover:underline disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {removeIntegration.isPending ? 'Removing...' : 'Yes, remove'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowRemoveConfirm(false)}
+                    disabled={removeIntegration.isPending}
                     className="font-label text-xs text-outline hover:underline"
                   >
                     Cancel
