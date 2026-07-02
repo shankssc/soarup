@@ -1,9 +1,24 @@
 # apps/api/app/schemas/auth.py
 
+import re
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+# === Username Validation ===
+
+USERNAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$")
+
+
+def validate_username(username: str) -> str:
+    username = username.lower().strip()
+    if not USERNAME_PATTERN.match(username):
+        raise ValueError("Username must be 3-30 characters, lowercase letters, " "numbers, and hyphens only. Cannot start or end with a hyphen.")
+    if "--" in username:
+        raise ValueError("Username cannot contain consecutive hyphens.")
+    return username
+
 
 # === Requests ===
 
@@ -29,6 +44,25 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., description="Refresh token from previous login")
 
 
+class UpdateProfileRequest(BaseModel):
+    """Request schema for PATCH /auth/profile."""
+
+    full_name: str | None = None
+    timezone: str | None = None
+    username: str | None = Field(None, min_length=3, max_length=30)
+    bio: str | None = Field(None, max_length=160)
+    tagline: str | None = Field(None, max_length=60)
+    profile_public: bool | None = None
+    is_onboarded: bool | None = None
+
+    @field_validator("username", mode="after")
+    @classmethod
+    def validate_username_field(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        return validate_username(v)
+
+
 # === Responses ===
 
 
@@ -43,8 +77,39 @@ class UserResponse(BaseModel):
     email_verified: bool = Field(..., description="Whether email has been verified")
     is_onboarded: bool = Field(default=False, description="Whether user has completed onboarding")
     created_at: datetime = Field(..., description="Account creation timestamp")
+    username: str | None = Field(None, description="Public profile username")
+    bio: str | None = Field(None, description="Optional one-line bio")
+    tagline: str | None = Field(None, description="Optional tagline pill text")
+    profile_public: bool = Field(default=False, description="Whether public profile is enabled")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PublicProfileResponse(BaseModel):
+    """
+    Response shape for the public profile endpoint.
+    Never includes email or workspace details.
+    """
+
+    username: str
+    full_name: str | None
+    avatar_url: str | None
+    bio: str | None
+    tagline: str | None
+    # StreakResponse serialised — avoids circular import
+    streak: dict[str, Any]
+    heatmap: list[dict[str, Any]]
+    heatmap_weeks: int = 52
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UsernameAvailabilityResponse(BaseModel):
+    """Response for GET /auth/check-username."""
+
+    username: str
+    available: bool
+    message: str  # "Available", "Already taken", "Your current username"
 
 
 class LoginResponse(BaseModel):
