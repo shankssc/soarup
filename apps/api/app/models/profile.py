@@ -43,6 +43,31 @@ class Profile(Base):
 
     is_onboarded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, doc="Whether user has completed onboarding flow")
 
+    # === Public Profile Fields ===
+    username: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+        unique=True,
+        index=True,
+        doc="Public username for /u/:username profile URL. " "Lowercase alphanumeric + hyphens, 3-30 chars. " "Must be unique across all users.",
+    )
+    bio: Mapped[str | None] = mapped_column(
+        String(160),
+        nullable=True,
+        doc="Optional one-line bio shown on public profile.",
+    )
+    tagline: Mapped[str | None] = mapped_column(
+        String(60),
+        nullable=True,
+        doc="Optional tagline rendered as a pill on public profile.",
+    )
+    profile_public: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether this profile is publicly visible at /u/:username. " "Requires username to be set.",
+    )
+
     # === Timestamps ===
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, doc="Account creation timestamp")
 
