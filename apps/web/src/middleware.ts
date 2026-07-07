@@ -11,6 +11,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 // PUBLIC_ROUTES — never add these to PROTECTED_ROUTES or AUTH_ROUTES
 // /invite/* — invite acceptance, requires no auth to view
 // /api/v1/invites/* — invite details endpoint, no auth required
+// /u/* — public profile pages, requires no auth to view
+// /api/v1/profiles/* — public profile API, no auth required
+// /api/v1/auth/check-username — username availability, no auth required
 const PROTECTED_ROUTES = [
   '/dashboard',
   '/onboarding',
