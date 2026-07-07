@@ -9,12 +9,22 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/
 export function useUpdateProfile() {
   const { tokens, setUser, user } = useAuth();
   return useMutation({
-    mutationFn: (data: { full_name?: string; timezone?: string }) =>
-      apiClient.patch<{ full_name: string; timezone: string }>(
-        '/auth/profile',
-        data,
-        tokens?.access_token,
-      ),
+    mutationFn: (data: {
+      full_name?: string;
+      timezone?: string;
+      username?: string;
+      bio?: string;
+      tagline?: string;
+      profile_public?: boolean;
+    }) =>
+      apiClient.patch<{
+        full_name: string;
+        timezone: string;
+        username: string | null;
+        bio: string | null;
+        tagline: string | null;
+        profile_public: boolean;
+      }>('/auth/profile', data, tokens?.access_token),
     onSuccess: (updated) => {
       if (user) setUser({ ...user, ...updated });
     },
