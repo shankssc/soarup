@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.auth_repo import AuthRepository
 from app.repositories.profile_repo import ProfileRepository
-from app.schemas.auth import ForgotPasswordRequest, ForgotPasswordResponse, LoginRequest, LoginResponse, ResetPasswordResponse, SignupRequest, UserResponse
+from app.schemas.auth import ForgotPasswordRequest, ForgotPasswordResponse, LoginRequest, LoginResponse, ResetPasswordResponse, SignupRequest, UpdateProfileRequest, UserResponse
 from app.utils.circuit_breaker import CircuitBreakerError
 
 logger = structlog.get_logger(__name__)
@@ -447,10 +447,67 @@ class AuthService:
             logger.exception("password_reset_completion_error", error=str(e))
             raise AuthError(error_code="password_update_failed", message="Could not update password. Please try again.") from e
 
+    async def patch_profile(
+        self,
+        user_id: str,
+        request: UpdateProfileRequest,
+    ) -> UserResponse:
+        """
+        Update profile fields including new public profile fields.
+
+        Business rules:
+        - Username must be unique across all users
+        - profile_public cannot be enabled without a username set
+        - Own existing username never appears as taken
+        """
+        repo = self._get_profile_repo()
+        profile = await repo.get_by_user_id(user_id)
+        if not profile:
+            raise AuthError("profile_not_found", "Profile not found.")
+
+        # Username uniqueness check
+        if request.username is not None:
+            taken = await repo.is_username_taken(request.username, exclude_user_id=user_id)
+            if taken:
+                raise AuthError(
+                    "username_taken",
+                    "This username is already taken. Please choose another.",
+                )
+            profile.username = request.username
+
+        # Cannot enable public profile without a username
+        if request.profile_public is True:
+            if not profile.username and not request.username:
+                raise AuthError(
+                    "username_required",
+                    "A username is required before making your profile public.",
+                )
+            profile.profile_public = True
+        elif request.profile_public is False:
+            profile.profile_public = False
+
+        if request.full_name is not None:
+            profile.full_name = request.full_name
+        if request.timezone is not None:
+            profile.timezone = request.timezone
+        if request.bio is not None:
+            profile.bio = request.bio
+        if request.tagline is not None:
+            profile.tagline = request.tagline
+        if request.is_onboarded is not None:
+            profile.is_onboarded = request.is_onboarded
+
+        await self.db.commit()
+        await self.db.refresh(profile)
+
+        return self._map_user_to_response(
+            {"id": user_id, "email": profile.email or "", "email_confirmed_at": True},
+            profile,
+        )
+
     def _map_user_to_response(self, supabase_user: dict[str, Any], profile: Any | None) -> UserResponse:
         """
         Convert Supabase user + Profile to UserResponse schema.
-
         Merges data from both sources, preferring profile data when available.
         """
         return UserResponse(
@@ -462,4 +519,8 @@ class AuthService:
             email_verified=supabase_user.get("email_confirmed_at") is not None,
             is_onboarded=profile.is_onboarded if profile else False,
             created_at=supabase_user.get("created_at"),
+            username=profile.username if profile else None,
+            bio=profile.bio if profile else None,
+            tagline=profile.tagline if profile else None,
+            profile_public=profile.profile_public if profile else False,
         )
