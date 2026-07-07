@@ -187,6 +187,51 @@ async def forgot_password(
         )
 
 
+@router.get(
+    "/check-username",
+    status_code=status.HTTP_200_OK,
+    summary="Check username availability",
+)
+async def check_username_availability(
+    api_version: ApiVersionDep,
+    db: DBSessionDep,
+    username: str,
+    current_user_id: str | None = None,
+) -> Response:
+    """
+    Check if a username is available.
+    Unauthenticated — used by settings page debounced availability check.
+    Passes current_user_id so users can re-save their own existing username
+    without it appearing as taken.
+    """
+    from app.repositories.profile_repo import ProfileRepository
+    from app.schemas.auth import UsernameAvailabilityResponse, validate_username
+
+    try:
+        validated = validate_username(username)
+    except ValueError as e:
+        return create_success_response(
+            UsernameAvailabilityResponse(
+                username=username,
+                available=False,
+                message=str(e),
+            ),
+            api_version=api_version,
+        )
+
+    repo = ProfileRepository.from_session(db)
+    taken = await repo.is_username_taken(validated, exclude_user_id=current_user_id)
+
+    return create_success_response(
+        UsernameAvailabilityResponse(
+            username=validated,
+            available=not taken,
+            message="Available" if not taken else "Already taken",
+        ),
+        api_version=api_version,
+    )
+
+
 @router.post(
     "/reset-password",
     response_model=ResetPasswordResponse,
