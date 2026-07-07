@@ -44,25 +44,6 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., description="Refresh token from previous login")
 
 
-class UpdateProfileRequest(BaseModel):
-    """Request schema for PATCH /auth/profile."""
-
-    full_name: str | None = None
-    timezone: str | None = None
-    username: str | None = Field(None, min_length=3, max_length=30)
-    bio: str | None = Field(None, max_length=160)
-    tagline: str | None = Field(None, max_length=60)
-    profile_public: bool | None = None
-    is_onboarded: bool | None = None
-
-    @field_validator("username", mode="after")
-    @classmethod
-    def validate_username_field(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-        return validate_username(v)
-
-
 # === Responses ===
 
 

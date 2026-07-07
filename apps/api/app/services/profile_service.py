@@ -60,8 +60,6 @@ class ProfileService:
         profile = await profile_repo.get_by_user_id(user_id)
 
         if not profile:
-            # Profile doesn't exist yet — return minimal response
-            # (will be created on first update or login)
             return ProfileResponse(
                 user_id=user_id,
                 email=email,
@@ -69,11 +67,15 @@ class ProfileService:
                 avatar_url=None,
                 timezone="UTC",
                 email_notifications=True,
-                email_verified=True,  # Assume verified if coming from Supabase
+                email_verified=True,
                 is_onboarded=False,
-                created_at=None,  # Will be set on creation
+                created_at=None,
                 updated_at=None,
                 last_login_at=None,
+                username=None,
+                bio=None,
+                tagline=None,
+                profile_public=False,
             )
 
         return ProfileResponse(
@@ -88,10 +90,38 @@ class ProfileService:
             created_at=profile.created_at,
             updated_at=profile.updated_at,
             last_login_at=profile.last_login_at,
+            username=profile.username,
+            bio=profile.bio,
+            tagline=profile.tagline,
+            profile_public=profile.profile_public,
         )
 
     async def update_profile(self, user_id: str, request: UpdateProfileRequest) -> ProfileResponse:
         """Update user profile fields."""
+        profile_repo = self._get_profile_repo()
+
+        # Username uniqueness + profile_public guard — must run before dict update
+        if request.username is not None or request.profile_public is not None:
+            profile = await profile_repo.get_by_user_id(user_id)
+            if not profile:
+                raise ProfileError("profile_not_found", "Profile not found for this user")
+
+            if request.username is not None:
+                taken = await profile_repo.is_username_taken(request.username, exclude_user_id=user_id)
+                if taken:
+                    raise ProfileError(
+                        "username_taken",
+                        "This username is already taken. Please choose another.",
+                    )
+
+            if request.profile_public is True:
+                has_username = profile.username or request.username
+                if not has_username:
+                    raise ProfileError(
+                        "username_required",
+                        "A username is required before making your profile public.",
+                    )
+
         data = request.to_update_dict() if hasattr(request, "to_update_dict") else request.model_dump(exclude_unset=True)
 
         if not data:
@@ -100,7 +130,6 @@ class ProfileService:
                 message="No fields provided for update",
             )
 
-        profile_repo = self._get_profile_repo()
         profile = await profile_repo.update(user_id, data)
 
         if not profile:
@@ -110,9 +139,6 @@ class ProfileService:
             )
 
         logger.info("profile_updated", user_id=user_id, fields=list(data.keys()))
-
-        # Return full profile (email should be passed from auth context)
-        # Email placeholder — should come from JWT
         return await self.get_profile(user_id, "")
 
     async def upload_avatar(
