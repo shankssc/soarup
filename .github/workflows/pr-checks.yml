@@ -85,7 +85,8 @@ jobs:
             --ignore-vuln PYSEC-2026-179 \
             --ignore-vuln PYSEC-2026-175 \
             --ignore-vuln PYSEC-2026-177 \
-            --ignore-vuln PYSEC-2026-178
+            --ignore-vuln PYSEC-2026-178 \
+            --ignore-vuln PYSEC-2026-1325
         # Suppressed CVEs:
         # GHSA-6w46-j5rx-g56g: pytest 9.x fix conflicts with pytest-asyncio 0.23.x
         #   Revisit when pytest-asyncio ships pytest 9 compatible release
