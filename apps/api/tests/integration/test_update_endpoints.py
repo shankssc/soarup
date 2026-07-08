@@ -546,7 +546,6 @@ class TestGetUpdateHistory:
         svc.get_update_history.return_value = UpdateHistoryResponse(
             updates=[_fake_update_response()],
             next_cursor=None,
-            total_in_range=1,
         )
 
         response = await client.get(
@@ -558,12 +557,11 @@ class TestGetUpdateHistory:
         body = response.json()
         assert "updates" in body
         assert "next_cursor" in body
-        assert "total_in_range" in body
 
     @pytest.mark.asyncio
     async def test_calls_service_with_workspace_id(self, history_client, auth_headers):
         client, svc = history_client
-        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None)
 
         await client.get(
             f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
@@ -577,7 +575,7 @@ class TestGetUpdateHistory:
     @pytest.mark.asyncio
     async def test_cursor_param_passed_to_service(self, history_client, auth_headers):
         client, svc = history_client
-        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None)
 
         await client.get(
             f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
@@ -591,7 +589,7 @@ class TestGetUpdateHistory:
     @pytest.mark.asyncio
     async def test_date_filters_passed_to_service(self, history_client, auth_headers):
         client, svc = history_client
-        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None)
 
         await client.get(
             f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
@@ -606,7 +604,7 @@ class TestGetUpdateHistory:
     @pytest.mark.asyncio
     async def test_limit_capped_at_50(self, history_client, auth_headers):
         client, svc = history_client
-        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None)
 
         await client.get(
             f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
@@ -623,7 +621,6 @@ class TestGetUpdateHistory:
         svc.get_update_history.return_value = UpdateHistoryResponse(
             updates=[_fake_update_response()],
             next_cursor="next-page-cursor",
-            total_in_range=1,
         )
 
         response = await client.get(
@@ -636,7 +633,7 @@ class TestGetUpdateHistory:
     @pytest.mark.asyncio
     async def test_empty_range_returns_empty_list_and_null_cursor(self, history_client, auth_headers):
         client, svc = history_client
-        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None, total_in_range=0)
+        svc.get_update_history.return_value = UpdateHistoryResponse(updates=[], next_cursor=None)
 
         response = await client.get(
             f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
@@ -647,7 +644,6 @@ class TestGetUpdateHistory:
         body = response.json()
         assert body["updates"] == []
         assert body["next_cursor"] is None
-        assert body["total_in_range"] == 0
 
     @pytest.mark.asyncio
     async def test_no_token_returns_401_or_403(self, unauthed_client):
