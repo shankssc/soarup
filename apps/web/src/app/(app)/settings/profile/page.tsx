@@ -186,14 +186,15 @@ export default function ProfileSettingsPage() {
               updateProfile.mutate({ profile_public: !(user?.profile_public ?? false) })
             }
             className={[
-              'relative h-6 w-10 flex-shrink-0 rounded-full transition-colors disabled:opacity-40',
+              'relative h-6 w-12 flex-shrink-0 overflow-hidden rounded-full transition-colors',
+              'disabled:opacity-40',
               user?.profile_public ? 'bg-primary' : 'bg-surface-highest',
             ].join(' ')}
           >
             <span
               className={[
-                'absolute top-1 h-4 w-4 rounded-full bg-white transition-transform',
-                user?.profile_public ? 'translate-x-5' : 'translate-x-1',
+                'absolute bottom-1 top-1 w-4 rounded-full bg-white transition-all duration-200',
+                user?.profile_public ? 'left-auto right-1' : 'left-1 right-auto',
               ].join(' ')}
             />
           </button>
