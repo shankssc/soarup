@@ -17,7 +17,11 @@ const MOCK_USER_NEEDS_ONBOARDING: UserProfile = {
   email_verified: true,
   is_onboarded: false,
   timezone: 'UTC',
+  username: null,
+  bio: null,
+  tagline: null,
   created_at: new Date().toISOString(),
+  profile_public: false,
 };
 
 const MOCK_USER_ALREADY_ONBOARDED: UserProfile = {

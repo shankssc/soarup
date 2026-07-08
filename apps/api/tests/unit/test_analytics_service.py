@@ -373,3 +373,126 @@ class TestGetTeamAnalytics:
             result = await service.get_team_analytics(workspace_id="ws-1")
 
         assert len(result.members[0].sparkline) == 14
+
+
+class TestGetPublicProfileAnalytics:
+    @pytest.mark.asyncio
+    async def test_returns_streak_and_heatmap(self):
+        from app.repositories.analytics_repo import AnalyticsRepository
+
+        db = MagicMock()
+        service = AnalyticsService(db)
+
+        analytics_repo = MagicMock()
+        today = date.today()
+        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(
+            return_value=[
+                today.isoformat(),
+                (today - timedelta(days=1)).isoformat(),
+                (today - timedelta(days=2)).isoformat(),
+            ]
+        )
+
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # noqa: ARG005
+
+            streak, heatmap = await service.get_public_profile_analytics(user_id="user-1")
+
+        assert streak.current_streak == 3
+        assert streak.best_streak == 3
+        assert streak.total_submissions == 3
+        assert len(heatmap) > 0
+
+    @pytest.mark.asyncio
+    async def test_zero_submissions_returns_zero_streak(self):
+        from app.repositories.analytics_repo import AnalyticsRepository
+
+        db = MagicMock()
+        service = AnalyticsService(db)
+
+        analytics_repo = MagicMock()
+        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(return_value=[])
+
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # noqa: ARG005
+
+            streak, heatmap = await service.get_public_profile_analytics(user_id="user-1")
+
+        assert streak.current_streak == 0
+        assert streak.best_streak == 0
+        assert streak.total_submissions == 0
+
+    @pytest.mark.asyncio
+    async def test_uses_calendar_days_not_digest_days(self):
+        """
+        Public profile streak must use calendar days regardless of workspace schedule.
+        Submitting 7 consecutive calendar days should yield streak=7, not
+        constrained to any digest_days schedule.
+        """
+        from app.repositories.analytics_repo import AnalyticsRepository
+
+        db = MagicMock()
+        service = AnalyticsService(db)
+
+        analytics_repo = MagicMock()
+        today = date.today()
+        # 7 consecutive calendar days including weekend
+        seven_days = [(today - timedelta(days=i)).isoformat() for i in range(7)]
+        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(return_value=seven_days)
+
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # noqa: ARG005
+
+            streak, _ = await service.get_public_profile_analytics(user_id="user-1")
+
+        # Calendar days — weekend counts, so streak is 7 not 5
+        assert streak.current_streak == 7
+
+    @pytest.mark.asyncio
+    async def test_aggregates_across_all_workspaces(self):
+        """
+        get_user_submission_dates_all_workspaces is called without
+        a workspace_id — verifies the repo method used is the cross-workspace one.
+        """
+        from app.repositories.analytics_repo import AnalyticsRepository
+
+        db = MagicMock()
+        service = AnalyticsService(db)
+
+        analytics_repo = MagicMock()
+        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(return_value=[])
+
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # noqa: ARG005
+
+            await service.get_public_profile_analytics(user_id="user-1")
+
+        analytics_repo.get_user_submission_dates_all_workspaces.assert_awaited_once()
+        # Confirm workspace_id was NOT passed — only user_id and date range
+        call_kwargs = analytics_repo.get_user_submission_dates_all_workspaces.call_args.kwargs
+        assert "workspace_id" not in call_kwargs
+        assert call_kwargs["user_id"] == "user-1"
+
+    @pytest.mark.asyncio
+    async def test_heatmap_counts_multiple_workspace_submissions_per_day(self):
+        """
+        If a user submits in two workspaces on the same day, that day's
+        heatmap count should be 2, not 1.
+        """
+        from app.repositories.analytics_repo import AnalyticsRepository
+
+        db = MagicMock()
+        service = AnalyticsService(db)
+
+        analytics_repo = MagicMock()
+        today = date.today().isoformat()
+        # Same date appears twice — two workspace submissions on same day
+        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(return_value=[today, today])
+
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # noqa: ARG005
+
+            _, heatmap = await service.get_public_profile_analytics(user_id="user-1")
+
+        today_entry = next(d for d in heatmap if d.date == today)
+        assert today_entry.count == 2

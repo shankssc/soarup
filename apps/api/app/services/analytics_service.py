@@ -293,3 +293,54 @@ class AnalyticsService:
             members=member_rows,
             workspace_heatmap=workspace_heatmap,
         )
+
+    async def get_public_profile_analytics(
+        self,
+        user_id: str,
+    ) -> tuple[StreakResponse, list[HeatmapDay]]:
+        """
+        Analytics for the public profile page.
+        Aggregates submission activity across ALL workspaces the user
+        belongs to — not scoped to a single workspace.
+        Uses calendar days for streak (no digest_days) since the user may
+        belong to workspaces with different digest schedules.
+
+        Args:
+            user_id: The user whose public profile analytics to compute.
+
+        Returns:
+            Tuple of (StreakResponse, list[HeatmapDay])
+        """
+        analytics_repo = AnalyticsRepository.from_session(self.db)
+
+        today = datetime.now(UTC).date()
+        heatmap_start = today - timedelta(weeks=52)
+
+        # All submission dates across all workspaces — no workspace filter
+        submission_date_strs = await analytics_repo.get_user_submission_dates_all_workspaces(
+            user_id=user_id,
+            from_date=heatmap_start,
+            to_date=today,
+        )
+
+        # Calendar days only — digest_days=None means every day counts
+        current_streak, best_streak = _calculate_streak(
+            submission_date_strs,
+            digest_days=None,
+        )
+
+        # Count per day — user may submit in multiple workspaces on the same day
+        date_counts: dict[str, int] = {}
+        for d in submission_date_strs:
+            date_counts[d] = date_counts.get(d, 0) + 1
+
+        heatmap = _build_heatmap(date_counts, heatmap_start, today)
+        last_date = submission_date_strs[0] if submission_date_strs else None
+
+        streak = StreakResponse(
+            current_streak=current_streak,
+            best_streak=best_streak,
+            total_submissions=len(submission_date_strs),
+            last_submission_date=last_date,
+        )
+        return streak, heatmap

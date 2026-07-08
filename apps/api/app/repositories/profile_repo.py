@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -169,3 +169,39 @@ class ProfileRepository:
             Updated Profile instance if found, None otherwise.
         """
         return await self.update(user_id, {"avatar_url": None, "avatar_key": None})
+
+    async def get_by_username(self, username: str) -> Profile | None:
+        """
+        Fetch profile by username for public profile lookup.
+        Case-insensitive match.
+
+        Args:
+            username: The public username to look up.
+
+        Returns:
+            Profile instance if found, None otherwise.
+        """
+        result = await self.db.execute(select(Profile).where(func.lower(Profile.username) == username.lower()))
+        return result.scalar_one_or_none()
+
+    async def is_username_taken(
+        self,
+        username: str,
+        exclude_user_id: str | None = None,
+    ) -> bool:
+        """
+        Check if a username is already in use.
+
+        Args:
+            username: The username to check.
+            exclude_user_id: Skip this user's own record so their existing
+                username doesn't appear as taken when re-saving their profile.
+
+        Returns:
+            True if username is taken by another user, False otherwise.
+        """
+        query = select(Profile.id).where(func.lower(Profile.username) == username.lower())
+        if exclude_user_id:
+            query = query.where(Profile.id != exclude_user_id)
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none() is not None

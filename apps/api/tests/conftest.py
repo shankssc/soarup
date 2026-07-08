@@ -274,7 +274,12 @@ def _login_response_dict(
         email_verified=True,
         is_onboarded=is_onboarded,
         created_at=datetime.now(UTC).isoformat(),
+        username=None,
+        bio=None,
+        tagline=None,
+        profile_public=False,
     )
+
     return LoginResponse(
         access_token="access-token",  # Noqa: S106
         token_type="bearer",  # Noqa: S106
@@ -306,6 +311,10 @@ def _profile_response(
         created_at=now,
         updated_at=now,
         last_login_at=None,
+        username=None,
+        bio=None,
+        tagline=None,
+        profile_public=False,
     )
 
 

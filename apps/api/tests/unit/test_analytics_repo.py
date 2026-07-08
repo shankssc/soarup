@@ -272,3 +272,108 @@ class TestGetWorkspaceTotalUpdates:
         )
 
         assert result == 0
+
+
+# ---------------------------------------------------------------------------
+# get_user_submission_dates_all_workspaces
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserSubmissionDatesAllWorkspaces:
+    @pytest.mark.asyncio
+    async def test_returns_dates_across_all_workspaces(self, db_session, seeded_workspace, test_user_id):
+        """Submissions from multiple workspaces are all returned."""
+        from app.models.workspace import Workspace
+
+        repo = AnalyticsRepository.from_session(db_session)
+
+        # Second workspace owned by same user
+        second_workspace = Workspace(
+            owner_id=test_user_id,
+            name="Second Workspace",
+            slug=f"second-ws-{uuid.uuid4().hex[:6]}",
+            plan="free",
+        )  # type: ignore[call-arg]
+        db_session.add(second_workspace)
+        await db_session.flush()
+
+        await _seed_update(db_session, seeded_workspace.id, test_user_id, TODAY)
+        await _seed_update(db_session, second_workspace.id, test_user_id, YESTERDAY)
+
+        result = await repo.get_user_submission_dates_all_workspaces(
+            user_id=test_user_id,
+            from_date=date.fromisoformat(YESTERDAY),
+            to_date=date.fromisoformat(TODAY),
+        )
+
+        assert TODAY in result
+        assert YESTERDAY in result
+        assert len(result) == 2
+
+    @pytest.mark.asyncio
+    async def test_returns_descending_order(self, db_session, seeded_workspace, test_user_id):
+        repo = AnalyticsRepository.from_session(db_session)
+        await _seed_update(db_session, seeded_workspace.id, test_user_id, TODAY)
+        await _seed_update(db_session, seeded_workspace.id, test_user_id, YESTERDAY)
+
+        result = await repo.get_user_submission_dates_all_workspaces(
+            user_id=test_user_id,
+            from_date=date.fromisoformat(YESTERDAY),
+            to_date=date.fromisoformat(TODAY),
+        )
+
+        assert result[0] >= result[1]
+
+    @pytest.mark.asyncio
+    async def test_excludes_soft_deleted(self, db_session, seeded_workspace, test_user_id):
+        repo = AnalyticsRepository.from_session(db_session)
+        update = await _seed_update(db_session, seeded_workspace.id, test_user_id, TODAY)
+        update.is_deleted = True
+        await db_session.flush()
+
+        result = await repo.get_user_submission_dates_all_workspaces(
+            user_id=test_user_id,
+            from_date=date.fromisoformat(TODAY),
+            to_date=date.fromisoformat(TODAY),
+        )
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_excludes_other_users(self, db_session, seeded_workspace, test_user_id):
+        """Only the target user's submissions are returned."""
+        repo = AnalyticsRepository.from_session(db_session)
+        other_user_id = str(uuid.uuid4())
+        await _seed_profile(db_session, other_user_id)
+        await _seed_update(db_session, seeded_workspace.id, other_user_id, TODAY)
+
+        result = await repo.get_user_submission_dates_all_workspaces(
+            user_id=test_user_id,
+            from_date=date.fromisoformat(TODAY),
+            to_date=date.fromisoformat(TODAY),
+        )
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_empty_returns_empty_list(self, db_session, seeded_workspace, test_user_id):
+        repo = AnalyticsRepository.from_session(db_session)
+
+        result = await repo.get_user_submission_dates_all_workspaces(
+            user_id=test_user_id,
+            from_date=date(2000, 1, 1),
+            to_date=date(2000, 1, 31),
+        )
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_does_not_filter_by_workspace(self, db_session, seeded_workspace, test_user_id):
+        """
+        Contrast with get_user_submission_dates which requires workspace_id.
+        This method accepts no workspace_id — verified by inspecting the call signature.
+        """
+        import inspect
+
+        sig = inspect.signature(AnalyticsRepository.get_user_submission_dates_all_workspaces)
+        assert "workspace_id" not in sig.parameters

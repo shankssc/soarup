@@ -450,7 +450,6 @@ class AuthService:
     def _map_user_to_response(self, supabase_user: dict[str, Any], profile: Any | None) -> UserResponse:
         """
         Convert Supabase user + Profile to UserResponse schema.
-
         Merges data from both sources, preferring profile data when available.
         """
         return UserResponse(
@@ -462,4 +461,8 @@ class AuthService:
             email_verified=supabase_user.get("email_confirmed_at") is not None,
             is_onboarded=profile.is_onboarded if profile else False,
             created_at=supabase_user.get("created_at"),
+            username=profile.username if profile else None,
+            bio=profile.bio if profile else None,
+            tagline=profile.tagline if profile else None,
+            profile_public=profile.profile_public if profile else False,
         )

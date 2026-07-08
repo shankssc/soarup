@@ -83,6 +83,7 @@ async function fillAndSubmit(overrides = {}) {
 // ─── Reset ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
+  vi.clearAllMocks();
   useAuthStore.setState({
     user: null,
     tokens: null,
@@ -266,6 +267,7 @@ describe('SignupForm — API errors', () => {
   });
 
   it('does not redirect on API error', async () => {
+    mockPush.mockClear();
     mockSignupError('user_already_exists', 409);
     render(<SignupForm />);
     await fillAndSubmit();

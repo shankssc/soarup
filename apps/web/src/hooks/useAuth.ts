@@ -17,6 +17,10 @@ export interface UserProfile {
   email_verified: boolean;
   is_onboarded: boolean;
   created_at: string;
+  username: string | null;
+  bio: string | null;
+  tagline: string | null;
+  profile_public: boolean;
 }
 
 export interface AuthTokens {

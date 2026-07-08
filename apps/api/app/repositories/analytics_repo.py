@@ -190,3 +190,37 @@ class AnalyticsRepository:
             )
         )
         return result.scalar_one() or 0
+
+    async def get_user_submission_dates_all_workspaces(
+        self,
+        user_id: str,
+        from_date: date,
+        to_date: date,
+    ) -> list[str]:
+        """
+        All submission dates for a user across ALL workspaces.
+        Used for the public profile heatmap — workspace-agnostic.
+        No digest_days filtering — uses calendar days for cross-workspace view.
+        Returns dates sorted descending.
+
+        Args:
+            user_id: The user whose submissions to aggregate.
+            from_date: Start of date range (inclusive).
+            to_date: End of date range (inclusive).
+
+        Returns:
+            List of YYYY-MM-DD strings sorted descending.
+        """
+        result = await self.db.execute(
+            select(Update.update_date)
+            .where(
+                and_(
+                    Update.user_id == user_id,
+                    Update.is_deleted == False,  # noqa: E712
+                    Update.update_date >= from_date.isoformat(),
+                    Update.update_date <= to_date.isoformat(),
+                )
+            )
+            .order_by(Update.update_date.desc())
+        )
+        return [row[0] for row in result.all()]

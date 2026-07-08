@@ -86,4 +86,6 @@ export const apiClient = {
   patch: <T>(path: string, body: unknown, token?: string) =>
     request<T>('PATCH', path, { body, token }),
   delete: <T>(path: string, token?: string) => request<T>('DELETE', path, { token }),
+  getPublic: <T>(path: string, params?: Record<string, string>) =>
+    request<T>('GET', path, { params }),
 };

@@ -9,6 +9,14 @@
 from typing import Any
 
 
+def _truncate(text: str, max_len: int = 2900) -> str:
+    """
+    Slack Block Kit section text fields have a 3000 character maximum.
+    Truncate to 2900 chars to leave headroom for mrkdwn formatting.
+    """
+    return text if len(text) <= max_len else text[:max_len] + "\u2026"
+
+
 def build_digest_blocks(
     workspace_name: str,
     digest_date: str,
@@ -54,7 +62,7 @@ def build_digest_blocks(
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"*Team Summary*\n>{team_summary}",
+                "text": f"*Team Summary*\n>{_truncate(team_summary)}",
             },
         },
         {"type": "divider"},
@@ -77,7 +85,7 @@ def build_digest_blocks(
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*{name}*\n{summary}",
+                    "text": f"*{name}*\n{_truncate(summary)}",
                 },
             }
         )
@@ -131,14 +139,14 @@ def build_update_notification_blocks(
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"*Update*\n{content}",
+                "text": f"*Update*\n{_truncate(content)}",
             },
         },
         {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"*Summary*\n>{summary}",
+                "text": f"*Summary*\n>{_truncate(summary)}",
             },
         },
         {

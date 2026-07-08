@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, NotRequired, TypedDict
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # === Profile Requests ===
 
@@ -27,6 +27,20 @@ class UpdateProfileRequest(BaseModel):
     timezone: str | None = Field(None, max_length=50, examples=["America/New_York"])
     email_notifications: bool | None = Field(None, examples=[True])
     is_onboarded: bool | None = Field(None, description="Whether user has completed onboarding")
+
+    username: str | None = Field(None, min_length=3, max_length=30)
+    bio: str | None = Field(None, max_length=160)
+    tagline: str | None = Field(None, max_length=60)
+    profile_public: bool | None = Field(None)
+
+    @field_validator("username", mode="after")
+    @classmethod
+    def validate_username_field(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        from app.schemas.auth import validate_username
+
+        return validate_username(v)
 
     # Optional: Add method to convert to dict for repo layer
     def to_update_dict(self) -> dict[str, Any]:
@@ -68,6 +82,11 @@ class ProfileResponse(BaseModel):
     created_at: datetime | None = Field(..., description="Profile creation timestamp")
     updated_at: datetime | None = Field(..., description="Last profile update timestamp")
     last_login_at: datetime | None = Field(None, description="Last successful sign-in timestamp")
+
+    username: str | None = Field(None, description="Public profile username")
+    bio: str | None = Field(None, description="Optional one-line bio")
+    tagline: str | None = Field(None, description="Optional tagline pill text")
+    profile_public: bool = Field(default=False, description="Whether public profile is enabled")
 
     # Pydantic v2: Use model_config instead of Config class
     model_config = ConfigDict(from_attributes=True)  # ← Updated syntax

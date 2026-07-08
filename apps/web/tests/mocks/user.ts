@@ -15,6 +15,10 @@ export const MOCK_USER: UserProfile = {
   email_verified: true,
   is_onboarded: true,
   created_at: new Date().toISOString(),
+  username: null,
+  bio: null,
+  tagline: null,
+  profile_public: false,
 };
 
 export const MOCK_TOKENS: AuthTokens = {

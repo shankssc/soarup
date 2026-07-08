@@ -95,6 +95,10 @@ def _mock_profile(
     p.created_at = None
     p.updated_at = None
     p.last_login_at = None
+    p.username = None
+    p.bio = None
+    p.tagline = None
+    p.profile_public = False
     return p
 
 
