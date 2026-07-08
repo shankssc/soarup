@@ -95,6 +95,10 @@ def _mock_profile(
     p.created_at = None
     p.updated_at = None
     p.last_login_at = None
+    p.username = None
+    p.bio = None
+    p.tagline = None
+    p.profile_public = False
     return p
 
 
@@ -110,7 +114,8 @@ class TestLogin:
         user = _supabase_user()
         session = _supabase_session(user=user)
 
-        auth_repo.sign_in_with_password = AsyncMock(return_value={"session": session, "user": user})
+        auth_repo.sign_in_with_password = AsyncMock(
+            return_value={"session": session, "user": user})
         profile_repo.update_last_login = AsyncMock()
         profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile())
 
@@ -128,7 +133,8 @@ class TestLogin:
         service, auth_repo, profile_repo = _make_service()
         user = _supabase_user()
 
-        auth_repo.sign_in_with_password = AsyncMock(return_value={"session": _supabase_session(), "user": user})
+        auth_repo.sign_in_with_password = AsyncMock(
+            return_value={"session": _supabase_session(), "user": user})
         profile_repo.update_last_login = AsyncMock()
         profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile())
 
@@ -141,7 +147,8 @@ class TestLogin:
         """If Supabase returns empty session, raise authentication_failed."""
         service, auth_repo, profile_repo = _make_service()
 
-        auth_repo.sign_in_with_password = AsyncMock(return_value={"session": {}, "user": _supabase_user()})  # pragma: allowlist secret
+        auth_repo.sign_in_with_password = AsyncMock(
+            return_value={"session": {}, "user": _supabase_user()})  # pragma: allowlist secret
 
         with pytest.raises(AuthError) as exc_info:
             await service.login(LoginRequest(email="test@example.com", password="wrongpassword"))  # Noqa: S106 # pragma: allowlist secret
@@ -152,7 +159,8 @@ class TestLogin:
     async def test_login_empty_user_raises_authentication_failed(self):
         service, auth_repo, profile_repo = _make_service()
 
-        auth_repo.sign_in_with_password = AsyncMock(return_value={"session": _supabase_session(), "user": {}})
+        auth_repo.sign_in_with_password = AsyncMock(
+            return_value={"session": _supabase_session(), "user": {}})
 
         with pytest.raises(AuthError) as exc_info:
             await service.login(LoginRequest(email="test@example.com", password="wrongpassword"))  # Noqa: S106 # pragma: allowlist secret
@@ -164,7 +172,8 @@ class TestLogin:
         from app.utils.circuit_breaker import CircuitBreakerError
 
         service, auth_repo, _ = _make_service()
-        auth_repo.sign_in_with_password = AsyncMock(side_effect=CircuitBreakerError(message="service_unavailable"))
+        auth_repo.sign_in_with_password = AsyncMock(
+            side_effect=CircuitBreakerError(message="service_unavailable"))
 
         with pytest.raises(AuthError) as exc_info:
             await service.login(LoginRequest(email="test@example.com", password="password"))  # Noqa: S106 # pragma: allowlist secret
@@ -175,7 +184,8 @@ class TestLogin:
     async def test_login_unexpected_exception_raises_authentication_failed(self):
         """Unexpected errors are swallowed and mapped to authentication_failed — no leakage."""
         service, auth_repo, _ = _make_service()
-        auth_repo.sign_in_with_password = AsyncMock(side_effect=RuntimeError("db connection lost"))
+        auth_repo.sign_in_with_password = AsyncMock(
+            side_effect=RuntimeError("db connection lost"))
 
         with pytest.raises(AuthError) as exc_info:
             await service.login(LoginRequest(email="test@example.com", password="password"))  # Noqa: S106 # pragma: allowlist secret
@@ -189,7 +199,8 @@ class TestLogin:
         user = _supabase_user()
         user["user_metadata"]["full_name"] = "Metadata Name"
 
-        auth_repo.sign_in_with_password = AsyncMock(return_value={"session": _supabase_session(), "user": user})
+        auth_repo.sign_in_with_password = AsyncMock(
+            return_value={"session": _supabase_session(), "user": user})
         profile_repo.update_last_login = AsyncMock()
         profile = _mock_profile(full_name="Profile Name")
         profile_repo.get_by_user_id = AsyncMock(return_value=profile)
@@ -204,7 +215,8 @@ class TestLogin:
         user = _supabase_user()
         user["user_metadata"]["full_name"] = "Metadata Name"
 
-        auth_repo.sign_in_with_password = AsyncMock(return_value={"session": _supabase_session(), "user": user})
+        auth_repo.sign_in_with_password = AsyncMock(
+            return_value={"session": _supabase_session(), "user": user})
         profile_repo.update_last_login = AsyncMock()
         profile_repo.get_by_user_id = AsyncMock(return_value=None)
 
@@ -216,9 +228,11 @@ class TestLogin:
     async def test_login_is_onboarded_from_profile(self):
         service, auth_repo, profile_repo = _make_service()
 
-        auth_repo.sign_in_with_password = AsyncMock(return_value={"session": _supabase_session(), "user": _supabase_user()})
+        auth_repo.sign_in_with_password = AsyncMock(
+            return_value={"session": _supabase_session(), "user": _supabase_user()})
         profile_repo.update_last_login = AsyncMock()
-        profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile(is_onboarded=True))
+        profile_repo.get_by_user_id = AsyncMock(
+            return_value=_mock_profile(is_onboarded=True))
 
         result = await service.login(LoginRequest(email="test@example.com", password="password"))  # Noqa: S106 # pragma: allowlist secret
 
@@ -236,7 +250,8 @@ class TestSignup:
         service, auth_repo, profile_repo = _make_service()
         user = _supabase_user()
 
-        auth_repo.sign_up = AsyncMock(return_value={"session": _supabase_session(), "user": user})
+        auth_repo.sign_up = AsyncMock(
+            return_value={"session": _supabase_session(), "user": user})
         profile_repo.create = AsyncMock()
         profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile())
 
@@ -252,7 +267,8 @@ class TestSignup:
         service, auth_repo, profile_repo = _make_service()
         user = _supabase_user()
 
-        auth_repo.sign_up = AsyncMock(return_value={"session": _supabase_session(), "user": user})
+        auth_repo.sign_up = AsyncMock(
+            return_value={"session": _supabase_session(), "user": user})
         profile_repo.create = AsyncMock()
         profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile())
 
@@ -272,8 +288,10 @@ class TestSignup:
         service, auth_repo, profile_repo = _make_service()
         user = _supabase_user()
 
-        auth_repo.sign_up = AsyncMock(return_value={"session": _supabase_session(), "user": user})
-        profile_repo.create = AsyncMock(side_effect=Exception("DB constraint violation"))
+        auth_repo.sign_up = AsyncMock(
+            return_value={"session": _supabase_session(), "user": user})
+        profile_repo.create = AsyncMock(
+            side_effect=Exception("DB constraint violation"))
         profile_repo.get_by_user_id = AsyncMock(return_value=None)
 
         # Should not raise
@@ -295,7 +313,8 @@ class TestSignup:
     @pytest.mark.asyncio
     async def test_signup_duplicate_email_raises_user_already_exists(self):
         service, auth_repo, _ = _make_service()
-        auth_repo.sign_up = AsyncMock(side_effect=Exception("User already registered"))
+        auth_repo.sign_up = AsyncMock(
+            side_effect=Exception("User already registered"))
 
         with pytest.raises(AuthError) as exc_info:
             await service.signup(SignupRequest(email="existing@example.com", password="Password1"))  # Noqa: S106 # pragma: allowlist secret
@@ -306,7 +325,8 @@ class TestSignup:
     async def test_signup_duplicate_detection_case_insensitive(self):
         """'user already exists' in error message also triggers the right error code."""
         service, auth_repo, _ = _make_service()
-        auth_repo.sign_up = AsyncMock(side_effect=Exception("User already exists in the system"))
+        auth_repo.sign_up = AsyncMock(side_effect=Exception(
+            "User already exists in the system"))
 
         with pytest.raises(AuthError) as exc_info:
             await service.signup(SignupRequest(email="dupe@example.com", password="Password1"))  # Noqa: S106 # pragma: allowlist secret
@@ -318,7 +338,8 @@ class TestSignup:
         from app.utils.circuit_breaker import CircuitBreakerError
 
         service, auth_repo, _ = _make_service()
-        auth_repo.sign_up = AsyncMock(side_effect=CircuitBreakerError(message="service_unavailable"))
+        auth_repo.sign_up = AsyncMock(
+            side_effect=CircuitBreakerError(message="service_unavailable"))
 
         with pytest.raises(AuthError) as exc_info:
             await service.signup(SignupRequest(email="new@example.com", password="Password1"))  # Noqa: S106 # pragma: allowlist secret
@@ -363,7 +384,8 @@ class TestRefreshTokens:
     @pytest.mark.asyncio
     async def test_refresh_missing_access_token_raises_invalid_refresh_token(self):
         service, auth_repo, _ = _make_service()
-        auth_repo.refresh_session = AsyncMock(return_value={"refresh_token": "r"})  # no access_token
+        auth_repo.refresh_session = AsyncMock(
+            return_value={"refresh_token": "r"})  # no access_token
 
         with pytest.raises(AuthError) as exc_info:
             await service.refresh_tokens("bad-token")
@@ -375,7 +397,8 @@ class TestRefreshTokens:
         """Session has access_token but user dict lacks 'id'."""
         service, auth_repo, _ = _make_service()
         auth_repo.refresh_session = AsyncMock(
-            return_value={"access_token": "t", "user": {"email": "x@y.com"}}  # no id
+            return_value={"access_token": "t",
+                          "user": {"email": "x@y.com"}}  # no id
         )
 
         with pytest.raises(AuthError) as exc_info:
@@ -388,7 +411,8 @@ class TestRefreshTokens:
         from app.utils.circuit_breaker import CircuitBreakerError
 
         service, auth_repo, _ = _make_service()
-        auth_repo.refresh_session = AsyncMock(side_effect=CircuitBreakerError(message="service_unavailable"))
+        auth_repo.refresh_session = AsyncMock(
+            side_effect=CircuitBreakerError(message="service_unavailable"))
 
         with pytest.raises(AuthError) as exc_info:
             await service.refresh_tokens("any-token")
@@ -462,7 +486,8 @@ class TestRequestPasswordReset:
     async def test_reset_request_internal_error_does_not_raise(self):
         """Exceptions are swallowed — still returns generic response."""
         service, auth_repo, _ = _make_service()
-        auth_repo.send_password_reset_email = AsyncMock(side_effect=Exception("supabase down"))
+        auth_repo.send_password_reset_email = AsyncMock(
+            side_effect=Exception("supabase down"))
 
         # Should not raise
         result = await service.request_password_reset(ForgotPasswordRequest(email="anyone@example.com"))
@@ -499,7 +524,8 @@ class TestRequestPasswordReset:
         )
 
         _, kwargs = auth_repo.send_password_reset_email.call_args
-        assert kwargs.get("redirect_to") == "http://localhost:3000/reset-password"
+        assert kwargs.get(
+            "redirect_to") == "http://localhost:3000/reset-password"
 
 
 # ---------------------------------------------------------------------------
@@ -511,7 +537,8 @@ class TestCompletePasswordReset:
     @pytest.mark.asyncio
     async def test_reset_completion_success(self):
         service, auth_repo, _ = _make_service()
-        auth_repo.update_password_with_recovery_token = AsyncMock(return_value={"id": "user-abc"})
+        auth_repo.update_password_with_recovery_token = AsyncMock(
+            return_value={"id": "user-abc"})
 
         result = await service.complete_password_reset(
             recovery_access_token="valid-recovery-token",  # Noqa: S106 # pragma: allowlist secret
@@ -540,7 +567,8 @@ class TestCompletePasswordReset:
         service, auth_repo, _ = _make_service()
         response = MagicMock()
         response.status_code = 401
-        auth_repo.update_password_with_recovery_token = AsyncMock(side_effect=httpx.HTTPStatusError("401", request=MagicMock(), response=response))
+        auth_repo.update_password_with_recovery_token = AsyncMock(
+            side_effect=httpx.HTTPStatusError("401", request=MagicMock(), response=response))
 
         with pytest.raises(AuthError) as exc_info:
             await service.complete_password_reset("expired-token", "NewPassword1")
@@ -554,7 +582,8 @@ class TestCompletePasswordReset:
         service, auth_repo, _ = _make_service()
         response = MagicMock()
         response.status_code = 400
-        auth_repo.update_password_with_recovery_token = AsyncMock(side_effect=httpx.HTTPStatusError("400", request=MagicMock(), response=response))
+        auth_repo.update_password_with_recovery_token = AsyncMock(
+            side_effect=httpx.HTTPStatusError("400", request=MagicMock(), response=response))
 
         with pytest.raises(AuthError) as exc_info:
             await service.complete_password_reset("token", "weak")
@@ -593,7 +622,8 @@ class TestMapUserToResponse:
 
     def test_avatar_url_from_profile(self):
         service, _, _ = _make_service()
-        profile = _mock_profile(avatar_url="https://cdn.example.com/avatar.jpg")
+        profile = _mock_profile(
+            avatar_url="https://cdn.example.com/avatar.jpg")
         profile.timezone = "UTC"
 
         result = service._map_user_to_response(_supabase_user(), profile)

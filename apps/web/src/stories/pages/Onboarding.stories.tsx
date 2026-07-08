@@ -21,7 +21,7 @@ const MOCK_USER_NEEDS_ONBOARDING: UserProfile = {
   bio: null,
   tagline: null,
   created_at: new Date().toISOString(),
-  profile_public: false
+  profile_public: false,
 };
 
 const MOCK_USER_ALREADY_ONBOARDED: UserProfile = {
