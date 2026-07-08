@@ -83,6 +83,7 @@ async function fillAndSubmit(overrides = {}) {
 // ─── Reset ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
+  vi.clearAllMocks();
   useAuthStore.setState({
     user: null,
     tokens: null,
