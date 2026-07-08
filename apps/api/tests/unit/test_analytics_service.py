@@ -150,11 +150,9 @@ class TestCalculateStreak:
     def test_best_streak_found_in_past_not_current(self):
         today = date.today()
         # Current run: 2 days
-        current_run = [
-            today.isoformat(), (today - timedelta(days=1)).isoformat()]
+        current_run = [today.isoformat(), (today - timedelta(days=1)).isoformat()]
         # Past run of 10 starting 30 days ago
-        past_run = [(today - timedelta(days=30 + i)).isoformat()
-                    for i in range(10)]
+        past_run = [(today - timedelta(days=30 + i)).isoformat() for i in range(10)]
         dates = current_run + past_run
 
         current, best = _calculate_streak(dates, None)
@@ -322,8 +320,7 @@ class TestGetTeamAnalytics:
 
         # Two members: one submitted every day in last 30d, one submitted nothing
         today = date.today()
-        all_30_days = [(today - timedelta(days=i)).isoformat()
-                       for i in range(30)]
+        all_30_days = [(today - timedelta(days=i)).isoformat() for i in range(30)]
 
         workspace_repo.get_workspace_members_with_profiles = AsyncMock(
             return_value=[
@@ -334,8 +331,7 @@ class TestGetTeamAnalytics:
         workspace_repo.get_by_id = AsyncMock(return_value=_fake_workspace())
         analytics_repo.get_workspace_total_updates = AsyncMock(return_value=30)
         analytics_repo.get_workspace_daily_counts = AsyncMock(return_value={})
-        analytics_repo.get_all_member_submission_dates = AsyncMock(
-            return_value={"user-1": all_30_days, "user-2": []})
+        analytics_repo.get_all_member_submission_dates = AsyncMock(return_value={"user-1": all_30_days, "user-2": []})
         analytics_repo.get_all_member_sparklines = AsyncMock(return_value={})
 
         with pytest.MonkeyPatch().context() as mp:
@@ -367,8 +363,7 @@ class TestGetTeamAnalytics:
         workspace_repo.get_by_id = AsyncMock(return_value=_fake_workspace())
         analytics_repo.get_workspace_total_updates = AsyncMock(return_value=0)
         analytics_repo.get_workspace_daily_counts = AsyncMock(return_value={})
-        analytics_repo.get_all_member_submission_dates = AsyncMock(
-            return_value={})
+        analytics_repo.get_all_member_submission_dates = AsyncMock(return_value={})
         analytics_repo.get_all_member_sparklines = AsyncMock(return_value={})
 
         with pytest.MonkeyPatch().context() as mp:
@@ -416,8 +411,7 @@ class TestGetPublicProfileAnalytics:
         service = AnalyticsService(db)
 
         analytics_repo = MagicMock()
-        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(
-            return_value=[])
+        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(return_value=[])
 
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # noqa: ARG005
@@ -443,11 +437,8 @@ class TestGetPublicProfileAnalytics:
         analytics_repo = MagicMock()
         today = date.today()
         # 7 consecutive calendar days including weekend
-        seven_days = [(today - timedelta(days=i)).isoformat()
-                      for i in range(7)]
-        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(
-            return_value=seven_days
-        )
+        seven_days = [(today - timedelta(days=i)).isoformat() for i in range(7)]
+        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(return_value=seven_days)
 
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # noqa: ARG005
@@ -469,9 +460,7 @@ class TestGetPublicProfileAnalytics:
         service = AnalyticsService(db)
 
         analytics_repo = MagicMock()
-        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(
-            return_value=[]
-        )
+        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(return_value=[])
 
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # noqa: ARG005
@@ -498,9 +487,7 @@ class TestGetPublicProfileAnalytics:
         analytics_repo = MagicMock()
         today = date.today().isoformat()
         # Same date appears twice — two workspace submissions on same day
-        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(
-            return_value=[today, today]
-        )
+        analytics_repo.get_user_submission_dates_all_workspaces = AsyncMock(return_value=[today, today])
 
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(AnalyticsRepository, "from_session", lambda db: analytics_repo)  # noqa: ARG005

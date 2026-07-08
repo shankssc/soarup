@@ -370,10 +370,8 @@ async def unauthenticated_client(db_session):
 
     app = create_app()
     app.dependency_overrides[get_db_session] = lambda: db_session
-    app.dependency_overrides[get_auth_service] = lambda: _make_mock_auth_service(
-    )
-    app.dependency_overrides[get_profile_service] = lambda: _make_mock_profile_service(
-    )
+    app.dependency_overrides[get_auth_service] = lambda: _make_mock_auth_service()
+    app.dependency_overrides[get_profile_service] = lambda: _make_mock_profile_service()
 
     async with AsyncClient(
         transport=ASGITransport(app=cast(Any, app)),

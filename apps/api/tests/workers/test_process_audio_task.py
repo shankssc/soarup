@@ -5,7 +5,7 @@
 #   - Test _process_audio_update_async directly — no Celery worker needed
 #   - All external dependencies deferred-imported inside the function, so
 #     patch at source module level (same pattern as test_process_update_task.py)
-#   - boto3 (sync), pydub AudioSegment, faster-whisper, tempfile all mocked
+#   - aioboto3 Session, pydub AudioSegment, faster-whisper, tempfile all mocked
 #   - mock_audio_pipeline context manager centralises the happy-path setup
 #     so individual tests only override what they need
 
@@ -145,6 +145,27 @@ def _make_mock_tempfile() -> MagicMock:
     return mock_tmp_file
 
 
+def _make_mock_s3() -> tuple[MagicMock, AsyncMock]:
+    """
+    Build the aioboto3 async context manager chain:
+      aioboto3.Session() → .client(...) → async with → s3_client
+    Returns (mock_session_cls, mock_s3_client) for injection and assertion.
+    """
+    mock_s3_client = AsyncMock()
+    mock_s3_client.download_fileobj = AsyncMock()
+
+    mock_s3_context = AsyncMock()
+    mock_s3_context.__aenter__ = AsyncMock(return_value=mock_s3_client)
+    mock_s3_context.__aexit__ = AsyncMock(return_value=None)
+
+    mock_session_instance = MagicMock()
+    mock_session_instance.client.return_value = mock_s3_context
+
+    mock_session_cls = MagicMock(return_value=mock_session_instance)
+
+    return mock_session_cls, mock_s3_client
+
+
 # ---------------------------------------------------------------------------
 # Patch targets — all deferred imports patched at source module level
 # ---------------------------------------------------------------------------
@@ -156,7 +177,7 @@ _PROFILE_REPO = "app.repositories.profile_repo.ProfileRepository"
 _SUMMARISE = "app.lib.claude.summarise"
 _PUBLISH_EVENT = "app.lib.events.append_event"
 _BUILD_PROMPT = "app.workers.prompts.build_summarisation_prompt"
-_BOTO3_CLIENT = "boto3.client"
+_AIOBOTO3_SESSION = "aioboto3.Session"
 _AUDIO_SEGMENT = "pydub.AudioSegment"
 _WHISPER_MODEL = "app.workers.whisper_setup.get_whisper_model"
 _TEMPFILE = "tempfile.NamedTemporaryFile"
@@ -190,9 +211,7 @@ def mock_audio_pipeline(
     mock_audio = _make_mock_audio_segment()
     mock_whisper = _make_mock_whisper(transcript=transcript, raises=transcription_raises)
     mock_tmp_file = _make_mock_tempfile()
-
-    mock_s3 = MagicMock()
-    mock_s3.download_fileobj = MagicMock()
+    mock_session_cls, mock_s3_client = _make_mock_s3()
 
     mock_summarise = AsyncMock(
         return_value=MOCK_SUMMARY,
@@ -204,7 +223,7 @@ def mock_audio_pipeline(
         patch(_UPDATE_REPO) as mock_update_repo_cls,
         patch(_WORKSPACE_REPO) as mock_workspace_repo_cls,
         patch(_PROFILE_REPO) as mock_profile_repo_cls,
-        patch(_BOTO3_CLIENT, return_value=mock_s3),
+        patch(_AIOBOTO3_SESSION, mock_session_cls),
         patch(_AUDIO_SEGMENT) as mock_audio_cls,
         patch(_WHISPER_MODEL, return_value=mock_whisper),
         patch(_TEMPFILE, return_value=mock_tmp_file),
@@ -225,7 +244,7 @@ def mock_audio_pipeline(
             "update_repo": mock_update_repo,
             "whisper": mock_whisper,
             "summarise": mock_summarise,
-            "s3": mock_s3,
+            "s3": mock_s3_client,
             "audio": mock_audio,
         }
 
@@ -438,12 +457,14 @@ class TestEarlyReturn:
         mock_update_repo = _make_mock_update_repo(update=None)
         mock_update_repo.get_by_id = AsyncMock(return_value=None)
 
+        mock_session_cls, _ = _make_mock_s3()
+
         with (
             patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
             patch(_UPDATE_REPO) as mock_update_repo_cls,
             patch(_WORKSPACE_REPO),
             patch(_PROFILE_REPO),
-            patch(_BOTO3_CLIENT, return_value=MagicMock()),
+            patch(_AIOBOTO3_SESSION, mock_session_cls),
             patch(_PUBLISH_EVENT, new=mock_publish),
             patch("app.workers.tasks.logger"),
         ):
@@ -463,12 +484,14 @@ class TestEarlyReturn:
         update_no_audio = make_fake_update(audio_key=None)
         mock_update_repo = _make_mock_update_repo(update=update_no_audio)
 
+        mock_session_cls, _ = _make_mock_s3()
+
         with (
             patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
             patch(_UPDATE_REPO) as mock_update_repo_cls,
             patch(_WORKSPACE_REPO),
             patch(_PROFILE_REPO),
-            patch(_BOTO3_CLIENT, return_value=MagicMock()),
+            patch(_AIOBOTO3_SESSION, mock_session_cls),
             patch(_PUBLISH_EVENT, new=mock_publish),
             patch("app.workers.tasks.logger"),
         ):

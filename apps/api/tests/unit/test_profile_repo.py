@@ -46,9 +46,7 @@ async def _seed_profile_with_username(
 
 class TestGetByUsername:
     @pytest.mark.asyncio
-    async def test_returns_profile_when_username_matches(
-        self, db_session, seeded_profile, test_user_id
-    ):
+    async def test_returns_profile_when_username_matches(self, db_session, seeded_profile, test_user_id):
         repo = ProfileRepository.from_session(db_session)
         seeded_profile.username = "suyash"
         await db_session.flush()
@@ -60,9 +58,7 @@ class TestGetByUsername:
         assert result.username == "suyash"
 
     @pytest.mark.asyncio
-    async def test_case_insensitive_match(
-        self, db_session, seeded_profile, test_user_id
-    ):
+    async def test_case_insensitive_match(self, db_session, seeded_profile, test_user_id):
         repo = ProfileRepository.from_session(db_session)
         seeded_profile.username = "suyash"
         await db_session.flush()
@@ -81,9 +77,7 @@ class TestGetByUsername:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_username_is_null(
-        self, db_session, seeded_profile
-    ):
+    async def test_returns_none_when_username_is_null(self, db_session, seeded_profile):
         """Profile with no username set should not be returned."""
         repo = ProfileRepository.from_session(db_session)
         # seeded_profile has username=None by default
@@ -117,9 +111,7 @@ class TestIsUsernameTaken:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_returns_false_when_username_belongs_to_exclude_user_id(
-        self, db_session, test_user_id
-    ):
+    async def test_returns_false_when_username_belongs_to_exclude_user_id(self, db_session, test_user_id):
         """
         Own username should not appear as taken.
         exclude_user_id skips the current user's own record.
@@ -132,9 +124,7 @@ class TestIsUsernameTaken:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_returns_true_when_taken_by_different_user(
-        self, db_session, test_user_id
-    ):
+    async def test_returns_true_when_taken_by_different_user(self, db_session, test_user_id):
         """
         Username taken by another user should still appear as taken
         even when exclude_user_id is provided for a different user.
@@ -143,9 +133,7 @@ class TestIsUsernameTaken:
         other_user_id = str(uuid.uuid4())
         await _seed_profile_with_username(db_session, "takenname", user_id=other_user_id)
 
-        result = await repo.is_username_taken(
-            "takenname", exclude_user_id=test_user_id
-        )
+        result = await repo.is_username_taken("takenname", exclude_user_id=test_user_id)
 
         assert result is True
 
@@ -160,9 +148,7 @@ class TestIsUsernameTaken:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_no_exclude_user_id_checks_all_users(
-        self, db_session, test_user_id
-    ):
+    async def test_no_exclude_user_id_checks_all_users(self, db_session, test_user_id):
         """Without exclude_user_id, own username still appears as taken."""
         repo = ProfileRepository.from_session(db_session)
         await _seed_profile_with_username(db_session, "myname", user_id=test_user_id)

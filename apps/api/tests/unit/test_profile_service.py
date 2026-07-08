@@ -146,8 +146,7 @@ class TestGetProfile:
     @pytest.mark.asyncio
     async def test_is_onboarded_from_profile(self):
         service, profile_repo, _ = _make_service()
-        profile_repo.get_by_user_id = AsyncMock(
-            return_value=_mock_profile(is_onboarded=True))
+        profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile(is_onboarded=True))
 
         result = await service.get_profile("user-abc", "test@example.com")
 
@@ -163,10 +162,8 @@ class TestUpdateProfile:
     @pytest.mark.asyncio
     async def test_update_success_returns_profile_response(self):
         service, profile_repo, _ = _make_service()
-        profile_repo.update = AsyncMock(
-            return_value=_mock_profile(full_name="New Name"))
-        profile_repo.get_by_user_id = AsyncMock(
-            return_value=_mock_profile(full_name="New Name"))
+        profile_repo.update = AsyncMock(return_value=_mock_profile(full_name="New Name"))
+        profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile(full_name="New Name"))
 
         result = await service.update_profile(
             "user-abc",
@@ -186,8 +183,7 @@ class TestUpdateProfile:
             UpdateProfileRequest(timezone="America/New_York"),
         )
 
-        profile_repo.update.assert_awaited_once_with(
-            "user-abc", {"timezone": "America/New_York"})
+        profile_repo.update.assert_awaited_once_with("user-abc", {"timezone": "America/New_York"})
 
     @pytest.mark.asyncio
     async def test_empty_request_raises_no_fields_to_update(self):
@@ -268,14 +264,15 @@ class TestUpdateProfile:
     @pytest.mark.asyncio
     async def test_available_username_saves_successfully(self):
         service, profile_repo, _ = _make_service()
-        profile_repo.get_by_user_id = AsyncMock(side_effect=[
-            _mock_profile(),                        # first call: business logic check
-            # second call: get_profile at end
-            _mock_profile(username="newname"),
-        ])
+        profile_repo.get_by_user_id = AsyncMock(
+            side_effect=[
+                _mock_profile(),  # first call: business logic check
+                # second call: get_profile at end
+                _mock_profile(username="newname"),
+            ]
+        )
         profile_repo.is_username_taken = AsyncMock(return_value=False)
-        profile_repo.update = AsyncMock(
-            return_value=_mock_profile(username="newname"))
+        profile_repo.update = AsyncMock(return_value=_mock_profile(username="newname"))
 
         result = await service.update_profile(
             "user-abc",
@@ -288,8 +285,7 @@ class TestUpdateProfile:
     async def test_profile_public_without_username_raises_username_required(self):
         """Cannot enable public profile without a username set or being set."""
         service, profile_repo, _ = _make_service()
-        profile_repo.get_by_user_id = AsyncMock(
-            return_value=_mock_profile(username=None))
+        profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile(username=None))
 
         with pytest.raises(ProfileError) as exc_info:
             await service.update_profile(
@@ -303,16 +299,15 @@ class TestUpdateProfile:
     async def test_profile_public_with_existing_username_saves_successfully(self):
         """Can enable public profile when username already saved on profile."""
         service, profile_repo, _ = _make_service()
-        profile_repo.get_by_user_id = AsyncMock(side_effect=[
-            # first call: business logic check
-            _mock_profile(username="existingname"),
-            # second call: get_profile at end
-            _mock_profile(username="existingname", profile_public=True),
-        ])
-        profile_repo.update = AsyncMock(
-            return_value=_mock_profile(
-                username="existingname", profile_public=True)
+        profile_repo.get_by_user_id = AsyncMock(
+            side_effect=[
+                # first call: business logic check
+                _mock_profile(username="existingname"),
+                # second call: get_profile at end
+                _mock_profile(username="existingname", profile_public=True),
+            ]
         )
+        profile_repo.update = AsyncMock(return_value=_mock_profile(username="existingname", profile_public=True))
 
         result = await service.update_profile(
             "user-abc",
@@ -325,21 +320,17 @@ class TestUpdateProfile:
     async def test_own_username_not_flagged_as_taken(self):
         """Re-saving own username passes is_username_taken with exclude_user_id."""
         service, profile_repo, _ = _make_service()
-        profile_repo.get_by_user_id = AsyncMock(
-            return_value=_mock_profile(username="myname")
-        )
+        profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile(username="myname"))
         profile_repo.is_username_taken = AsyncMock(return_value=False)
-        profile_repo.update = AsyncMock(
-            return_value=_mock_profile(username="myname"))
+        profile_repo.update = AsyncMock(return_value=_mock_profile(username="myname"))
 
         await service.update_profile(
             "user-abc",
             UpdateProfileRequest(username="myname"),
         )
 
-        profile_repo.is_username_taken.assert_awaited_once_with(
-            "myname", exclude_user_id="user-abc"
-        )
+        profile_repo.is_username_taken.assert_awaited_once_with("myname", exclude_user_id="user-abc")
+
 
 # ---------------------------------------------------------------------------
 # upload_avatar()
@@ -363,8 +354,7 @@ class TestUploadAvatar:
     @pytest.mark.asyncio
     async def test_upload_updates_profile_avatar(self):
         service, profile_repo, storage_repo = _make_service()
-        storage_repo.upload_file = storage_repo.upload_file = AsyncMock(
-            return_value=MOCK_UPLOAD_RESULT)
+        storage_repo.upload_file = storage_repo.upload_file = AsyncMock(return_value=MOCK_UPLOAD_RESULT)
         profile_repo.update_avatar = AsyncMock()
 
         await service.upload_avatar("user-abc", _mock_upload_file())
@@ -419,8 +409,7 @@ class TestUploadAvatar:
         from app.repositories.storage_repo import StorageError
 
         service, _, storage_repo = _make_service()
-        storage_repo.upload_file = AsyncMock(side_effect=StorageError(
-            error_code="s3_error", message="bucket unreachable"))
+        storage_repo.upload_file = AsyncMock(side_effect=StorageError(error_code="s3_error", message="bucket unreachable"))
 
         with pytest.raises(ProfileError) as exc_info:
             await service.upload_avatar("user-abc", _mock_upload_file())
@@ -432,8 +421,7 @@ class TestUploadAvatar:
         from app.utils.circuit_breaker import CircuitBreakerError
 
         service, _, storage_repo = _make_service()
-        storage_repo.upload_file = AsyncMock(
-            side_effect=CircuitBreakerError(message="service_unavailable"))
+        storage_repo.upload_file = AsyncMock(side_effect=CircuitBreakerError(message="service_unavailable"))
 
         with pytest.raises(ProfileError) as exc_info:
             await service.upload_avatar("user-abc", _mock_upload_file())
@@ -450,25 +438,21 @@ class TestDeleteAvatar:
     @pytest.mark.asyncio
     async def test_delete_success_returns_true(self):
         service, profile_repo, storage_repo = _make_service()
-        profile_repo.get_by_user_id = AsyncMock(
-            return_value=_mock_profile(avatar_key="avatars/user-abc/old.jpg"))
+        profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile(avatar_key="avatars/user-abc/old.jpg"))
         storage_repo.delete_file = AsyncMock()
         profile_repo.delete_avatar_reference = AsyncMock()
 
         result = await service.delete_avatar("user-abc")
 
         assert result is True
-        storage_repo.delete_file.assert_awaited_once_with(
-            "avatars/user-abc/old.jpg")
-        profile_repo.delete_avatar_reference.assert_awaited_once_with(
-            "user-abc")
+        storage_repo.delete_file.assert_awaited_once_with("avatars/user-abc/old.jpg")
+        profile_repo.delete_avatar_reference.assert_awaited_once_with("user-abc")
 
     @pytest.mark.asyncio
     async def test_delete_no_avatar_key_returns_false(self):
         """Idempotent: deleting when no avatar is set returns False, not an error."""
         service, profile_repo, _ = _make_service()
-        profile_repo.get_by_user_id = AsyncMock(
-            return_value=_mock_profile(avatar_key=None))
+        profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile(avatar_key=None))
 
         result = await service.delete_avatar("user-abc")
 
@@ -487,10 +471,8 @@ class TestDeleteAvatar:
     async def test_delete_exception_returns_false_not_raises(self):
         """Errors during delete are swallowed — delete stays idempotent."""
         service, profile_repo, storage_repo = _make_service()
-        profile_repo.get_by_user_id = AsyncMock(
-            return_value=_mock_profile(avatar_key="key"))
-        storage_repo.delete_file = AsyncMock(
-            side_effect=Exception("storage timeout"))
+        profile_repo.get_by_user_id = AsyncMock(return_value=_mock_profile(avatar_key="key"))
+        storage_repo.delete_file = AsyncMock(side_effect=Exception("storage timeout"))
 
         result = await service.delete_avatar("user-abc")
 

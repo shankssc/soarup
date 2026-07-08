@@ -104,9 +104,7 @@ async def profiles_client(db_session):
 
 
 class TestGetPublicProfile:
-    async def test_returns_200_when_profile_public(
-        self, profiles_client, db_session
-    ):
+    async def test_returns_200_when_profile_public(self, profiles_client, db_session):
         await _seed_public_profile(db_session, "suyash", profile_public=True)
 
         with patch(
@@ -117,9 +115,7 @@ class TestGetPublicProfile:
 
         assert response.status_code == 200
 
-    async def test_returns_404_when_profile_not_public(
-        self, profiles_client, db_session
-    ):
+    async def test_returns_404_when_profile_not_public(self, profiles_client, db_session):
         await _seed_public_profile(db_session, "privateuser", profile_public=False)
 
         response = await profiles_client.get("/api/v1/profiles/privateuser")
@@ -133,9 +129,7 @@ class TestGetPublicProfile:
         assert response.status_code == 404
         assert response.json()["error"] == "profile_not_found"
 
-    async def test_response_never_includes_email(
-        self, profiles_client, db_session
-    ):
+    async def test_response_never_includes_email(self, profiles_client, db_session):
         await _seed_public_profile(db_session, "suyash2", profile_public=True)
 
         with patch(
@@ -147,9 +141,7 @@ class TestGetPublicProfile:
         data = response.json()
         assert "email" not in data
 
-    async def test_response_includes_streak_and_heatmap(
-        self, profiles_client, db_session
-    ):
+    async def test_response_includes_streak_and_heatmap(self, profiles_client, db_session):
         await _seed_public_profile(db_session, "suyash3", profile_public=True)
 
         with patch(
@@ -165,9 +157,7 @@ class TestGetPublicProfile:
         assert data["streak"]["total_submissions"] == 42
         assert len(data["heatmap"]) == 1
 
-    async def test_response_includes_bio_and_tagline(
-        self, profiles_client, db_session
-    ):
+    async def test_response_includes_bio_and_tagline(self, profiles_client, db_session):
         await _seed_public_profile(
             db_session,
             "suyash4",
@@ -186,9 +176,7 @@ class TestGetPublicProfile:
         assert data["bio"] == "Building in public"
         assert data["tagline"] == "Fullstack · Open source"
 
-    async def test_case_insensitive_username_lookup(
-        self, profiles_client, db_session
-    ):
+    async def test_case_insensitive_username_lookup(self, profiles_client, db_session):
         await _seed_public_profile(db_session, "suyash5", profile_public=True)
 
         with patch(
@@ -199,9 +187,7 @@ class TestGetPublicProfile:
 
         assert response.status_code == 200
 
-    async def test_no_auth_header_required(
-        self, profiles_client, db_session
-    ):
+    async def test_no_auth_header_required(self, profiles_client, db_session):
         """Endpoint is fully public — no Authorization header needed."""
         await _seed_public_profile(db_session, "suyash6", profile_public=True)
 
@@ -215,9 +201,7 @@ class TestGetPublicProfile:
 
         assert response.status_code == 200
 
-    async def test_404_is_ambiguous_for_private_and_missing(
-        self, profiles_client, db_session
-    ):
+    async def test_404_is_ambiguous_for_private_and_missing(self, profiles_client, db_session):
         """
         Private profile and missing profile both return 404 with the same
         error code — prevents enumeration of private profile existence.
@@ -228,5 +212,4 @@ class TestGetPublicProfile:
         missing_response = await profiles_client.get("/api/v1/profiles/doesnotexist2")
 
         assert private_response.status_code == missing_response.status_code == 404
-        assert private_response.json()["error"] == missing_response.json()[
-            "error"]
+        assert private_response.json()["error"] == missing_response.json()["error"]

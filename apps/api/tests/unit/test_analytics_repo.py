@@ -374,7 +374,6 @@ class TestGetUserSubmissionDatesAllWorkspaces:
         This method accepts no workspace_id — verified by inspecting the call signature.
         """
         import inspect
-        sig = inspect.signature(
-            AnalyticsRepository.get_user_submission_dates_all_workspaces
-        )
+
+        sig = inspect.signature(AnalyticsRepository.get_user_submission_dates_all_workspaces)
         assert "workspace_id" not in sig.parameters
