@@ -1,3 +1,3 @@
-select * from profiles;
+select * from updates;
 
-select * from workspaces;
+delete from updates;
