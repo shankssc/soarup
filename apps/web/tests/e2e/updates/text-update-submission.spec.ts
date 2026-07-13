@@ -1,3 +1,5 @@
+//apps/web/tests/e2e/updates/text-update-submission.spec.ts
+
 import { test, expect } from '@playwright/test';
 import { signUp, completeOnboarding } from '../fixtures/auth';
 import { createClient } from '@supabase/supabase-js';

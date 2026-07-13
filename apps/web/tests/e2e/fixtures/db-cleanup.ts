@@ -40,7 +40,9 @@ async function cleanupE2EAudioObjects(
     );
 
     if (rows.length === 0) {
-      console.log('cleanupE2EAudioObjects: no test audio objects found, nothing to clean');
+      console.log(
+        'cleanupE2EAudioObjects: no test audio objects found, nothing to clean',
+      );
       return;
     }
 
@@ -66,9 +68,7 @@ async function cleanupE2EAudioObjects(
 
     console.log(`cleanupE2EAudioObjects: removed ${keys.length} test audio object(s)`);
   } catch (err) {
-    console.error(
-      `cleanupE2EAudioObjects: cleanup failed — ${(err as Error).message}`,
-    );
+    console.error(`cleanupE2EAudioObjects: cleanup failed — ${(err as Error).message}`);
     // Don't rethrow — see file-level note on non-fatal cleanup philosophy.
   }
 }
