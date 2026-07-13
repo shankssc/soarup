@@ -39,6 +39,25 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         storageState: STORAGE_STATE,
+        // Fake media device flags — feeds real audio bytes from a WAV
+        // file into getUserMedia() as if it were a live microphone, so
+        // VoiceRecorder's actual MediaRecorder pipeline runs for real in
+        // voice-update-submission.spec.ts, rather than needing to mock
+        // MediaRecorder itself (which would skip exercising the real
+        // getSupportedMimeType() fallback chain and chunk/blob assembly
+        // logic — exactly the kind of thing worth testing for real).
+        // Chromium-specific flags — this is also why voice-update
+        // submission tests are scoped to the chromium project only.
+        launchOptions: {
+          args: [
+            '--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-permissions',
+            `--use-file-for-fake-audio-capture=${path.resolve(
+              __dirname,
+              'tests/e2e/fixtures/test-audio.wav',
+            )}`,
+          ],
+        },
       },
       testIgnore: /.*unauth.*\.spec\.ts/,
     },
