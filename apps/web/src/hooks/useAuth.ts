@@ -159,7 +159,7 @@ function hasSupabaseSessionCookie(): boolean {
 }
 
 async function waitForSupabaseSessionCookie(
-  timeoutMs = 8000,
+  timeoutMs = 12000,
   intervalMs = 50,
 ): Promise<boolean> {
   const start = Date.now();

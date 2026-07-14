@@ -10,8 +10,9 @@
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Response, status
 
+from app.api import create_error_response
 from app.api.dependencies import ApiVersionDep, AuthDep, DBSessionDep
 from app.api.rbac import WorkspaceAdminDep
 from app.repositories.invite_repo import InviteRepository
@@ -39,9 +40,33 @@ _INVITE_ERROR_STATUS: dict[str, int] = {
 }
 
 
-def _invite_http(err: InviteError) -> HTTPException:
+def handle_invite_error(err: InviteError, api_version: Any) -> Response:
+    """
+    Maps InviteError to the standard {error, message, details} envelope
+    used by every other router's ERROR path (create_error_response) —
+    NOT a raw HTTPException. apiClient.ts parses errBody.error /
+    errBody.message specifically; a raw HTTPException's {"detail": "..."}
+    shape has neither field, so the frontend previously received an
+    empty error message on every invite-related failure (already_member,
+    invite_expired, etc.) regardless of whether the backend logic was
+    correct.
+
+    NOTE: this is deliberately NOT paired with create_success_response
+    on the success side of these endpoints — unlike updates.py/auth.py,
+    the invite frontend hooks (useInviteDetails, useAcceptInvite,
+    useCreateInvite in useInviteMembers.ts) expect BARE response bodies
+    with no {data: ...} envelope, matching how these endpoints already
+    worked before this fix. Only the error shape was actually broken;
+    wrapping the success responses too would silently break those three
+    hooks, which don't unwrap .data the way useWorkspace.ts does.
+    """
     code = _INVITE_ERROR_STATUS.get(err.error_code, status.HTTP_400_BAD_REQUEST)
-    return HTTPException(status_code=code, detail=err.message)
+    return create_error_response(
+        error_code=err.error_code,
+        message=err.message,
+        status_code=code,
+        api_version=api_version,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +86,7 @@ async def create_invite(
     api_version: ApiVersionDep,
     user_ctx: WorkspaceAdminDep,
     db: DBSessionDep,
-) -> InviteResponse:
+) -> InviteResponse | Response:
     """
     Create a single-use invite and deliver it via email (Resend).
     Any workspace member may invite — this is a deliberate M5 tradeoff.
@@ -71,7 +96,7 @@ async def create_invite(
     try:
         return await service.create_invite(workspace_id, user_ctx["user_id"], request)
     except InviteError as e:
-        raise _invite_http(e) from e
+        return handle_invite_error(e, api_version)
 
 
 @router.get(
@@ -107,14 +132,18 @@ async def revoke_invite(
     invite = await invite_repo.get_by_id(invite_id)
 
     if not invite or invite.workspace_id != workspace_id:
-        raise HTTPException(
+        return create_error_response(
+            error_code="invite_not_found",
+            message="Invite not found.",
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invite not found.",
+            api_version=api_version,
         )
     if invite.is_used:
-        raise HTTPException(
+        return create_error_response(
+            error_code="invite_already_used",
+            message="Invite is already used or revoked.",
             status_code=status.HTTP_410_GONE,
-            detail="Invite is already used or revoked.",
+            api_version=api_version,
         )
 
     await invite_repo.revoke(invite)
@@ -134,6 +163,7 @@ async def revoke_invite(
 
 @router.get(
     "/invites/{code}",
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Get invite details (public — no auth required)",
 )
@@ -141,7 +171,7 @@ async def get_invite_details(
     code: str,
     api_version: ApiVersionDep,
     db: DBSessionDep,
-) -> dict[str, Any]:
+) -> dict[str, Any] | Response:
     """
     Returns workspace name, inviter name, email, expiry, and validity.
     Used by the /invite/:code page to render the appropriate state
@@ -152,11 +182,12 @@ async def get_invite_details(
         details = await service.get_invite_details(code)
         return details.model_dump()
     except InviteError as e:
-        raise _invite_http(e) from e
+        return handle_invite_error(e, api_version)
 
 
 @router.post(
     "/invites/{code}/accept",
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Accept an invite and join the workspace",
 )
@@ -165,7 +196,7 @@ async def accept_invite(
     api_version: ApiVersionDep,
     user_ctx: AuthDep,
     db: DBSessionDep,
-) -> dict[str, Any]:
+) -> dict[str, Any] | Response:
     """
     Validates the invite, adds the authenticated user to the workspace,
     and marks the invite as used. Returns workspace_id for redirect.
@@ -179,4 +210,4 @@ async def accept_invite(
         )
         return {"workspace_id": workspace_id}
     except InviteError as e:
-        raise _invite_http(e) from e
+        return handle_invite_error(e, api_version)
