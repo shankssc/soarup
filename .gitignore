@@ -87,6 +87,7 @@ test-results/
 *.lcov
 .auth/
 debug-*.png
+tests/e2e/.auth/*
 
 # --- Storybook ---
 storybook-static/

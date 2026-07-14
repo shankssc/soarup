@@ -138,6 +138,38 @@ interface LoginResponse {
 // the server-side cookie-based session is set correctly. This allows
 // createServerSupabaseClient() in Server Components to read the session.
 
+// supabase.auth.setSession()'s returned promise can resolve BEFORE the
+// underlying session cookie is actually written. The cookie write is
+// driven by supabase-js's onAuthStateChange event, which is dispatched
+// asynchronously (outside the setSession call stack) specifically to
+// avoid re-entrancy issues — so awaiting setSession alone does not
+// guarantee the cookie @supabase/ssr's middleware reads is present yet.
+// This was the root cause of an intermittent race: a navigation straight
+// after setSession could hit middleware before the cookie existed,
+// bouncing an authenticated user to /login. A fixed delay was previously
+// used to paper over this, which is not a real fix — no fixed number is
+// guaranteed safe, only "usually long enough". Polling for the actual
+// cookie is deterministic instead.
+function hasSupabaseSessionCookie(): boolean {
+  if (typeof document === 'undefined') return false;
+  // @supabase/ssr's browser client names its cookie sb-<project-ref>-auth-token
+  // (and may chunk large tokens into sb-<ref>-auth-token.0, .1, etc.) — match
+  // the stable part of that pattern rather than hardcoding the project ref.
+  return /(?:^|;\s*)sb-[^=;]+-auth-token[^=;]*=/.test(document.cookie);
+}
+
+async function waitForSupabaseSessionCookie(
+  timeoutMs = 12000,
+  intervalMs = 50,
+): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (hasSupabaseSessionCookie()) return true;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return false;
+}
+
 async function syncSupabaseSession(
   accessToken: string,
   refreshToken: string,
@@ -148,6 +180,17 @@ async function syncSupabaseSession(
       access_token: accessToken,
       refresh_token: refreshToken,
     });
+
+    const cookieReady = await waitForSupabaseSessionCookie();
+    if (!cookieReady) {
+      // Non-fatal — see comment on the try/catch below. But worth a loud
+      // warning: any immediately-following navigation to a middleware-
+      // protected route will very likely bounce to /login.
+      console.warn(
+        'Supabase session cookie did not appear within timeout — a subsequent ' +
+          'navigation to a protected route may redirect to /login.',
+      );
+    }
   } catch {
     // Non-fatal — Zustand store is the source of truth for client-side auth.
     // Server-side session may not work until next page load.
