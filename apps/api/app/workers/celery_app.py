@@ -1,9 +1,12 @@
 # apps/api/app/workers/celery_app.py
 
-from celery import Celery
+from celery import Celery, Task
 from celery.schedules import crontab
 
 from app.config import settings
+from app.lib.sentry import init_sentry
+
+init_sentry()
 
 celery_app = Celery(
     "soarup",
@@ -36,3 +39,8 @@ celery_app.conf.beat_schedule = {
 def health_check() -> dict[str, str]:
     """Dummy task to verify Celery worker is running."""
     return {"status": "ok", "worker": "healthy"}
+
+
+@celery_app.task(bind=True)  # type: ignore[misc]
+def sentry_test(self: Task) -> None:
+    raise Exception("SoarUp Sentry Celery test — safe to ignore")

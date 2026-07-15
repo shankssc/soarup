@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.lib.sentry import init_sentry
 from app.routers import analytics, audio, auth, digests, health, invites, members, public_profiles, slack, updates, workspaces
 from app.routers.websockets import router as websocket_router
 
@@ -23,6 +24,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 def create_app() -> FastAPI:
     """Application factory pattern for clean testing + config."""
+    init_sentry()
+
     app = FastAPI(
         title="SoarUp API",
         version="0.1.0",
