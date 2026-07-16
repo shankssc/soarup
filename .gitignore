@@ -117,3 +117,6 @@ supabase/logs/
 supabase/storage/
 supabase/.temp/
 supabase/studio/dist/
+
+# --- Sentry files
+.env.sentry-build-plugin

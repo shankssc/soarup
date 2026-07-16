@@ -4,12 +4,16 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.lib.sentry import init_sentry
 from app.routers import analytics, audio, auth, digests, health, invites, members, public_profiles, slack, updates, workspaces
 from app.routers.websockets import router as websocket_router
+
+logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
@@ -23,6 +27,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 def create_app() -> FastAPI:
     """Application factory pattern for clean testing + config."""
+    logger.info("sentry_dsn_check", configured=bool(settings.sentry_dsn))
+    init_sentry()
+
     app = FastAPI(
         title="SoarUp API",
         version="0.1.0",
@@ -55,7 +62,3 @@ def create_app() -> FastAPI:
     app.include_router(public_profiles.router, prefix="/api/v1")
 
     return app
-
-
-# Create app instance for Uvicorn
-app = create_app()

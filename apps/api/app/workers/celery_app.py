@@ -4,6 +4,9 @@ from celery import Celery
 from celery.schedules import crontab
 
 from app.config import settings
+from app.lib.sentry import init_sentry
+
+init_sentry()
 
 celery_app = Celery(
     "soarup",

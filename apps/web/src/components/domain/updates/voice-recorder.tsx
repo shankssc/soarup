@@ -9,12 +9,7 @@ import { useRequestUploadUrl, uploadAudioBlob } from '@/hooks/useAudio';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type RecorderState =
-  | 'idle'
-  | 'requesting_permission'
-  | 'recording'
-  | 'preview'
-  | 'uploading'
-  | 'error';
+  'idle' | 'requesting_permission' | 'recording' | 'preview' | 'uploading' | 'error';
 
 interface VoiceRecorderProps {
   workspaceId: string;
