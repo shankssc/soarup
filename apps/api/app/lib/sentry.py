@@ -14,11 +14,14 @@
 # var is absent from .env.
 
 import sentry_sdk
+import structlog
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 
 from app.config import settings
+
+logger = structlog.get_logger(__name__)
 
 # 0.1 = 10% of transactions traced for performance monitoring.
 # Set to 0 to disable perf tracing entirely and keep only error capture.
@@ -37,16 +40,21 @@ def init_sentry() -> None:
     without a DSN configured don't error out or send anything.
     """
     if not settings.sentry_dsn:
+        logger.info("sentry_init_skipped", reason="dsn_not_configured")
         return
 
-    sentry_sdk.init(
-        dsn=settings.sentry_dsn,
-        environment=settings.environment,
-        integrations=[
-            StarletteIntegration(),
-            FastApiIntegration(),
-            CeleryIntegration(),
-        ],
-        traces_sample_rate=TRACES_SAMPLE_RATE,
-        send_default_pii=False,
-    )
+    try:
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            environment=settings.environment,
+            integrations=[
+                StarletteIntegration(),
+                FastApiIntegration(),
+                CeleryIntegration(),
+            ],
+            traces_sample_rate=TRACES_SAMPLE_RATE,
+            send_default_pii=False,
+        )
+        logger.info("sentry_init_success", environment=settings.environment)
+    except Exception as e:
+        logger.warning("sentry_init_failed", error=str(e))

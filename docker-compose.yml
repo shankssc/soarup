@@ -118,6 +118,7 @@ services:
       - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+      - NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}
     volumes:
       - ./apps/web:/app
       - /app/node_modules

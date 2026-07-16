@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import type { Viewport } from 'next';
 import { Space_Grotesk, DM_Sans } from 'next/font/google';
+import * as Sentry from '@sentry/nextjs';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { PageTransition } from '@/components/ui/page-transition';
@@ -26,18 +27,26 @@ const dmSans = DM_Sans({
 });
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
+// Converted from `export const metadata` to `generateMetadata` so we can
+// merge in Sentry's trace data — lets Sentry link frontend errors/traces
+// back to the specific request/page that triggered them.
 
-export const metadata: Metadata = {
-  title: 'SoarUp',
-  description: 'Async standups for indie developers and small teams.',
-  icons: {
-    icon: [
-      { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
-    ],
-    apple: { url: '/apple-touch-180.png' },
-  },
-};
+export function generateMetadata(): Metadata {
+  return {
+    title: 'SoarUp',
+    description: 'Async standups for indie developers and small teams.',
+    icons: {
+      icon: [
+        { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
+        { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      ],
+      apple: { url: '/apple-touch-180.png' },
+    },
+    other: {
+      ...Sentry.getTraceData(),
+    },
+  };
+}
 
 export const viewport: Viewport = {
   width: 'device-width',
