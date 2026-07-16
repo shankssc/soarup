@@ -34,11 +34,11 @@ gate, not a nice-to-have.
    deliberately skipped, see Known Tradeoffs
 5. `voice-update-submission.spec.ts` passing (#61) ✅
 
-### Observability
+### Observability — ✅ COMPLETE (see Part 2 Completion Notes)
 
-6. Sentry configured on FastAPI backend (errors + Celery tasks)
-7. Sentry configured on Next.js frontend
-8. `send_default_pii=False` on both — no PII sent to Sentry
+6. Sentry configured on FastAPI backend (errors + Celery tasks) ✅
+7. Sentry configured on Next.js frontend ✅
+8. `send_default_pii=False` on both — no PII sent to Sentry ✅
 
 ### First-Impression Bug Fixes
 
@@ -80,7 +80,7 @@ gate, not a nice-to-have.
 develop
 └── feature/milestone-pre-deployment-hardening
     ├── feature/pdh-e2e-completion       ← ✅ MERGED — test data cleanup + 4 specs
-    ├── feature/pdh-sentry               ← backend + frontend observability
+    ├── feature/pdh-sentry               ← ✅ READY TO MERGE — backend + frontend observability
     ├── feature/pdh-first-impression     ← #110, #109, #107
     ├── feature/pdh-m9-correctness       ← IntegrityError, isError, loading.tsx
     ├── feature/pdh-visual-polish        ← #108 + public profile cosmetics
@@ -89,7 +89,7 @@ develop
 
 Merge order:
   feature/pdh-e2e-completion       → feature/milestone-pre-deployment-hardening  ✅ DONE
-  feature/pdh-sentry                → feature/milestone-pre-deployment-hardening
+  feature/pdh-sentry                → feature/milestone-pre-deployment-hardening  ✅ READY
   feature/pdh-first-impression      → feature/milestone-pre-deployment-hardening
   feature/pdh-m9-correctness        → feature/milestone-pre-deployment-hardening
   feature/pdh-visual-polish         → feature/milestone-pre-deployment-hardening
@@ -256,9 +256,184 @@ details}`), which `apiClient.ts` is written to parse. `invites.py`
 
 ---
 
-## Part 2: Sentry Setup
+## Part 2: Sentry Setup — ✅ COMPLETE
 
-_(unchanged from original spec — not yet started)_
+### Step 1: Backend (FastAPI + Celery) — ✅ DONE
+
+- `app/lib/sentry.py` created — single `init_sentry()` function called
+  from both `app/main.py` (inside `create_app()`, before app
+  construction) and `app/workers/celery_app.py` (module-level, before
+  `Celery(...)` is constructed), so both processes share identical
+  config and can't drift.
+- `send_default_pii=False` hardcoded (not settings-driven — deliberate
+  safety default, not meant to be flippable per-environment).
+- `traces_sample_rate = 0.1` (10% sampling) — chosen deliberately over
+  Sentry's onboarding default of `1.0` to conserve free-tier quota
+  while `send_default_pii=False` and traces are still meaningfully
+  useful.
+- No-ops cleanly if `SENTRY_DSN` is unset, so local dev without a DSN
+  configured doesn't error.
+
+### Step 2: Frontend (Next.js) — ✅ DONE
+
+- Ran `npx @sentry/wizard@latest -i nextjs`, targeting SaaS
+  (sentry.io), not self-hosted.
+- Declined: ad-blocker tunnel route, session replay, Sentry logs, MCP
+  server config — all deliberately out of scope for a pre-launch,
+  free-tier, error-monitoring-only setup (see rationale in commit
+  history / chat log if revisited later).
+- Accepted: example verification page (`/sentry-example-page`) and
+  trace-data injection into root layout metadata (converted
+  `export const metadata` to `generateMetadata()` in
+  `src/app/layout.tsx` to merge in `Sentry.getTraceData()`).
+- Declined CI/CD-specific `SENTRY_AUTH_TOKEN` wizard prompts since
+  Railway/Cloudflare deployment doesn't exist yet — deferred to
+  **Part 7 (Deployment Readiness)**. Flag for that milestone: without
+  `SENTRY_AUTH_TOKEN` configured in the deploy platform's build env,
+  staging source maps won't upload and stack traces will show
+  minified code.
+- All three Sentry init files (`sentry.server.config.ts`,
+  `sentry.edge.config.ts`, `instrumentation-client.ts`) manually
+  corrected post-wizard:
+  - `dataCollection.userInfo` / `.httpBodies` uncommented and set to
+    `false`/`[]` — wizard leaves these commented out, meaning Sentry's
+    default (send everything) applies unless explicitly overridden.
+  - `dsn` changed from wizard's hardcoded literal to
+    `process.env.NEXT_PUBLIC_SENTRY_DSN`.
+  - `tracesSampleRate` brought down from wizard's default `1` to `0.1`,
+    matching backend.
+  - `environment` bug found and fixed: originally read
+    `process.env.ENVIRONMENT`, which is never exposed client-side —
+    corrected to `process.env.NEXT_PUBLIC_ENVIRONMENT`.
+
+### Step 3: Verification — ✅ DONE (both backend and frontend confirmed capturing)
+
+- Backend: `/sentry-debug` throwaway route + Celery `sentry_test` task
+  both confirmed landing in the FastAPI Sentry project, no PII in
+  payload.
+- Frontend: confirmed via a temporary `/sentry-test` page after the
+  wizard's own example page proved unreliable (see below) — confirmed
+  landing in the Next.js Sentry project with a readable (non-minified)
+  stack trace, confirming local source map upload worked.
+- All throwaway verification code removed before merge (see Files
+  Modified below).
+
+---
+
+## Part 2 Completion Notes — What Actually Went Wrong (and Why)
+
+Nothing about the Sentry SDKs themselves was defective. Every issue
+below was either a pre-existing environment inconsistency that a new
+dependency's transitive tree happened to expose, or tooling
+(Turbopack) that was still immature relative to the Next.js version in
+use. None of this is unusual for a milestone titled "harden before
+real users see it" — this is exactly the category of gap this
+milestone exists to catch.
+
+### 1. Windows quoting broke the initial `pip install`
+
+`pip install --upgrade 'sentry-sdk[fastapi,celery]'` failed on
+PowerShell because single quotes aren't a quoting mechanism there.
+Fixed by using double quotes (or no quotes at all, since brackets
+aren't special in PowerShell).
+
+### 2. `docker compose restart` does not pick up new/changed `.env` values
+
+Added `SENTRY_DSN` to `.env`, but `docker compose restart` only
+cycles the existing container process without re-reading `env_file`/
+`environment` config — only `docker compose up` (recreating the
+container) does that. Cost real debugging time on both the backend
+DSN and, later, the frontend `NEXT_PUBLIC_SENTRY_DSN` for the same
+reason. **Lesson for the team:** any `.env` change requires
+`docker compose up -d --force-recreate <service>`, not `restart`.
+
+### 3. `docker-compose.yml`'s explicit `environment:` block silently overrides `env_file`
+
+The `web` service's `environment:` list didn't include
+`NEXT_PUBLIC_SENTRY_DSN` or `NEXT_PUBLIC_ENVIRONMENT` even though both
+were present in `.env` — `env_file` loads everything, but an explicit
+`environment:` list only passes through what's named there. Fixed by
+adding both vars explicitly to the `web` service block.
+
+### 4. Node/npm version drift between host and `node:20-alpine` broke `npm ci`
+
+Adding `@sentry/nextjs` pulled in `webpack` as a real (not just
+peer) dependency for the first time, along with `ajv` at two different
+major versions nested in different places (`eslint` needs `ajv@6`,
+`schema-utils`/`ajv-formats` need `ajv@8` — both coexisting is normal
+npm behavior). Host was on Node 24 / npm 11.6.2; the Dockerfile's
+`node:20-alpine` had a different, incompatible npm resolution
+behavior for this specific dependency shape. Bumped the Dockerfile
+base image to `node:24-alpine` to match. A follow-up detour trying to
+pin an intermediate npm patch version and later trying an `overrides`
+block in `package.json` to force-resolve the `ajv` conflict were both
+dead ends and have been reverted — the real, permanent fix ended up
+being much smaller (see #5).
+
+### 5. `.npmrc` with `legacy-peer-deps=true` was never copied into the Docker build context
+
+This was the actual root cause behind a multi-hour "identical
+lockfile, identical npm version, different result locally vs. in
+Docker" debugging session. `apps/web/.npmrc` sets
+`legacy-peer-deps=true`, which relaxes npm's peer-dependency
+resolution — locally, this masked the `ajv@6`/`ajv@8` coexistence as a
+non-issue. The Dockerfile's `COPY` line never included `.npmrc`, so
+the container ran `npm ci` under npm's strict default peer-dependency
+resolution, which choked on the same lockfile that installed cleanly
+on the host. Fixed by adding `.npmrc*` to the Dockerfile's `COPY`
+line. This class of bug — identical files, different npm config,
+wildly different outcome — is worth remembering for any future
+"works on my machine, not in Docker" report.
+
+### 6. `create_app()` was missing a `return app` statement
+
+Unrelated to Sentry directly, but discovered while debugging why
+`/health` was returning 500 mid-way through Sentry verification:
+`main.py`'s `create_app()` built the FastAPI app, registered every
+router, and never returned it — an implicit `None` return, which
+uvicorn's `--factory` mode then tried to call as the ASGI app itself,
+producing `TypeError: 'NoneType' object is not callable`. Real,
+pre-existing bug, unmasked only because troubleshooting Sentry
+involved touching this file directly. Fixed by adding the missing
+`return app`.
+
+### 7. `next dev --turbo` silently fails to inline `NEXT_PUBLIC_*` env vars
+
+The actual multi-hour blocker on the frontend side. Despite the SDK
+loading correctly (`window.__SENTRY__` present) and the DSN being
+verifiably present in the container's process environment
+(`/proc/1/environ` confirmed it), `Sentry.getClient()?.getOptions()?.dsn`
+in the browser consistently returned `undefined` — meaning
+Turbopack (Next.js 14.2.15's still-alpha-at-the-time dev bundler)
+was not inlining `NEXT_PUBLIC_SENTRY_DSN` into the compiled client
+bundle, even after full `.next` cache wipes and container rebuilds.
+Confirmed by testing the identical setup with `--turbo` removed from
+the `dev` script — the DSN resolved correctly immediately. **Fix:**
+`"dev": "next dev --turbo"` → `"dev": "next dev"` in `package.json`.
+Does **not** affect `next build` (production builds already default to
+webpack, never used Turbopack here). Worth revisiting if/when Next.js
+is upgraded past 14.2.15 or Turbopack's dev-mode env-var handling
+stabilizes — re-enabling `--turbo` should be re-tested against Sentry
+specifically before flipping back on.
+
+### 8. Sentry's own generated example page has a false-positive "success" toast
+
+`/sentry-example-page`'s "Error sent to Sentry" toast only reflects
+whether the page's own `fetch('/api/sentry-example-api')` call
+returned a non-200 — which it always will, since that route's entire
+job is to throw. It is **not** a confirmation that Sentry actually
+received anything, and this cost real debugging time before being
+recognized. The page also has an unrelated hydration-mismatch bug
+(raw `&`/`>` characters inside an inline `<style>` template literal
+get HTML-escaped server-side but not client-side), which triggers a
+dev-mode error overlay unrelated to Sentry. **Recommendation:** for
+any future from-scratch Sentry verification, skip the wizard's
+example page entirely and use a minimal manual test button
+(`<button onClick={() => Sentry.captureException(new Error("test"))}>`)
+plus a direct Network-tab check filtered on `ingest` — this is faster
+and produces zero false signals.
+
+---
 
 ## Part 3: First-Impression Bug Fixes
 
@@ -278,7 +453,11 @@ _(unchanged from original spec — not yet started)_
 
 ## Part 7: Deployment Readiness
 
-_(unchanged from original spec — not yet started)_
+_(unchanged from original spec — not yet started. **Note carried
+forward from Part 2:** `SENTRY_AUTH_TOKEN` must be added to
+Railway/Cloudflare's build-time env when this part is picked up, or
+staging source maps will not upload and Sentry stack traces from
+staging will show minified code instead of readable file/line info.)_
 
 ---
 
@@ -327,6 +506,22 @@ Required for E2E cleanup of Minio-stored voice update audio objects
 (see Part 1 completion notes). Test-tooling only, not shipped in the
 app itself.
 
+**7. Turbopack (`--turbo`) disabled in local dev**
+Removed from `apps/web`'s `dev` script — as of Next.js 14.2.15,
+Turbopack does not reliably inline `NEXT_PUBLIC_*` environment
+variables into client bundles (see Part 2 Completion Notes #7).
+Revisit when upgrading Next.js past this version.
+
+**8. `apps/web/.npmrc` (`legacy-peer-deps=true`) now copied into the Docker image**
+This was previously excluded via `.dockerignore`'s `.env*` pattern
+(unrelated collateral — `.npmrc` isn't an env file, but the earlier
+Dockerfile simply never copied it at all). Now explicitly included in
+the `COPY` step. Worth a follow-up look at _why_ `legacy-peer-deps` is
+needed at all — it's currently masking rather than resolving the
+`ajv@6`/`ajv@8` coexistence, and a cleaner long-term fix may exist
+once there's time to investigate without a Sentry integration blocking
+on it.
+
 ---
 
 ## Acceptance Criteria
@@ -339,10 +534,10 @@ app itself.
 [~] invite-flow.spec.ts — 2 of 3 tests pass; third deliberately skipped
     with documented rationale (see Known Tradeoffs #5)
 [x] voice-update-submission.spec.ts passes (state transitions + full pipeline)
-[ ] Sentry configured on FastAPI — test error appears in dashboard
-[ ] Sentry configured on Celery worker — test task failure appears
-[ ] Sentry configured on Next.js — test error appears with readable stack trace
-[ ] send_default_pii=False confirmed on all three Sentry inits
+[x] Sentry configured on FastAPI — test error appears in dashboard
+[x] Sentry configured on Celery worker — test task failure appears
+[x] Sentry configured on Next.js — test error appears with readable stack trace
+[x] send_default_pii=False confirmed on all three Sentry inits
 [ ] Auth page SVG icons render on first load, no reload needed
 [ ] Auth spinner covers full login sequence including session sync
 [ ] Slack settings page shows shared-channel clarity copy
@@ -361,6 +556,7 @@ app itself.
 [ ] Staging deployment successful — API, worker, beat, frontend all live
 [ ] Manual smoke test of all flows passes on staging URL
 [ ] Deliberate test error appears in Sentry from staging environment
+    (blocked until Part 7 — requires SENTRY_AUTH_TOKEN in deploy env)
 [ ] CI passes on feature/milestone-pre-deployment-hardening branch
 ```
 
@@ -399,4 +595,60 @@ src/hooks/useAuth.ts                      ← syncSupabaseSession cookie-polling
 src/hooks/useWebSocket.ts                 ← reconnect-loop fix, cursor race fix
 package.json                              ← +pg, +@types/pg, +@aws-sdk/client-s3 (dev)
 apps/web/.env.local                       ← +E2E_DATABASE_URL
+```
+
+---
+
+## Files Created / Modified — Part 2 (Actual)
+
+### Backend (apps/api/)
+
+```
+app/lib/sentry.py                         ← NEW — init_sentry(), shared by FastAPI + Celery
+app/main.py                               ← calls init_sentry() in create_app();
+                                             fixed missing `return app` bug found in passing
+app/workers/celery_app.py                 ← calls init_sentry() before Celery(...) construction
+requirements.txt / requirements-dev.txt   ← +sentry-sdk[fastapi,celery]
+```
+
+### Frontend (apps/web/)
+
+```
+sentry.server.config.ts                   ← NEW (wizard-generated, manually corrected)
+sentry.edge.config.ts                     ← NEW (wizard-generated, manually corrected)
+src/instrumentation-client.ts             ← NEW (wizard-generated, manually corrected)
+instrumentation.ts                        ← NEW (wizard-generated, unmodified)
+src/app/global-error.tsx                  ← NEW (wizard-generated, unmodified)
+src/app/layout.tsx                        ← metadata → generateMetadata(), merges
+                                             Sentry.getTraceData()
+next.config.mjs                           ← wrapped with withSentryConfig(...)
+package.json                              ← +@sentry/nextjs; removed --turbo from
+                                             dev script (see Known Tradeoffs #7)
+package-lock.json                         ← regenerated multiple times during
+                                             dependency-conflict debugging; final version
+                                             has no overrides block (none needed)
+.env.example                              ← +NEXT_PUBLIC_SENTRY_DSN
+.gitignore                                ← confirmed .env.sentry-build-plugin excluded
+apps/web/Dockerfile                       ← base image node:20-alpine → node:24-alpine;
+                                             pinned npm to 11.6.2; COPY line now includes
+                                             .npmrc*
+```
+
+### Root
+
+```
+docker-compose.yml                        ← web service: added NEXT_PUBLIC_SENTRY_DSN
+                                             and NEXT_PUBLIC_ENVIRONMENT to environment: block
+.env                                       ← +SENTRY_DSN, +NEXT_PUBLIC_SENTRY_DSN,
+                                             +NEXT_PUBLIC_ENVIRONMENT (local only, not committed)
+```
+
+### Deleted (throwaway verification code, removed before merge)
+
+```
+apps/api: temporary /sentry-debug route in main.py
+apps/api: temporary sentry_test Celery task in celery_app.py
+apps/web: src/app/sentry-example-page/page.tsx  (wizard-generated)
+apps/web: src/app/api/sentry-example-api/route.ts  (wizard-generated)
+apps/web: src/app/sentry-test/page.tsx  (manual debug page, created mid-investigation)
 ```
