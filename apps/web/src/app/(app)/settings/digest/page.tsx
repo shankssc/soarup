@@ -6,6 +6,7 @@
 
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
 import { useUpdateDigestSettings, useDigestPreview } from '@/hooks/useDigests';
 import { useWorkspace, workspaceKeys } from '@/hooks/useWorkspace';
 import {
@@ -79,13 +80,11 @@ export default function DigestSettingsPage() {
   if (!workspace) {
     return (
       <div className="flex justify-center py-16">
-        <span
-          className="material-symbols-outlined animate-spin text-[32px] text-primary"
-          style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
+        <Loader2
+          className="h-8 w-8 animate-spin text-primary"
+          strokeWidth={1.75}
           aria-hidden="true"
-        >
-          progress_activity
-        </span>
+        />
       </div>
     );
   }

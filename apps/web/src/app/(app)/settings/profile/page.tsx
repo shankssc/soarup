@@ -4,6 +4,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useUpdateProfile,
@@ -83,29 +84,30 @@ export default function ProfileSettingsPage() {
     if (usernameInput === user?.username) {
       return (
         <span className="flex items-center gap-1 font-label text-[10px] text-emerald-400">
-          <span className="material-symbols-outlined text-[12px]">check_circle</span>
+          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
           Your current username
         </span>
       );
     }
     if (availabilityQuery.isLoading) {
       return (
-        <span className="material-symbols-outlined animate-spin text-[14px] text-outline">
-          progress_activity
-        </span>
+        <Loader2
+          className="h-[14px] w-[14px] animate-spin text-outline"
+          aria-hidden="true"
+        />
       );
     }
     if (availabilityQuery.data?.available) {
       return (
         <span className="flex items-center gap-1 font-label text-[10px] text-emerald-400">
-          <span className="material-symbols-outlined text-[12px]">check_circle</span>
+          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
           Available
         </span>
       );
     }
     return (
       <span className="flex items-center gap-1 font-label text-[10px] text-error">
-        <span className="material-symbols-outlined text-[12px]">cancel</span>
+        <XCircle className="h-3 w-3" aria-hidden="true" />
         Already taken
       </span>
     );

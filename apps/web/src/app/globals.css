@@ -122,29 +122,6 @@
     color: var(--color-on-secondary);
   }
 
-  .material-symbols-outlined {
-    font-family: 'Material Symbols Outlined';
-    font-variation-settings:
-      'FILL' 0,
-      'wght' 400,
-      'GRAD' 0,
-      'opsz' 24;
-    display: inline-block;
-    line-height: 1;
-    text-transform: none;
-    letter-spacing: normal;
-    word-wrap: normal;
-    white-space: nowrap;
-    direction: ltr;
-    user-select: none;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
-
-  .fonts-loaded .material-symbols-outlined {
-    opacity: 1;
-  }
-
   .asymmetric-btn {
     border-top-left-radius: 1.5rem;
     border-bottom-right-radius: 1.5rem;

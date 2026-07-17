@@ -6,6 +6,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { OnboardingForm } from '@/components/domain/auth/onboarding-form';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/hooks/useAuth';
@@ -44,9 +45,7 @@ export default function OnboardingPage() {
   if (!hydrated || isLoading || !isAuthenticated || !needsOnboarding) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <span className="material-symbols-outlined animate-spin text-[32px] text-primary">
-          progress_activity
-        </span>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
       </div>
     );
   }

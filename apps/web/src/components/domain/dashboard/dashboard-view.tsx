@@ -4,6 +4,7 @@
 // in Storybook without needing React Query or auth providers.
 'use client';
 
+import { Keyboard, Mic } from 'lucide-react';
 import { UpdateCard } from '@/components/domain/updates/update-card';
 import { UpdateForm } from '@/components/domain/updates/update-form';
 import { VoiceRecorder } from '@/components/domain/updates/voice-recorder';
@@ -81,24 +82,14 @@ export function DashboardView({
                 data-testid="submit-update-cta"
               >
                 Submit update
-                <span
-                  className="material-symbols-outlined text-[18px]"
-                  aria-hidden="true"
-                >
-                  keyboard
-                </span>
+                <Keyboard className="h-[18px] w-[18px]" aria-hidden="true" />
               </Button>
               <Button
                 variant="secondary"
                 onClick={onVoiceClick}
                 data-testid="voice-note-cta"
               >
-                <span
-                  className="material-symbols-outlined text-[18px]"
-                  aria-hidden="true"
-                >
-                  mic
-                </span>
+                <Mic className="h-[18px] w-[18px]" aria-hidden="true" />
                 Voice note
               </Button>
             </div>

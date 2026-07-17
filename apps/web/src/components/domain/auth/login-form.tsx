@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,15 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
   const router = useRouter();
   const { login, isLoading, error, clearError } = useAuth();
   const [oauthLoading, setOAuthLoading] = React.useState(false);
+  // Tracks the gap between login() resolving and the actual navigation
+  // firing. login() already guarantees the Supabase session cookie exists
+  // by the time it resolves (see waitForSupabaseSessionCookie in
+  // useAuth.ts), but isLoading flips to false as soon as login() returns —
+  // before router.push has actually taken the user anywhere. Without this,
+  // the button/spinner reverts to its resting state for a beat, then the
+  // page suddenly navigates, which reads as the form finishing and then
+  // hanging. This keeps the loading UI up for the full sequence instead.
+  const [isNavigating, setIsNavigating] = React.useState(false);
 
   const searchParams = useSearchParams();
 
@@ -71,7 +81,10 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
       if (onSuccess) {
         onSuccess();
       } else {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // login() has already awaited the Supabase session cookie — no
+        // arbitrary delay needed here. Just keep the loading UI active
+        // until navigation actually happens.
+        setIsNavigating(true);
         const { user } = useAuthStore.getState();
         if (user?.is_onboarded === false) {
           router.push('/onboarding');
@@ -85,7 +98,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
     }
   }
 
-  const isSubmitting = isLoading || oauthLoading;
+  const isSubmitting = isLoading || oauthLoading || isNavigating;
 
   return (
     <div className={cn('relative w-full space-y-8', className)}>
@@ -156,13 +169,13 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
           variant="primary"
           size="lg"
           asymmetric
-          loading={isLoading}
+          loading={isSubmitting}
           disabled={isSubmitting}
           className="w-full"
           data-testid="login-submit"
         >
           Sign in
-          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+          <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
         </Button>
       </form>
 

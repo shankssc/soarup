@@ -5,6 +5,7 @@
 'use client';
 
 import * as React from 'react';
+import { X, Eye } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,13 +124,7 @@ function DigestPreviewModal({ html, onClose }: { html: string; onClose: () => vo
             className="text-on-surface-variant transition-colors hover:text-on-surface"
             aria-label="Close preview"
           >
-            <span
-              className="material-symbols-outlined text-[20px]"
-              style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
-              aria-hidden="true"
-            >
-              close
-            </span>
+            <X className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
 
@@ -309,13 +304,7 @@ export function DigestSettingsPanel({
                 'disabled:cursor-not-allowed disabled:opacity-50',
               ].join(' ')}
             >
-              <span
-                className="material-symbols-outlined text-[16px]"
-                style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
-                aria-hidden="true"
-              >
-                preview
-              </span>
+              <Eye className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
               {isLoadingPreview ? 'Generating...' : 'Preview digest'}
             </button>
           </div>

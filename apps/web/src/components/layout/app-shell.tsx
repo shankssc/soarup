@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { useAuth, useAuthStore } from '@/hooks/useAuth';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
@@ -54,13 +55,11 @@ export function AppShell({ children }: AppShellProps) {
   if (!hydrated || authLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <span
-          className="material-symbols-outlined animate-spin text-[32px] text-primary"
-          style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
+        <Loader2
+          className="h-8 w-8 animate-spin text-primary"
+          strokeWidth={1.75}
           aria-hidden="true"
-        >
-          progress_activity
-        </span>
+        />
       </div>
     );
   }

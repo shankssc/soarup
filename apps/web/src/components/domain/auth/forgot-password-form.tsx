@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
+import { ArrowRight, MailCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,13 +93,7 @@ export function ForgotPasswordForm({ className }: ForgotPasswordFormProps) {
       <div className={cn('w-full space-y-6', className)}>
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <span
-              className="material-symbols-outlined text-[28px] text-primary"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-              aria-hidden="true"
-            >
-              mark_email_read
-            </span>
+            <MailCheck className="h-7 w-7 text-primary" aria-hidden="true" />
             <p className="font-label text-[10px] uppercase tracking-[0.2em] text-outline">
               Check your inbox
             </p>
@@ -160,7 +155,7 @@ export function ForgotPasswordForm({ className }: ForgotPasswordFormProps) {
           className="w-full"
         >
           Send reset link
-          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+          <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
         </Button>
       </form>
 
