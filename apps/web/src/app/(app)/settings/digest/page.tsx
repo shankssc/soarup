@@ -90,13 +90,11 @@ export default function DigestSettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Page header */}
-      <div className="border-b border-outline-variant pb-3">
-        <h2 className="font-label text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
-          Settings — Digest
-        </h2>
-      </div>
+    <div className="max-w-lg px-6 py-10">
+      {/* Matches Profile settings' header pattern (font-serif H1, mb-8) —
+          previously this page only had a small uppercase eyebrow label,
+          which read as visually thinner than Profile next to it. See #15. */}
+      <h1 className="mb-8 font-serif text-3xl text-on-surface">Digest</h1>
 
       <DigestSettingsPanel
         values={values}

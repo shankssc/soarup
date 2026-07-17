@@ -80,13 +80,13 @@ export default function MembersSettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Page header */}
-      <div className="border-b border-outline-variant pb-3">
-        <h2 className="font-label text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
-          Settings — Members
-        </h2>
-      </div>
+    <div className="max-w-lg px-6 py-10">
+      {/* Matches Profile settings' header pattern. Also: this wrapper now
+          constrains width to max-w-lg — previously MembersPanel had no
+          width limit at all, so the invite input stretched to the full
+          content area while every other settings page held a narrow
+          column. See #15. */}
+      <h1 className="mb-8 font-serif text-3xl text-on-surface">Members</h1>
 
       <MembersPanel
         members={members}

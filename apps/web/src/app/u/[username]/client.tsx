@@ -121,7 +121,7 @@ export function PublicProfileClient({ username }: Props) {
           <p className="font-label text-[10px] uppercase tracking-[0.2em] text-outline">
             Activity — last 52 weeks
           </p>
-          <div className="shadow-card overflow-x-auto rounded-card bg-surface-high p-4">
+          <div className="shadow-card custom-scrollbar overflow-x-auto rounded-card bg-surface-high p-4">
             <Heatmap days={profile.heatmap} weeks={profile.heatmap_weeks} />
           </div>
         </div>
