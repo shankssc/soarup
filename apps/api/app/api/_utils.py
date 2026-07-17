@@ -151,6 +151,8 @@ def handle_profile_error(
         "invalid_file": status.HTTP_400_BAD_REQUEST,
         "upload_failed": status.HTTP_500_INTERNAL_SERVER_ERROR,
         "service_unavailable": status.HTTP_503_SERVICE_UNAVAILABLE,
+        "username_taken": status.HTTP_409_CONFLICT,
+        "username_required": status.HTTP_400_BAD_REQUEST,
     }
 
     return create_error_response(

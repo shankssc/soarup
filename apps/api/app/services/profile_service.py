@@ -6,6 +6,7 @@ from typing import Any
 
 import structlog
 from fastapi import UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.profile_repo import ProfileRepository
@@ -130,7 +131,29 @@ class ProfileService:
                 message="No fields provided for update",
             )
 
-        profile = await profile_repo.update(user_id, data)
+        # The is_username_taken check above is check-then-act, not atomic — a
+        # concurrent request can take the same username in the gap between that
+        # check and this write. The DB's unique constraint is the actual source
+        # of truth; when it fires here it means we lost that race. Without this
+        # catch, IntegrityError propagates uncaught to the router's generic
+        # exception handler as a raw 500, telling the user "something broke"
+        # when the real, actionable answer is "someone just took that username,
+        # try another" — same message as the pre-check rejection above, so the
+        # user sees one consistent error regardless of which path caught it.
+        try:
+            profile = await profile_repo.update(user_id, data)
+        except IntegrityError as e:
+            if "username" in data:
+                logger.info(
+                    "profile_update_username_race",
+                    user_id=user_id,
+                    username=data.get("username"),
+                )
+                raise ProfileError(
+                    "username_taken",
+                    "This username is already taken. Please choose another.",
+                ) from e
+            raise
 
         if not profile:
             raise ProfileError(

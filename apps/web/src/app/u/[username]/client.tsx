@@ -151,7 +151,10 @@ export function PublicProfileClient({ username }: Props) {
   );
 }
 
-function PublicProfileSkeleton() {
+// Exported so app/u/[username]/loading.tsx can reuse it as the route-level
+// Suspense fallback — shown while generateMetadata's fetch resolves, before
+// this client component even mounts. Without this, that gap is a blank page.
+export function PublicProfileSkeleton() {
   return (
     <div className="mx-auto max-w-2xl animate-pulse space-y-8 px-6 py-12">
       <div className="flex items-start gap-6">
