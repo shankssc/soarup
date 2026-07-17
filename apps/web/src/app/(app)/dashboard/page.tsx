@@ -7,6 +7,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 import { useAuth, useAuthStore } from '@/hooks/useAuth';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import {
@@ -125,9 +126,7 @@ export default function DashboardPage() {
   if (!hydrated || isLoading || !isAuthenticated || needsOnboarding) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <span className="material-symbols-outlined animate-spin text-[32px] text-primary">
-          progress_activity
-        </span>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
       </div>
     );
   }

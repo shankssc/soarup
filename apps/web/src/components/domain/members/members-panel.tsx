@@ -7,6 +7,7 @@
 
 import * as React from 'react';
 import Image from 'next/image';
+import { UserPlus } from 'lucide-react';
 import type { WorkspaceMember } from '@/hooks/useWorkspaceMembers';
 import type { PendingInvite } from '@/hooks/useInviteMembers';
 
@@ -281,12 +282,11 @@ function PendingInviteRow({
     >
       {/* Placeholder avatar for pending */}
       <div className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-outline-variant">
-        <span
-          className="material-symbols-outlined text-[16px] text-on-surface-variant"
+        <UserPlus
+          className="h-4 w-4 text-on-surface-variant"
+          strokeWidth={1.75}
           aria-hidden="true"
-        >
-          person_add
-        </span>
+        />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">

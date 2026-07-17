@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
+import { Mic, ChevronDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AudioPlayer } from '@/components/ui/audio-player';
 import { cn } from '@/lib/utils/cn';
@@ -58,12 +59,7 @@ function StatusBadge({ status }: { status: string }) {
 function VoiceBadge() {
   return (
     <div className="flex items-center gap-1.5 border border-outline-variant px-2 py-1">
-      <span
-        className="material-symbols-outlined text-[12px] text-on-surface-variant"
-        aria-hidden="true"
-      >
-        mic
-      </span>
+      <Mic className="h-3 w-3 text-on-surface-variant" aria-hidden="true" />
       <span className="font-label text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
         Voice
       </span>
@@ -90,13 +86,11 @@ function CollapsibleSection({
         className="flex items-center gap-1 font-label text-[10px] uppercase tracking-[0.15em] text-outline transition-colors hover:text-on-surface"
         aria-expanded={isOpen}
       >
-        <span
-          className="material-symbols-outlined text-[14px] transition-transform duration-200"
+        <ChevronDown
+          className="h-[14px] w-[14px] transition-transform duration-200"
           style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
           aria-hidden="true"
-        >
-          expand_more
-        </span>
+        />
         {label}
       </button>
       {isOpen && <div className="mt-2">{children}</div>}
@@ -164,13 +158,11 @@ function CardMenu({ onEdit, onDelete }: CardMenuProps) {
         aria-expanded={open}
         className="text-on-surface-variant"
       >
-        <span
-          className="material-symbols-outlined text-[18px]"
-          style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
+        <MoreHorizontal
+          className="h-[18px] w-[18px]"
+          strokeWidth={1.75}
           aria-hidden="true"
-        >
-          more_horiz
-        </span>
+        />
       </Button>
 
       {open && (
@@ -182,9 +174,7 @@ function CardMenu({ onEdit, onDelete }: CardMenuProps) {
               setOpen(false);
             }}
           >
-            <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
-              edit
-            </span>
+            <Pencil className="h-[14px] w-[14px]" aria-hidden="true" />
             Edit
           </button>
           <button
@@ -194,9 +184,7 @@ function CardMenu({ onEdit, onDelete }: CardMenuProps) {
               setOpen(false);
             }}
           >
-            <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
-              delete
-            </span>
+            <Trash2 className="h-[14px] w-[14px]" aria-hidden="true" />
             Delete
           </button>
         </div>

@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import { Play } from 'lucide-react';
 import { useAudioPlaybackUrl } from '@/hooks/useAudio';
 import { cn } from '@/lib/utils/cn';
 
@@ -83,13 +84,7 @@ export function AudioPlayer({
               />
             </svg>
           ) : (
-            <span
-              className="material-symbols-outlined text-[16px]"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-              aria-hidden="true"
-            >
-              play_arrow
-            </span>
+            <Play className="h-4 w-4" fill="currentColor" aria-hidden="true" />
           )}
         </button>
       )}

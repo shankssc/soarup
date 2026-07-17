@@ -7,6 +7,7 @@
 
 import * as React from 'react';
 import Image from 'next/image';
+import { Mic, ChevronDown } from 'lucide-react';
 import type { UpdateResponse } from '@/hooks/useUpdates';
 
 // ---------------------------------------------------------------------------
@@ -47,12 +48,7 @@ function Avatar({
 function VoiceBadge() {
   return (
     <div className="flex items-center gap-1.5 border border-outline-variant px-2 py-1">
-      <span
-        className="material-symbols-outlined text-[12px] text-on-surface-variant"
-        aria-hidden="true"
-      >
-        mic
-      </span>
+      <Mic className="h-3 w-3 text-on-surface-variant" aria-hidden="true" />
       <span className="font-label text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
         Voice
       </span>
@@ -93,13 +89,11 @@ export function UpdateCardCompact({ update }: UpdateCardCompactProps) {
 
         <div className="flex flex-shrink-0 items-center gap-2">
           {isVoice && <VoiceBadge />}
-          <span
-            className="material-symbols-outlined text-[14px] text-outline transition-transform duration-200"
+          <ChevronDown
+            className="h-[14px] w-[14px] text-outline transition-transform duration-200"
             style={{ transform: isExpanded ? 'rotate(180deg)' : 'none' }}
             aria-hidden="true"
-          >
-            expand_more
-          </span>
+          />
         </div>
       </div>
 

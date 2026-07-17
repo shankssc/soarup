@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -162,7 +163,7 @@ export function LoginForm({ onSuccess, className }: LoginFormProps) {
           data-testid="login-submit"
         >
           Sign in
-          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+          <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
         </Button>
       </form>
 

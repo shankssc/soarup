@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
+import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 // ─── Separator ────────────────────────────────────────────────────────────────
@@ -73,6 +74,12 @@ interface FormMessageProps {
   className?: string;
 }
 
+const ICONS = {
+  error: AlertCircle,
+  success: CheckCircle2,
+  info: Info,
+} as const;
+
 function FormMessage({ message, variant = 'error', className }: FormMessageProps) {
   if (!message) return null;
 
@@ -82,11 +89,7 @@ function FormMessage({ message, variant = 'error', className }: FormMessageProps
     info: 'bg-primary-container/10 border-primary-container/30 text-on-surface',
   };
 
-  const icons = {
-    error: 'error',
-    success: 'check_circle',
-    info: 'info',
-  };
+  const Icon = ICONS[variant];
 
   return (
     <div
@@ -98,13 +101,7 @@ function FormMessage({ message, variant = 'error', className }: FormMessageProps
         className,
       )}
     >
-      <span
-        className="material-symbols-outlined mt-px shrink-0 text-[16px]"
-        style={{ fontVariationSettings: "'FILL' 1, 'wght' 400" }}
-        aria-hidden="true"
-      >
-        {icons[variant]}
-      </span>
+      <Icon className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
       <p className="font-body text-sm leading-snug">{message}</p>
     </div>
   );

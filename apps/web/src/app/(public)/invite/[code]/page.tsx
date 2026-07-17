@@ -22,20 +22,13 @@
 
 import * as React from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useInviteDetails, useAcceptInvite } from '@/hooks/useInviteMembers';
 import { PENDING_INVITE_KEY } from '@/components/domain/auth/onboarding-form';
 
 function Spinner() {
-  return (
-    <span
-      className="material-symbols-outlined animate-spin text-[32px] text-primary"
-      style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
-      aria-hidden="true"
-    >
-      progress_activity
-    </span>
-  );
+  return <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />;
 }
 
 function PageShell({ children }: { children: React.ReactNode }) {
@@ -179,13 +172,7 @@ export default function InvitePage() {
   if (alreadyMember) {
     return (
       <PageShell>
-        <span
-          className="material-symbols-outlined mb-4 text-[40px] text-primary"
-          style={{ fontVariationSettings: "'FILL' 1, 'wght' 300" }}
-          aria-hidden="true"
-        >
-          check_circle
-        </span>
+        <CheckCircle2 className="mb-4 h-10 w-10 text-primary" aria-hidden="true" />
         <h1 className="mb-3 font-headline text-3xl italic text-on-surface">
           You&apos;re already in!
         </h1>
@@ -207,13 +194,7 @@ export default function InvitePage() {
     return (
       <PageShell>
         <div className="flex flex-col items-start gap-4">
-          <span
-            className="material-symbols-outlined text-[40px] text-primary"
-            style={{ fontVariationSettings: "'FILL' 1, 'wght' 300" }}
-            aria-hidden="true"
-          >
-            check_circle
-          </span>
+          <CheckCircle2 className="h-10 w-10 text-primary" aria-hidden="true" />
           <h1 className="font-headline text-3xl italic text-on-surface">
             You&apos;re in!
           </h1>
@@ -281,20 +262,7 @@ export default function InvitePage() {
               : 'Sign up to accept'}
         </span>
         {!acceptMutation.isPending && (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4"
-            aria-hidden="true"
-          >
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <polyline points="12 5 19 12 12 19" />
-          </svg>
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
         )}
       </button>
 

@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -133,13 +134,7 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
     return (
       <div className={cn('w-full space-y-6 text-center', className)}>
         <div className="flex flex-col items-center gap-3">
-          <span
-            className="material-symbols-outlined text-[40px] text-primary"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-            aria-hidden="true"
-          >
-            check_circle
-          </span>
+          <CheckCircle2 className="h-10 w-10 text-primary" aria-hidden="true" />
           <p className="font-body text-sm text-on-surface-variant">
             Password updated. Redirecting to sign in...
           </p>
@@ -206,7 +201,7 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
           className="w-full"
         >
           Update password
-          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+          <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
         </Button>
       </form>
     </div>
