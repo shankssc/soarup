@@ -83,6 +83,16 @@ export default function SlackSettingsPage() {
       </div>
 
       <div className="max-w-lg space-y-8">
+        {/* Shared-channel clarification — one webhook delivers to one
+            channel for the whole workspace, not per-member DMs. Added
+            per #107 to prevent members assuming this is a personal
+            integration tied to their own account. */}
+        <p className="font-body text-[13px] leading-relaxed text-on-surface-variant">
+          This connects your workspace to a single Slack channel. Notifications are
+          posted there for everyone on the team — not sent as individual DMs. Any
+          workspace admin can update the connected channel below.
+        </p>
+
         {/* Connection status banner */}
         {settings?.slack_configured ? (
           <div className="flex items-center gap-2 border border-outline-variant bg-surface-high px-3 py-2">
@@ -129,8 +139,9 @@ export default function SlackSettingsPage() {
             </p>
           )}
           <p className="font-label text-[10px] text-outline">
-            Create an incoming webhook in your Slack workspace settings and paste the
-            URL here.{' '}
+            Create an incoming webhook for the Slack channel you want the whole team to
+            see updates in, then paste the URL here. Replacing this URL changes the
+            channel for everyone in the workspace.{' '}
             <a
               href="https://api.slack.com/messaging/webhooks"
               target="_blank"
@@ -154,13 +165,13 @@ export default function SlackSettingsPage() {
                 key: 'slack_digest_enabled' as const,
                 label: 'Send daily digest to Slack',
                 description:
-                  'Posts the team digest to your channel after email delivery',
+                  'Posts the team digest to the connected channel after email delivery',
               },
               {
                 key: 'slack_updates_enabled' as const,
                 label: 'Send update notifications',
                 description:
-                  "Posts a message when a team member's standup is processed",
+                  "Posts to the connected channel when a team member's standup is processed",
               },
             ] as const
           ).map(({ key, label, description }) => (
@@ -247,8 +258,8 @@ export default function SlackSettingsPage() {
             ) : (
               <div className="space-y-2">
                 <p className="font-body text-sm text-on-surface-variant">
-                  This will clear your webhook URL and disable all Slack notifications.
-                  Are you sure?
+                  This will disconnect the shared Slack channel and disable
+                  notifications for the entire workspace. Are you sure?
                 </p>
                 <div className="flex gap-3">
                   <button
