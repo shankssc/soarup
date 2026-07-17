@@ -76,6 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     if (systemDark) document.documentElement.classList.add('dark');
                   }
                 } catch (e) {}
+              })();
             `,
           }}
         />
