@@ -40,22 +40,22 @@ gate, not a nice-to-have.
 7. Sentry configured on Next.js frontend ✅
 8. `send_default_pii=False` on both — no PII sent to Sentry ✅
 
-### First-Impression Bug Fixes
+### First-Impression Bug Fixes — ✅ COMPLETE (see Part 3 Completion Notes)
 
-9. SVG icons on auth pages fixed — no manual reload required (#110)
-10. Auth loading spinner covers full login sequence, not just API call (#109)
-11. Slack settings page — shared channel delivery model clarified (#107)
+9. SVG icons on auth pages fixed — no manual reload required (#110) ✅
+10. Auth loading spinner covers full login sequence, not just API call (#109) ✅
+11. Slack settings page — shared channel delivery model clarified (#107) ✅
 
-### Correctness Fixes (from M9 scaling docs)
+### Correctness Fixes (from M9 scaling docs) — ✅ COMPLETE (see Part 4 Completion Notes)
 
-12. Username race condition — IntegrityError mapped to clean error
-13. UsernameIndicator — isError branch added, no silent false negative
-14. Public profile — `loading.tsx` added, FOUC eliminated
+12. Username race condition — IntegrityError mapped to clean error ✅
+13. UsernameIndicator — isError branch added, no silent false negative ✅
+14. Public profile — `loading.tsx` added, FOUC eliminated ✅
 
-### Visual Polish
+### Visual Polish — 🟡 IN PROGRESS (see Part 5 Completion Notes)
 
-15. Settings sub-pages (Digest, Members) — visual balance pass (#108)
-16. Public profile page — cosmetic pass to match Profile page quality
+15. Settings sub-pages (Digest, Members) — visual balance pass (#108) ✅
+16. Public profile page — cosmetic pass to match Profile page quality — 🟡 PARTIAL (scrollbar fixed; full cosmetic pass + mobile verification not started)
 
 ### Security & Compliance
 
@@ -80,18 +80,18 @@ gate, not a nice-to-have.
 develop
 └── feature/milestone-pre-deployment-hardening
     ├── feature/pdh-e2e-completion       ← ✅ MERGED — test data cleanup + 4 specs
-    ├── feature/pdh-sentry               ← ✅ READY TO MERGE — backend + frontend observability
-    ├── feature/pdh-first-impression     ← #110, #109, #107
-    ├── feature/pdh-m9-correctness       ← IntegrityError, isError, loading.tsx
-    ├── feature/pdh-visual-polish        ← #108 + public profile cosmetics
-    ├── feature/pdh-security             ← #18, #20, #47
-    └── feature/pdh-deploy-readiness     ← Resend domain, env audit, staging deploy
+    ├── feature/pdh-sentry               ← ✅ MERGED — backend + frontend observability
+    ├── feature/pdh-first-impression     ← ✅ MERGED — #110, #109, #107
+    ├── feature/pdh-m9-correctness       ← ✅ MERGED — IntegrityError, isError, loading.tsx
+    ├── feature/pdh-visual-polish        ← 🟡 IN PROGRESS — #108 done, public profile cosmetics pending
+    ├── feature/pdh-security             ← NOT STARTED — #18, #20, #47
+    └── feature/pdh-deploy-readiness     ← NOT STARTED — Resend domain, env audit, staging deploy
 
 Merge order:
   feature/pdh-e2e-completion       → feature/milestone-pre-deployment-hardening  ✅ DONE
-  feature/pdh-sentry                → feature/milestone-pre-deployment-hardening  ✅ READY
-  feature/pdh-first-impression      → feature/milestone-pre-deployment-hardening
-  feature/pdh-m9-correctness        → feature/milestone-pre-deployment-hardening
+  feature/pdh-sentry                → feature/milestone-pre-deployment-hardening  ✅ DONE
+  feature/pdh-first-impression      → feature/milestone-pre-deployment-hardening  ✅ DONE
+  feature/pdh-m9-correctness        → feature/milestone-pre-deployment-hardening  ✅ DONE
   feature/pdh-visual-polish         → feature/milestone-pre-deployment-hardening
   feature/pdh-security              → feature/milestone-pre-deployment-hardening
   feature/pdh-deploy-readiness      → feature/milestone-pre-deployment-hardening
@@ -435,17 +435,263 @@ and produces zero false signals.
 
 ---
 
-## Part 3: First-Impression Bug Fixes
+## Part 3: First-Impression Bug Fixes — ✅ COMPLETE
 
-_(unchanged from original spec — not yet started)_
+### #110 — SVG icons on auth pages requiring manual reload
 
-## Part 4: M9 Correctness Fixes
+Root-caused to a font-loading race in the FOUC-prevention script in
+`layout.tsx`: the script ran before the Material Symbols stylesheet
+`<link>` was parsed, so `document.fonts.ready` could resolve before
+the browser had even discovered the font — letting icons render with
+an unstyled opacity flash until a hard refresh happened to change the
+timing.
 
-_(unchanged from original spec — not yet started)_
+**Scope changed significantly during implementation.** An initial fix
+using `document.fonts.load()` for the exact font (instead of the
+ambiguous `.ready` promise) closed the original race, but a follow-up
+screenshot showed the font still failing to render at all in some
+conditions — raw ligature text (e.g. "visibility", "arrow_forward")
+displaying instead of icons. Given the inherent fragility of a
+ligature-based remote icon font (network dependency, exact-string
+matching, CSS timing), the decision was made to remove the dependency
+entirely rather than continue patching around it: **replaced Material
+Symbols with `lucide-react` app-wide.**
 
-## Part 5: Visual Polish
+This expanded the fix from the four originally-scoped surfaces (auth,
+onboarding, invite, sidebar) to effectively the whole application —
+dashboard, history, all settings pages, update cards, voice recorder,
+audio player, toast, and shared form components all used the same
+icon font. ~20 files touched. Not converted: Storybook `.stories.tsx`
+files (non-shipping — tracked as a follow-up chore, not blocking).
 
-_(unchanged from original spec — not yet started)_
+Once no component referenced `material-symbols-outlined`, the
+font-loading script and Google Fonts `<link>` were removed from
+`layout.tsx` entirely, along with the now-dead `.material-symbols-outlined`
+/ `.fonts-loaded` CSS rules in `globals.css`.
+
+### #109 — Auth loading spinner not covering full login sequence
+
+`login-form.tsx` had a leftover `setTimeout(resolve, 500)` after
+`await login(...)` — a stale artifact from before `useAuth.ts`'s
+`waitForSupabaseSessionCookie()` fix existed (see Part 1, bug #2).
+Since `login()` already resolves only after the Supabase session
+cookie is confirmed present, the delay did nothing except let
+`isLoading` flip to `false` (spinner disappears, button re-enables)
+for 500ms before navigation fired — reading as "form finished, then
+hung."
+
+Fixed by removing the delay and adding a local `isNavigating` state
+that keeps the loading UI active through the actual `router.push`,
+rather than extending the store's `isLoading` (which correctly
+represents "API call in flight" and shouldn't be redefined to also
+mean "navigating").
+
+### #107 — Slack settings shared-channel delivery model clarity
+
+Copy-only change. Added explicit language throughout
+`settings/slack/page.tsx` clarifying that the workspace's Slack
+integration delivers to a single shared channel for the whole team
+(not per-member DMs), and that changing or removing the webhook
+affects everyone in the workspace. Updated: intro paragraph, webhook
+helper text, notification toggle descriptions, remove-confirmation
+copy.
+
+---
+
+## Part 3 Completion Notes — Scope Growth and Follow-ups
+
+- The icon font migration (#110) was originally estimated as a
+  four-surface bug fix and became an app-wide dependency swap. This
+  was the right call — the alternative was leaving a fragile, network-
+  dependent icon system in place and hoping the timing fix held under
+  all conditions — but it's worth noting for future estimation: a
+  "fix this bug" ticket surfaced a "remove this dependency" scope once
+  investigated.
+- **Follow-up (not blocking):** Storybook `.stories.tsx` files
+  (`HistoryPage.stories.tsx`, `ProfilePage.stories.tsx`,
+  `PublicProfilePage.stories.tsx`, `Button.stories.tsx`) still
+  reference the old icon font. Tracked as a minor chore, to be picked
+  up separately.
+- **Follow-up (not blocking):** confirm `lucide-react` is correctly
+  pinned in `package.json` (`npm ls lucide-react`) given the volume of
+  new imports across the codebase.
+- **Unrelated, noticed during this work:** missing favicon assets
+  (`favicon-16.png`, `favicon-32.png`, `apple-touch-180.png`) causing
+  404s in the console. Cosmetic, not blocking, not yet fixed.
+- A real syntax error (`Unexpected end of input`) was introduced and
+  caught during the `layout.tsx` cleanup step — an edit removing the
+  font-detection script left the outer IIFE and template literal
+  unclosed. Caught via browser console before merge; serves as a
+  reminder that "delete this block" edits on inline scripts need a
+  full-file review afterward, not just a diff of the removed lines.
+
+---
+
+## Part 4: M9 Correctness Fixes — ✅ COMPLETE
+
+### #12 — Username IntegrityError returns clean 409, not raw 500
+
+`ProfileService.update_profile`'s pre-check (`is_username_taken`) is
+check-then-act, not atomic — a concurrent request can take the same
+username in the gap between that check and the actual write. When
+that race is lost, the DB's unique constraint previously raised an
+uncaught `IntegrityError` that propagated to the router's generic
+exception handler as a raw 500.
+
+Fixed by wrapping the `profile_repo.update()` call in
+`try/except IntegrityError`, converting a username-constraint
+violation into the same `ProfileError("username_taken", ...)` used by
+the pre-check, so both paths produce one consistent, actionable error.
+
+Also fixed a related latent bug: `handle_profile_error`'s `status_map`
+was missing a `"username_taken"` entry entirely, so even the
+_intentional_ pre-check rejection was falling through to a default
+400 instead of the correct 409 Conflict. Added `username_taken → 409`
+and made `username_required → 400` explicit (no behavior change on
+the latter, just removed reliance on the default fallback).
+
+`profile_repo.update()` required no changes — it was already rolling
+back the session before re-raising the original exception type inside
+its own `try/except`, so the fix is contained entirely to
+`profile_service.py`.
+
+### #13 — UsernameIndicator shows distinct state on API error
+
+`UsernameIndicator` in `settings/profile/page.tsx` previously had no
+branch for `availabilityQuery.isError` — a failed availability check
+fell through to the same "Already taken" state as a real conflict,
+telling the user false information when the true state was "we don't
+know."
+
+Added an explicit amber `AlertTriangle` error state ("Couldn't check
+availability"), visually distinct from the red "Already taken" state.
+Also implemented the related acceptance-criteria item: Save is now
+disabled whenever the username field is dirty, changed from the saved
+value, and the availability check errored, with inline copy
+explaining the disabled state so it isn't silent.
+
+### #14 — Public profile shows loading.tsx skeleton, no FOUC
+
+`app/u/[username]/page.tsx` is a server component whose
+`generateMetadata` performs a `fetch` before the page can render —
+until that resolved, the browser showed a blank tab with no feedback.
+
+Exported the existing loading skeleton (`PublicProfileSkeleton`) from
+`client.tsx` and added `app/u/[username]/loading.tsx`, which Next
+streams immediately as the route-level Suspense fallback, independent
+of `generateMetadata`'s fetch time. No new skeleton markup — reuses
+what `client.tsx` already had.
+
+---
+
+## Part 4 Completion Notes
+
+- Verified manually by racing two concurrent profile-update requests
+  for the same new username — confirmed the losing request now
+  returns 409 with a `username_taken` body instead of 500, and
+  confirmed the ordinary (non-race) pre-check rejection also now
+  returns 409 rather than the previous default 400.
+- Verified #13 by throttling network to force `isError` on the
+  availability query — amber warning state renders correctly, Save
+  disables with explanatory copy.
+- Verified #14 by throttling network on `/u/[username]` — skeleton now
+  renders immediately instead of a blank tab while metadata resolves.
+
+---
+
+## Part 5: Visual Polish — 🟡 IN PROGRESS
+
+### #108 — Settings sub-pages (Digest, Members) visual balance — ✅ DONE
+
+Compared against Profile settings as the quality bar. Two concrete
+imbalances identified from screenshots (not just subjective feel):
+
+1. Profile has a full page-level `<h1>` heading (`font-serif text-3xl`,
+   matching the app's headline style); Digest, Members, and Slack only
+   had the small uppercase eyebrow label (`SETTINGS — DIGEST`), making
+   them read as unfinished fragments next to Profile.
+2. Members had no width constraint at all — the invite email input
+   stretched to the full content area width, while every other
+   settings page (Profile, Digest) was held to a narrow `max-w-lg`
+   column.
+
+Fixed both: added a matching `<h1>` header to `digest/page.tsx` and
+`members/page.tsx`, and constrained `MembersPanel`'s root element to
+`max-w-lg` (matching `DigestSettingsPanel`, which already had this).
+Slack was left as-is — #108 scoped this to Digest and Members only.
+
+### #16 — Public profile cosmetic pass — 🟡 PARTIAL
+
+One concrete issue fixed: the horizontally-scrollable heatmap
+container on `/u/[username]` was rendering the native OS scrollbar
+(visible arrow buttons, mismatched styling) instead of anything
+matching the app's design. Added a `.custom-scrollbar` utility to
+`globals.css` (thin, theme-colored, no arrow buttons — uses
+`scrollbar-color`/`-width` with a `::-webkit-scrollbar` fallback) and
+applied it to the heatmap wrapper in `client.tsx`.
+
+**Not yet done:**
+
+- Full cosmetic pass comparing `/u/[username]` against
+  `/settings/profile` for parity (spacing, hierarchy, card treatment)
+  beyond the scrollbar fix
+- Mobile verification (acceptance criteria explicitly requires this,
+  not yet checked)
+- Confirming whether `Heatmap.tsx` has its own internal scroll
+  container that might need the same `.custom-scrollbar` treatment
+  applied directly inside the component, for consistency across
+  public profile, History's Analytics tab, and the dashboard
+  (component source not yet reviewed)
+
+### Deferred — app-wide visual depth pass (explicitly out of scope for this milestone)
+
+During this work, a broader observation came up: several pages
+(Members, Dashboard empty states, History) read as visually "bare"
+rather than intentionally minimal — flat surfaces with no elevation,
+large unclaimed whitespace with nothing anchoring it, empty states
+that are plain text with no icon/illustration, and uniform small-label
+typography with little hierarchical contrast. Secondary/tertiary
+accent colors already defined in `globals.css` currently see no use
+anywhere in the app.
+
+**Decision: this is real, worth doing, and explicitly deferred to
+post-deployment**, not squeezed into this milestone or done
+immediately pre-deploy. Reasoning: it's unbounded ("make it feel less
+bare" has no natural finish line, unlike "#110 is fixed"), Parts 6–7
+of this milestone (rate limiting, unsubscribe compliance, date
+validation, staging deploy) carry actual correctness/compliance risk
+and deserve priority over subjective visual work, and post-deployment
+gives access to real usage signal instead of two people guessing from
+screenshots. Track as a separate future milestone/pass, not a
+sub-item of Part 5.
+
+**Candidate approaches (brainstormed, not committed — for whoever
+picks this up to start from, not a spec):**
+
+- Turn up `shadow-card`'s dark-mode glow, and/or apply it to surfaces
+  that currently have none (Members rows, Dashboard's empty-state
+  card) — cheapest way to introduce real elevation without a redesign.
+- Give empty states (e.g. "No members yet.", "No pending invites.",
+  "Profile not found") a small `lucide-react` icon plus slightly
+  larger/warmer copy, instead of a single line of gray text. Empty
+  states are high-leverage here since they only show up when nothing
+  else is competing for attention.
+- Actually use the secondary/tertiary accent colors already defined
+  in `globals.css` (`--color-secondary`, `--color-tertiary`) somewhere
+  low-risk — currently defined but unused anywhere in the app per the
+  screenshots reviewed.
+- Reuse the existing `dot-grid` utility (already used on auth pages)
+  on empty/near-empty app pages like Dashboard when there's nothing to
+  show, instead of a flat black void.
+- Introduce more typographic size/weight contrast — right now nearly
+  every label across the app sits at the same 10–12px uppercase
+  `font-label` treatment, so full pages can read as one uniform gray
+  block with no hierarchy to anchor on.
+
+All of the above are small, additive, low-risk diffs individually —
+the reason this is deferred is scope/timing, not difficulty.
+
+---
 
 ## Part 6: Security & Compliance
 
@@ -522,6 +768,14 @@ needed at all — it's currently masking rather than resolving the
 once there's time to investigate without a Sentry integration blocking
 on it.
 
+**9. Icon font (Material Symbols) fully replaced with `lucide-react`**
+See Part 3 for full rationale. Storybook stories not yet migrated —
+tracked as a follow-up chore, not blocking.
+
+**10. App-wide visual "depth" pass deferred to post-deployment**
+See Part 5 notes. Real, worth doing, deliberately not squeezed into
+this milestone.
+
 ---
 
 ## Acceptance Criteria
@@ -538,14 +792,14 @@ on it.
 [x] Sentry configured on Celery worker — test task failure appears
 [x] Sentry configured on Next.js — test error appears with readable stack trace
 [x] send_default_pii=False confirmed on all three Sentry inits
-[ ] Auth page SVG icons render on first load, no reload needed
-[ ] Auth spinner covers full login sequence including session sync
-[ ] Slack settings page shows shared-channel clarity copy
-[ ] Username IntegrityError returns clean 409, not raw 500
-[ ] UsernameIndicator shows distinct state on API error
-[ ] Save disabled when username check errored and field is dirty
-[ ] Public profile shows loading.tsx skeleton, no FOUC
-[ ] Settings sub-pages (Digest, Members) visually balanced against Profile
+[x] Auth page SVG icons render on first load, no reload needed
+[x] Auth spinner covers full login sequence including session sync
+[x] Slack settings page shows shared-channel clarity copy
+[x] Username IntegrityError returns clean 409, not raw 500
+[x] UsernameIndicator shows distinct state on API error
+[x] Save disabled when username check errored and field is dirty
+[x] Public profile shows loading.tsx skeleton, no FOUC
+[x] Settings sub-pages (Digest, Members) visually balanced against Profile
 [ ] Public profile page cosmetic pass complete, mobile verified
 [ ] Server-side update_date validation rejects mismatched dates
 [ ] Rate limiting active on POST/PATCH update endpoints
@@ -651,4 +905,119 @@ apps/api: temporary sentry_test Celery task in celery_app.py
 apps/web: src/app/sentry-example-page/page.tsx  (wizard-generated)
 apps/web: src/app/api/sentry-example-api/route.ts  (wizard-generated)
 apps/web: src/app/sentry-test/page.tsx  (manual debug page, created mid-investigation)
+```
+
+---
+
+## Files Created / Modified — Part 3 (Actual)
+
+### Frontend (apps/web/) — icon font migration + Part 3 fixes
+
+```
+src/app/layout.tsx                          ← font-detection script + Google Fonts <link>
+                                                removed entirely; dark-mode FOUC logic kept
+src/app/globals.css                          ← .material-symbols-outlined / .fonts-loaded
+                                                rules removed
+src/components/domain/auth/login-form.tsx    ← ArrowRight icon; #109 fix — removed dead
+                                                setTimeout, added isNavigating state
+src/components/domain/auth/signup-form.tsx   ← ArrowRight icon
+src/components/domain/auth/forgot-password-
+  form.tsx                                   ← MailCheck, ArrowRight icons
+src/components/domain/auth/reset-password-
+  form.tsx                                   ← ArrowRight, CheckCircle2 icons
+src/components/domain/auth/onboarding-form.tsx (no icon changes — already used inline SVG)
+src/components/ui/input.tsx                  ← Eye, EyeOff (password toggle)
+src/components/ui/theme-toggle.tsx           ← Sun, Moon, Contrast
+src/components/ui/toast.tsx                  ← X
+src/components/ui/separator.tsx              ← AlertCircle, CheckCircle2, Info (FormMessage)
+src/components/ui/audio-player.tsx           ← Play
+src/components/layout/sidebar.tsx            ← LayoutDashboard, ScrollText, Settings, User,
+                                                Users, Mail, Tag, Building2, LogOut
+src/components/layout/app-shell.tsx          ← Loader2
+src/app/(public)/invite/[code]/page.tsx      ← Loader2 (Spinner), CheckCircle2, ArrowRight
+                                                (replaced hand-rolled inline SVG arrow too)
+src/app/(app)/dashboard/page.tsx             ← Loader2
+src/app/(app)/history/page.tsx               ← ScrollText, History, LineChart
+src/app/(auth)/onboarding/page.tsx           ← Loader2
+src/app/(app)/settings/digest/page.tsx       ← Loader2
+src/app/(app)/settings/members/page.tsx      ← Loader2
+src/app/(app)/settings/slack/page.tsx        ← Loader2; #107 copy changes (see below)
+src/app/(app)/settings/profile/page.tsx      ← CheckCircle2, Loader2, XCircle
+src/components/domain/dashboard/
+  dashboard-view.tsx                         ← Keyboard, Mic
+src/components/domain/digests/digest-card.tsx ← Tag, ChevronDown
+src/components/domain/digests/
+  digest-settings-panel.tsx                  ← X, Eye
+src/components/domain/members/members-panel.tsx ← UserPlus
+src/components/domain/updates/update-card.tsx ← Mic, ChevronDown, MoreHorizontal, Pencil,
+                                                Trash2
+src/components/domain/updates/
+  update-card-compact.tsx                    ← Mic, ChevronDown
+src/components/domain/updates/
+  voice-recorder.tsx                         ← Mic, Square, ArrowRight, MicOff
+package.json                                 ← +lucide-react (verify pinned — see Part 3
+                                                Completion Notes)
+```
+
+### Not converted (follow-up, non-blocking)
+
+```
+src/stories/pages/HistoryPage.stories.tsx
+src/stories/pages/ProfilePage.stories.tsx
+src/stories/pages/PublicProfilePage.stories.tsx
+src/stories/ui/Button.stories.tsx
+```
+
+---
+
+## Files Created / Modified — Part 4 (Actual)
+
+### Backend (apps/api/)
+
+```
+app/services/profile_service.py           ← #12 — try/except IntegrityError around
+                                              profile_repo.update(), converts to
+                                              ProfileError("username_taken", ...)
+app/lib/errors.py (or wherever
+  handle_profile_error lives)              ← #12 — status_map: added
+                                              username_taken → 409, username_required → 400
+                                              (explicit, no behavior change on the latter)
+```
+
+### Frontend (apps/web/)
+
+```
+src/app/(app)/settings/profile/page.tsx    ← #13 — UsernameIndicator isError branch
+                                              (AlertTriangle), usernameCheckErrored derived
+                                              flag, Save disabled when set, inline copy
+src/app/u/[username]/client.tsx            ← #14 — exported PublicProfileSkeleton
+src/app/u/[username]/loading.tsx           ← NEW — #14 — route-level Suspense fallback
+```
+
+---
+
+## Files Created / Modified — Part 5 (Actual, in progress)
+
+### Frontend (apps/web/)
+
+```
+src/app/(app)/settings/digest/page.tsx     ← #108 — added <h1>Digest</h1> header,
+                                              matching Profile's pattern
+src/app/(app)/settings/members/page.tsx    ← #108 — added <h1>Members</h1> header
+src/components/domain/members/
+  members-panel.tsx                        ← #108 — root element constrained to max-w-lg
+                                              (previously unconstrained)
+src/app/globals.css                        ← #16 — new .custom-scrollbar utility
+src/app/u/[username]/client.tsx            ← #16 — .custom-scrollbar applied to heatmap
+                                              wrapper (partial — see Part 5 notes for
+                                              remaining scope)
+```
+
+### Still to do
+
+```
+- Heatmap.tsx — check for internal scroll container, apply .custom-scrollbar
+  there if present (component not yet reviewed)
+- Full cosmetic pass on /u/[username] vs /settings/profile
+- Mobile verification (explicit acceptance criterion, not yet checked)
 ```
