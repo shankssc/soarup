@@ -48,15 +48,17 @@ def test_settings():
     Test settings pointing at:
     - Supabase local Postgres (port 54322, soarup_test DB)
     - Local Supabase GoTrue (port 54321) for auth_repo calls
-    - Isolated Redis (port 6380)
+    - Redis — reads REDIS_URL from env if set (CI provisions its own
+      Redis service, typically on 6379), falling back to the local
+      isolated test container on 6380 (docker-compose.test.yml) if unset.
     JWT secret matches Supabase CLI local default — allows real JWT signing in tests.
     """
     return Settings(
-        environment="local",  # skips issuer validation in validate_supabase_jwt
+        environment="local",
         database_url="postgresql+asyncpg://postgres:postgres@localhost:54322/soarup_test",  # pragma: allowlist secret
-        redis_url="redis://localhost:6380/1",
+        redis_url=os.environ.get("REDIS_URL", "redis://localhost:6380/1"),
         supabase_url="http://localhost:54321",
-        supabase_jwt_secret="super-secret-jwt-token-with-at-least-32-characters-long",  # Supabase CLI default  # noqa: S106 # pragma: allowlist secret
+        supabase_jwt_secret="super-secret-jwt-token-with-at-least-32-characters-long",  # noqa: S106 # pragma: allowlist secret
         r2_endpoint_url="http://localhost:9000",
         r2_bucket_name="soarup-test",
         r2_access_key_id="minioadmin",
