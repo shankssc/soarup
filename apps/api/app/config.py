@@ -140,6 +140,20 @@ class Settings(BaseSettings):
             raise ValueError("RESEND_FROM_EMAIL must not use resend.dev test address in production")
         return v
 
+    # === Rate Limiting ===
+    rate_limit_enabled: bool = Field(
+        default=True,
+        description="Enable GCRA-based rate limiting on update endpoints. " "Set RATE_LIMIT_ENABLED=false to disable (e.g. for load testing).",
+    )
+    rate_limit_requests_per_minute: int = Field(
+        default=10,
+        description="Steady-state requests allowed per minute, per client IP, " "on rate-limited endpoints. Flat limit — not tier-based, since " "billing/plans don't exist yet (see milestone doc Known Tradeoffs).",
+    )
+    rate_limit_burst: int = Field(
+        default=3,
+        description="Extra requests allowed in a short burst on top of the " "steady-state rate before GCRA starts rejecting — e.g. so a client " "retrying a flaky request isn't immediately throttled.",
+    )
+
 
 # Singleton instance
 settings = Settings()
