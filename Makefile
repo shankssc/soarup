@@ -14,10 +14,12 @@ help:
 	@echo "  make clean          - Remove containers, volumes, and build artifacts"
 	@echo ""
 	@echo "🧪 Testing:"
-	@echo "  make test           - Run full test suite in CI environment"
-	@echo "  make test-api       - Run backend tests only"
-	@echo "  make test-web       - Run frontend tests only"
-	@echo "  make test-e2e       - Run Playwright E2E tests"
+	@echo "  make test               - Run full test suite in CI environment"
+	@echo "  make test-api           - Run backend tests only"
+	@echo "  make test-web           - Run frontend tests only"
+	@echo "  make test-e2e           - Run Playwright E2E tests"
+	@echo "  make test-services-up   - Start test Redis + Minio (docker-compose.test.yml)"
+	@echo "  make test-services-down - Stop test Redis + Minio"
 	@echo ""
 	@echo "🔍 Quality:"
 	@echo "  make lint           - Run linters on both apps"
@@ -55,9 +57,22 @@ dev-bg:
 down:
 	docker compose down
 
+# --- Test infrastructure (Redis + Minio for integration tests) ---
+test-services-up:
+	docker compose -f docker-compose.test.yml up -d
+	@echo "✅ Test Redis (localhost:6380) + Minio (localhost:9010) started."
+	@echo "   Run 'supabase start' separately if Postgres/GoTrue aren't up yet."
+
+test-services-down:
+	docker compose -f docker-compose.test.yml down
+
+test-services-logs:
+	docker compose -f docker-compose.test.yml logs -f
+
 # --- Testing ---
 test:
-	docker compose -f docker-compose.test.yml up --abort-on-container-exit --build
+	test-services-up
+	cd apps/api && pytest $(args)
 
 test-api:
 	cd apps/api && pytest $(args)
