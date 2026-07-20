@@ -328,7 +328,7 @@ export function MembersPanel({
   const canInvite = currentUserRole === 'owner' || currentUserRole === 'admin';
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex max-w-lg flex-col gap-8">
       {/* Invite section */}
       {canInvite && (
         <section>
