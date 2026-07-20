@@ -147,7 +147,7 @@ class Settings(BaseSettings):
     )
     rate_limit_requests_per_minute: int = Field(
         default=10,
-        description="Steady-state requests allowed per minute, per client IP, " "on rate-limited endpoints. Flat limit — not tier-based, since " "billing/plans don't exist yet (see milestone doc Known Tradeoffs).",
+        description="Steady-state requests allowed per minute, per authenticated " "user, on rate-limited endpoints. Flat limit — not tier-based, since " "billing/plans don't exist yet (see milestone doc Known Tradeoffs).",
     )
     rate_limit_burst: int = Field(
         default=3,
