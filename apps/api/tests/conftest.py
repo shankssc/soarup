@@ -399,6 +399,30 @@ def patch_auth_settings():
         yield
 
 
+@pytest.fixture(autouse=True)
+def disable_rate_limiting():
+    """
+    Rate limiting is disabled by default across the whole test suite.
+
+    Without this, tests that fire multiple rapid requests as the same
+    user (e.g. TestSubmitUpdate's several POST calls, all as USER_ID)
+    would run against a real Redis instance (localhost:6380) and could
+    legitimately trip the GCRA limiter mid-suite — turning an unrelated
+    assertion failure into a flaky 429 that has nothing to do with what
+    the test is actually checking.
+
+    Tests that want to exercise the limiter itself opt back in explicitly
+    via the enable_rate_limiting fixture (see test_rate_limiting.py) —
+    this fixture takes precedence as a plain context-manager patch, so a
+    test requesting enable_rate_limiting simply doesn't need this one
+    active; pytest fixtures don't stack conflicting patches on the same
+    target, so structure test_rate_limiting.py to override this via its
+    own explicit patch scope rather than relying on fixture ordering.
+    """
+    with patch("app.api.dependencies.settings.rate_limit_enabled", False):
+        yield
+
+
 @pytest.fixture
 def test_user_id() -> str:
     """Fresh UUID per test — avoids cross-test contamination."""
