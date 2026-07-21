@@ -677,6 +677,7 @@ async def _send_workspace_digest_async(
 
     from app.lib.claude import summarise
     from app.lib.email import render_digest_email, send_digest_email
+    from app.lib.unsubscribe import generate_unsubscribe_token
     from app.repositories.digest_repo import DigestRepository
     from app.repositories.update_repo import UpdateRepository
     from app.repositories.workspace_repo import WorkspaceRepository
@@ -784,15 +785,10 @@ async def _send_workspace_digest_async(
             update_count=len(updates),
         )
 
-        # 9. Fetch recipients — members with email_notifications=True + email set
+        # 9. Fetch recipients — members with per-workspace email_notifications=True
         rows = await workspace_repo.get_workspace_members_with_profiles(workspace_id)
-        to_emails = [
-            profile.email
-            for _, profile in rows
-            if profile
-            and profile.email_notifications  # on Profile, not WorkspaceMember
-            and profile.email
-        ]
+        recipients = [(member, profile) for member, profile in rows if profile and member.email_notifications and profile.email]
+        to_emails = [profile.email for _, profile in recipients]
 
         if not to_emails:
             logger.warning(
@@ -809,7 +805,8 @@ async def _send_workspace_digest_async(
             await db.commit()
             return
 
-        # 10. Render email HTML
+        # 10. Build the shared items_for_template once — identical across
+        # every recipient, only the unsubscribe link differs per-person.
         items_for_template = [
             {
                 "author_name": item["author_name"],
@@ -817,29 +814,36 @@ async def _send_workspace_digest_async(
             }
             for item in items_payload
         ]
-        html = render_digest_email(
-            workspace_name=workspace.name,
-            digest_date=digest_date,
-            team_summary=team_summary,
-            items=items_for_template,
-            unsubscribe_url="",  # post-M6 feature
-        )
 
-        # 11. Send + finalize status
-        sent = await send_digest_email(
-            to_emails=to_emails,
-            workspace_name=workspace.name,
-            digest_date=digest_date,
-            html=html,
-        )
+        # 11. Render + send per-recipient — each email needs its own
+        # unsubscribe link, so batched sending (previously up to 50
+        # recipients/call) is no longer possible. See Known Tradeoff #3.
 
+        sent_count = 0
+        for member, profile in recipients:
+            assert profile.email is not None
+
+            token = generate_unsubscribe_token(workspace_id, member.user_id)
+            unsubscribe_url = f"{settings.app_base_url}/api/v1/digests/unsubscribe/{token}"
+
+            html = render_digest_email(
+                workspace_name=workspace.name,
+                digest_date=digest_date,
+                team_summary=team_summary,
+                items=items_for_template,
+                unsubscribe_url=unsubscribe_url,
+            )
+            ok = await send_digest_email(
+                to_emails=[profile.email],
+                workspace_name=workspace.name,
+                digest_date=digest_date,
+                html=html,
+            )
+            if ok:
+                sent_count += 1
+
+        sent = sent_count > 0
         final_status = "sent" if sent else "failed"
-        await digest_repo.update_status(
-            digest.id,
-            status=final_status,
-            email_sent_at=datetime.now(UTC) if sent else None,
-        )
-        await db.commit()
 
         # 12. Post digest to Slack after email delivery (non-fatal)
         if final_status == "sent" and settings.slack_integration_enabled and workspace.slack_digest_enabled and workspace.slack_webhook_url_encrypted:

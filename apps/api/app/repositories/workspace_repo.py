@@ -335,3 +335,25 @@ class WorkspaceRepository:
             select(Workspace).where(Workspace.digest_enabled == True)  # noqa: E712
         )
         return list(result.scalars().all())
+
+    # === Member notification methods ===
+
+    async def update_member_notification_preference(
+        self,
+        workspace_id: str,
+        user_id: str,
+        enabled: bool,
+    ) -> WorkspaceMember | None:
+        """
+        Set a member's per-workspace digest email preference.
+        Used by the unsubscribe endpoint — deliberately separate from
+        update_member_role to keep the unsubscribe flow's write surface
+        minimal (only ever touches this one field).
+        """
+        member = await self.get_member(workspace_id, user_id)
+        if not member:
+            return None
+        member.email_notifications = enabled
+        await self.db.commit()
+        await self.db.refresh(member)
+        return member

@@ -14,7 +14,7 @@ from app.api import create_error_response
 from app.config import settings
 from app.lib.rate_limit import RateLimitExceededError
 from app.lib.sentry import init_sentry
-from app.routers import analytics, audio, auth, digests, health, invites, members, public_profiles, slack, updates, workspaces
+from app.routers import analytics, audio, auth, digests, health, invites, members, public_profiles, slack, unsubscribe, updates, workspaces
 from app.routers.websockets import router as websocket_router
 
 logger = structlog.get_logger(__name__)
@@ -64,6 +64,7 @@ def create_app() -> FastAPI:
     app.include_router(analytics.router, prefix="/api/v1")
     app.include_router(slack.router, prefix="/api/v1")
     app.include_router(public_profiles.router, prefix="/api/v1")
+    app.include_router(unsubscribe.router, prefix="/api/v1")
 
     """
     Rate Limiting - RateLimitExceededError is raised by the rate_limit
