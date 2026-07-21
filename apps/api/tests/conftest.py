@@ -110,25 +110,38 @@ async def test_engine(test_settings):
 @pytest_asyncio.fixture
 async def db_session(test_engine):
     """
-    Per-test transactional session using nested transactions (SAVEPOINT).
+    Per-test transactional session using a connection-bound SAVEPOINT.
 
-    Why nested: the service layer calls session.commit() internally. A plain
-    rollback on the outer transaction won't undo a committed inner transaction.
-    Using begin_nested() wraps each test in a SAVEPOINT that the outer rollback
-    can always undo, regardless of inner commits.
+    Why this shape specifically: the session is bound directly to a single
+    checked-out Connection (not the engine), wrapped in one outer
+    transaction. join_transaction_mode="create_savepoint" tells SQLAlchemy
+    to automatically issue a SAVEPOINT for the session's "logical"
+    transaction and re-issue a fresh SAVEPOINT after every commit() the
+    code under test performs — this is SQLAlchemy's own built-in
+    replacement for the older hand-rolled "listen for after_transaction_end
+    and manually restart begin_nested()" recipe, which is easy to get
+    subtly wrong when the session is engine-bound rather than
+    connection-bound (as it was here previously).
+
+    The outer connection-level transaction is rolled back at teardown,
+    undoing everything regardless of how many times session.commit() ran
+    during the test — including UpdateService's, ProfileService's, and
+    WorkspaceRepository's various internal commits.
     """
-    async_session = async_sessionmaker(test_engine, expire_on_commit=False)
-    async with async_session() as session:  # Noqa: SIM117
-        async with session.begin():  # Noqa: SIM117
-            nested = await session.begin_nested()
-            yield session
-            try:  # Noqa: SIM105
-                await nested.rollback()
-            except Exception:  # Noqa: S110
-                # IntegrityError tests cause the repo to call rollback()
-                # internally, which closes the transaction before teardown.
-                # Safe to ignore — the session closes cleanly on context exit.
-                pass
+    async with test_engine.connect() as connection:
+        await connection.begin()
+
+        async_session_factory = async_sessionmaker(
+            bind=connection,
+            expire_on_commit=False,
+            join_transaction_mode="create_savepoint",
+        )
+        session = async_session_factory()
+
+        yield session
+
+        await session.close()
+        await connection.rollback()
 
 
 # ---------------------------------------------------------------------------

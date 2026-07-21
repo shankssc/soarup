@@ -26,31 +26,32 @@ async def unsubscribe(token: str, db: DBSessionDep) -> RedirectResponse:
     email link expects to land on a page, not see a JSON error blob.
     Invalid/forged/expired-looking tokens redirect to a generic failure
     page rather than revealing why verification failed.
+
+    RedirectResponse defaults to 307 unless status_code is passed
+    explicitly — 302 is used here deliberately (matches the route
+    decorator's declared status and is the conventional semantic for
+    this kind of link-click redirect).
     """
     result = verify_unsubscribe_token(token)
     if result is None:
         logger.warning("unsubscribe_invalid_token")
-        return RedirectResponse(f"{settings.app_base_url}/unsubscribe/invalid")
+        return RedirectResponse(f"{settings.app_base_url}/unsubscribe/invalid", status_code=302)
 
     workspace_id, user_id = result
 
     repo = WorkspaceRepository.from_session(db)
     member = await repo.update_member_notification_preference(workspace_id, user_id, enabled=False)
     if member is None:
-        # Token was validly signed but the membership no longer exists
-        # (e.g. they left the workspace since the email was sent) —
-        # nothing to unsubscribe from; still a "success" from the
-        # recipient's perspective, just a no-op.
         logger.info(
             "unsubscribe_membership_not_found",
             workspace_id=workspace_id,
             user_id=user_id,
         )
-        return RedirectResponse(f"{settings.app_base_url}/unsubscribe/success")
+        return RedirectResponse(f"{settings.app_base_url}/unsubscribe/success", status_code=302)
 
     logger.info(
         "digest_unsubscribed",
         workspace_id=workspace_id,
         user_id=user_id,
     )
-    return RedirectResponse(f"{settings.app_base_url}/unsubscribe/success?workspace={workspace_id}")
+    return RedirectResponse(f"{settings.app_base_url}/unsubscribe/success?workspace={workspace_id}", status_code=302)
