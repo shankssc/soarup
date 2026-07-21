@@ -11,6 +11,7 @@ Usage:
         AuthDep,          # new canonical alias — use in new routers
         UserContextDep,   # legacy alias — kept for backward compatibility
         RedisDep,
+        rate_limit,
         # Error handling utilities
         create_error_response,
         create_success_response,
@@ -35,6 +36,7 @@ from app.api.dependencies import (
     RedisDep,
     UserContextDep,
     get_current_user,
+    rate_limit,
     require_auth,
     require_onboarded,
 )
@@ -47,6 +49,7 @@ __all__ = [
     "AuthDep",
     "RedisDep",
     "get_current_user",
+    "rate_limit",
     # Dependencies — legacy (kept for backward compatibility)
     "UserContextDep",
     "require_auth",
