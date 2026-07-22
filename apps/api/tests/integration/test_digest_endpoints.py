@@ -21,6 +21,7 @@ from app.schemas.digest import (
     DigestListResponse,
     DigestPreviewResponse,
     DigestResponse,
+    MyDigestPreferenceResponse,
 )
 from app.services.digest_service import DigestError
 
@@ -86,6 +87,8 @@ def _make_digest_service_mock() -> MagicMock:
             would_send_to=["test@example.com"],
         )
     )
+    svc.get_my_notification_preference = AsyncMock(return_value=MyDigestPreferenceResponse(email_notifications=True))
+    svc.update_my_notification_preference = AsyncMock(return_value=MyDigestPreferenceResponse(email_notifications=False))
     return svc
 
 
@@ -284,3 +287,81 @@ class TestPreviewDigest:
 
         response = await client.post(f"/api/v1/workspaces/{WORKSPACE_ID}/digests/preview")
         assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# GET /{workspace_id}/digest-settings/me
+# ---------------------------------------------------------------------------
+
+
+class TestGetMyDigestPreference:
+    async def test_member_can_read_own_preference(self, digest_client):
+        """
+        Deliberately no RBAC override — the fixture's default WorkspaceMemberDep
+        override already grants member access, confirming this route does NOT
+        require admin (contrast with digest-settings, which does).
+        """
+        client, _, app = digest_client
+        response = await client.get(f"/api/v1/workspaces/{WORKSPACE_ID}/digest-settings/me")
+        assert response.status_code == 200
+        assert response.json()["email_notifications"] is True
+
+    async def test_returns_404_when_not_a_member(self, digest_client):
+        client, mock_service, app = digest_client
+        mock_service.get_my_notification_preference = AsyncMock(side_effect=DigestError("workspace_not_found", "You are not a member of this workspace."))
+        response = await client.get(f"/api/v1/workspaces/{WORKSPACE_ID}/digest-settings/me")
+        assert response.status_code == 404
+
+    async def test_calls_service_with_correct_ids(self, digest_client):
+        client, mock_service, app = digest_client
+        await client.get(f"/api/v1/workspaces/{WORKSPACE_ID}/digest-settings/me")
+        mock_service.get_my_notification_preference.assert_called_once_with(
+            workspace_id=WORKSPACE_ID,
+            user_id=USER_ID,
+        )
+
+
+# ---------------------------------------------------------------------------
+# PATCH /{workspace_id}/digest-settings/me
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateMyDigestPreference:
+    async def test_member_can_update_own_preference(self, digest_client):
+        """Same as above — no admin RBAC override needed, member is sufficient."""
+        client, _, app = digest_client
+        response = await client.patch(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/digest-settings/me",
+            json={"email_notifications": False},
+        )
+        assert response.status_code == 200
+        assert response.json()["email_notifications"] is False
+
+    async def test_returns_404_when_not_a_member(self, digest_client):
+        client, mock_service, app = digest_client
+        mock_service.update_my_notification_preference = AsyncMock(side_effect=DigestError("workspace_not_found", "You are not a member of this workspace."))
+        response = await client.patch(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/digest-settings/me",
+            json={"email_notifications": True},
+        )
+        assert response.status_code == 404
+
+    async def test_missing_email_notifications_field_returns_422(self, digest_client):
+        client, _, app = digest_client
+        response = await client.patch(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/digest-settings/me",
+            json={},
+        )
+        assert response.status_code == 422
+
+    async def test_calls_service_with_correct_args(self, digest_client):
+        client, mock_service, app = digest_client
+        await client.patch(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/digest-settings/me",
+            json={"email_notifications": True},
+        )
+        mock_service.update_my_notification_preference.assert_called_once_with(
+            workspace_id=WORKSPACE_ID,
+            user_id=USER_ID,
+            enabled=True,
+        )
