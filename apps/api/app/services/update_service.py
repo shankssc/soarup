@@ -1,6 +1,8 @@
 # apps/api/app/services/update_service.py
 
+from datetime import date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import structlog
 from redis.asyncio import Redis
@@ -73,8 +75,55 @@ class UpdateService:
         Create a new update and enqueue it for AI processing.
         - Text mode: enqueues process_update (summarisation only)
         - Voice mode: enqueues process_audio_update (transcription → summarisation)
-        Raises UpdateError if one already exists for this user + workspace + date.
+        Raises UpdateError if one already exists for this user + workspace + date,
+        or if update_date is malformed or does not match "today" in the user's own
+        timezone
         """
+        # 1. Parse update_date strictly. The schema only documents the
+        # expected format ("ISO date string YYYY-MM-DD") — nothing was
+        # actually enforcing it before this. A malformed string used to
+        # propagate as-is into repo.create(...) and downstream.
+        try:
+            submitted_date = date.fromisoformat(request.update_date)
+        except ValueError as e:
+            raise UpdateError(
+                "invalid_date_format",
+                "update_date must be a valid ISO date string (YYYY-MM-DD).",
+                {"update_date": request.update_date},
+            ) from e
+
+        # 2. Resolve the user's timezone the same way the digest polling
+        # task does (_check_and_send_digests_async) — profile timezone,
+        # falling back to UTC if unset or unrecognised.
+        profile = await self._get_profile_repo().get_by_user_id(user_id)
+        tz_str = profile.timezone if profile and profile.timezone else "UTC"
+
+        try:
+            tz = ZoneInfo(tz_str)
+        except ZoneInfoNotFoundError:
+            logger.warning(
+                "unknown_update_timezone",
+                user_id=user_id,
+                tz_str=tz_str,
+            )
+            tz = ZoneInfo("UTC")
+
+        # 3. "Today" is computed server-side, in the user's own timezone —
+        # never trusted from the client, which is the actual point of this
+        # fix. A client's local clock/timezone is not authoritative.
+        today_in_user_tz = datetime.now(tz).date()
+
+        if submitted_date != today_in_user_tz:
+            raise UpdateError(
+                "invalid_update_date",
+                "update_date must be today's date in your timezone.",
+                {
+                    "submitted_date": request.update_date,
+                    "expected_date": today_in_user_tz.isoformat(),
+                    "timezone": tz_str,
+                },
+            )
+
         repo = self._get_update_repo()
         existing = await repo.get_for_user_on_date(workspace_id, user_id, request.update_date)
         if existing:

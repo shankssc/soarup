@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 
 from app.api import ApiVersionDep, DBSessionDep, OnboardedDep, RedisDep, create_error_response, create_success_response, handle_update_error
+from app.api.dependencies import rate_limit
 from app.api.rbac import WorkspaceMemberDep
 from app.schemas.update import SubmitUpdateRequest, UpdateUpdateRequest
 from app.services.update_service import UpdateError, UpdateService
@@ -59,7 +60,7 @@ async def get_update_history(
         )
 
 
-@router.post("/{workspace_id}/updates", status_code=202)
+@router.post("/{workspace_id}/updates", status_code=202, dependencies=[Depends(rate_limit("update_submit"))])
 async def submit_update(
     workspace_id: str,
     request: SubmitUpdateRequest,
@@ -97,7 +98,14 @@ async def get_updates(
         )
 
 
-@router.patch("/{workspace_id}/updates/{update_id}", status_code=200)
+@router.patch(
+    "/{workspace_id}/updates/{update_id}",
+    status_code=200,
+    # Looser than submit — edit is already implicitly bounded (one update
+    # per user per day exists to edit), but still an unguarded mutating
+    # route, so it gets the same mechanism at a higher ceiling.
+    dependencies=[Depends(rate_limit("update_edit", requests_per_minute=30, burst=5))],
+)
 async def edit_update(
     workspace_id: str,
     update_id: str,
@@ -114,7 +122,7 @@ async def edit_update(
         return handle_update_error(e, api_version)
 
 
-@router.delete("/{workspace_id}/updates/{update_id}", status_code=204)
+@router.delete("/{workspace_id}/updates/{update_id}", status_code=204, dependencies=[Depends(rate_limit("update_delete", requests_per_minute=30, burst=5))])
 async def delete_update(
     workspace_id: str,
     update_id: str,

@@ -101,6 +101,23 @@ class Settings(BaseSettings):
             raise ValueError("SLACK_ENCRYPTION_KEY is required in production " "when SLACK_INTEGRATION_ENABLED=true")
         return v
 
+    # === Unsubscribe Tokens ===
+    unsubscribe_secret_key: SecretStr | None = Field(
+        None,
+        description="HMAC signing key for digest email unsubscribe tokens. "
+        "Deliberately separate from slack_encryption_key — different "
+        "purpose (signing vs encryption) and blast radius if ever rotated "
+        "or compromised. Generate with: "
+        "python -c 'import secrets; print(secrets.token_urlsafe(32))'",
+    )
+
+    @field_validator("unsubscribe_secret_key", mode="after")
+    @classmethod
+    def validate_unsubscribe_key(cls, v: SecretStr | None, info: ValidationInfo) -> SecretStr | None:
+        if info.data.get("environment") == "production" and not v:
+            raise ValueError("UNSUBSCRIBE_SECRET_KEY is required in production")
+        return v
+
     # === Observability ===
     sentry_dsn: str | None = None
 
@@ -139,6 +156,20 @@ class Settings(BaseSettings):
         if info.data.get("environment") == "production" and "resend.dev" in v:
             raise ValueError("RESEND_FROM_EMAIL must not use resend.dev test address in production")
         return v
+
+    # === Rate Limiting ===
+    rate_limit_enabled: bool = Field(
+        default=True,
+        description="Enable GCRA-based rate limiting on update endpoints. " "Set RATE_LIMIT_ENABLED=false to disable (e.g. for load testing).",
+    )
+    rate_limit_requests_per_minute: int = Field(
+        default=10,
+        description="Steady-state requests allowed per minute, per authenticated " "user, on rate-limited endpoints. Flat limit — not tier-based, since " "billing/plans don't exist yet (see milestone doc Known Tradeoffs).",
+    )
+    rate_limit_burst: int = Field(
+        default=3,
+        description="Extra requests allowed in a short burst on top of the " "steady-state rate before GCRA starts rejecting — e.g. so a client " "retrying a flaky request isn't immediately throttled.",
+    )
 
 
 # Singleton instance

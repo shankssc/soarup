@@ -201,6 +201,13 @@ class WorkspaceMember(Base):
         doc="FK → profiles.id of the user who sent the invite (null for workspace creator)",
     )
 
+    email_notifications: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        doc="Per-workspace digest email opt-in. Distinct from " "Profile.email_notifications (global) — this is the flag " "flipped by a workspace-scoped digest unsubscribe link.",
+    )
+
     # === Timestamps ===
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

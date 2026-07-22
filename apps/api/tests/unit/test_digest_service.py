@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.schemas.digest import UpdateDigestSettingsRequest
+from app.schemas.digest import MyDigestPreferenceResponse, UpdateDigestSettingsRequest
 from app.services.digest_service import DigestError, DigestService
 
 pytestmark = pytest.mark.asyncio
@@ -106,6 +106,16 @@ def _make_mock_digest_item(
     item.author_name = "Test User"
     item.summary_snapshot = "Feature X progress"
     return item
+
+
+def _make_mock_member(
+    user_id: str = USER_ID,
+    email_notifications: bool = True,
+) -> MagicMock:
+    m = MagicMock()
+    m.user_id = user_id
+    m.email_notifications = email_notifications
+    return m
 
 
 # ---------------------------------------------------------------------------
@@ -360,6 +370,87 @@ class TestUpdateDigestSettings:
         assert result.id == ""
         assert result.workspace_id == WORKSPACE_ID
         assert result.status == "pending"
+
+
+# ---------------------------------------------------------------------------
+# get_my_notification_preference()
+# ---------------------------------------------------------------------------
+
+
+class TestGetMyNotificationPreference:
+    async def test_returns_true_when_enabled(self, service, mock_digest_repo, mock_workspace_repo, mock_update_repo):
+        mock_workspace_repo.get_member = AsyncMock(return_value=_make_mock_member(email_notifications=True))
+        _inject_repos(service, mock_digest_repo, mock_workspace_repo, mock_update_repo)
+
+        result = await service.get_my_notification_preference(WORKSPACE_ID, USER_ID)
+
+        assert isinstance(result, MyDigestPreferenceResponse)
+        assert result.email_notifications is True
+
+    async def test_returns_false_when_previously_unsubscribed(self, service, mock_digest_repo, mock_workspace_repo, mock_update_repo):
+        mock_workspace_repo.get_member = AsyncMock(return_value=_make_mock_member(email_notifications=False))
+        _inject_repos(service, mock_digest_repo, mock_workspace_repo, mock_update_repo)
+
+        result = await service.get_my_notification_preference(WORKSPACE_ID, USER_ID)
+
+        assert result.email_notifications is False
+
+    async def test_raises_workspace_not_found_when_not_a_member(self, service, mock_digest_repo, mock_workspace_repo, mock_update_repo):
+        mock_workspace_repo.get_member = AsyncMock(return_value=None)
+        _inject_repos(service, mock_digest_repo, mock_workspace_repo, mock_update_repo)
+
+        with pytest.raises(DigestError) as exc_info:
+            await service.get_my_notification_preference(WORKSPACE_ID, USER_ID)
+
+        assert exc_info.value.error_code == "workspace_not_found"
+
+    async def test_calls_get_member_with_correct_ids(self, service, mock_digest_repo, mock_workspace_repo, mock_update_repo):
+        mock_workspace_repo.get_member = AsyncMock(return_value=_make_mock_member())
+        _inject_repos(service, mock_digest_repo, mock_workspace_repo, mock_update_repo)
+
+        await service.get_my_notification_preference(WORKSPACE_ID, USER_ID)
+
+        mock_workspace_repo.get_member.assert_called_once_with(WORKSPACE_ID, USER_ID)
+
+
+# ---------------------------------------------------------------------------
+# update_my_notification_preference()
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateMyNotificationPreference:
+    async def test_disabling_returns_false(self, service, mock_digest_repo, mock_workspace_repo, mock_update_repo):
+        mock_workspace_repo.update_member_notification_preference = AsyncMock(return_value=_make_mock_member(email_notifications=False))
+        _inject_repos(service, mock_digest_repo, mock_workspace_repo, mock_update_repo)
+
+        result = await service.update_my_notification_preference(WORKSPACE_ID, USER_ID, enabled=False)
+
+        assert result.email_notifications is False
+
+    async def test_enabling_returns_true(self, service, mock_digest_repo, mock_workspace_repo, mock_update_repo):
+        mock_workspace_repo.update_member_notification_preference = AsyncMock(return_value=_make_mock_member(email_notifications=True))
+        _inject_repos(service, mock_digest_repo, mock_workspace_repo, mock_update_repo)
+
+        result = await service.update_my_notification_preference(WORKSPACE_ID, USER_ID, enabled=True)
+
+        assert result.email_notifications is True
+
+    async def test_raises_workspace_not_found_when_not_a_member(self, service, mock_digest_repo, mock_workspace_repo, mock_update_repo):
+        mock_workspace_repo.update_member_notification_preference = AsyncMock(return_value=None)
+        _inject_repos(service, mock_digest_repo, mock_workspace_repo, mock_update_repo)
+
+        with pytest.raises(DigestError) as exc_info:
+            await service.update_my_notification_preference(WORKSPACE_ID, USER_ID, enabled=False)
+
+        assert exc_info.value.error_code == "workspace_not_found"
+
+    async def test_calls_repo_with_correct_args(self, service, mock_digest_repo, mock_workspace_repo, mock_update_repo):
+        mock_workspace_repo.update_member_notification_preference = AsyncMock(return_value=_make_mock_member())
+        _inject_repos(service, mock_digest_repo, mock_workspace_repo, mock_update_repo)
+
+        await service.update_my_notification_preference(WORKSPACE_ID, USER_ID, enabled=True)
+
+        mock_workspace_repo.update_member_notification_preference.assert_called_once_with(WORKSPACE_ID, USER_ID, enabled=True)
 
 
 # ---------------------------------------------------------------------------

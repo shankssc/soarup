@@ -57,3 +57,11 @@ class DigestPreviewResponse(BaseModel):
     digest_date: str
     update_count: int
     would_send_to: list[str]
+
+
+class UpdateMyDigestPreferenceRequest(BaseModel):
+    email_notifications: bool
+
+
+class MyDigestPreferenceResponse(BaseModel):
+    email_notifications: bool

@@ -1,6 +1,7 @@
 # apps/api/app/api/dependencies.py
 # Reusable FastAPI dependencies — cross-cutting concerns
 
+from collections.abc import Awaitable, Callable
 from typing import Annotated, Any
 
 import structlog
@@ -9,8 +10,10 @@ from fastapi.security import HTTPAuthorizationCredentials
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.redis import get_redis_client
 from app.db.session import get_db_session
+from app.lib.rate_limit import RateLimitExceededError, check_rate_limit
 from app.utils.api_versioning import ApiVersionInfo
 from app.utils.api_versioning import get_api_version as _get_api_version
 from app.utils.auth import security, validate_supabase_jwt
@@ -88,6 +91,7 @@ async def require_onboarded(
 
 # === Convenience Aliases ===
 
+
 # New canonical alias — use in all new routers
 AuthDep = Annotated[dict[str, str], Depends(get_current_user)]
 
@@ -98,3 +102,59 @@ RedisDep = Annotated[Redis, Depends(get_redis_client)]
 
 # Legacy alias — existing routers keep working unchanged
 UserContextDep = Annotated[dict[str, str], Depends(require_auth)]
+
+# === Rate-limiting Dependency Factory ===
+
+
+def rate_limit(
+    scope: str,
+    requests_per_minute: int | None = None,
+    burst: int | None = None,
+) -> Callable[[dict[str, str], Redis], Awaitable[None]]:
+    """
+    Dependency factory — rate-limits requests per client IP, scoped by
+    `scope` so different endpoints don't share the same bucket.
+
+    Usage:
+        @router.post(
+            "/...",
+            dependencies=[Depends(rate_limit("update_submit"))],
+        )
+
+    Defaults to settings.rate_limit_requests_per_minute /
+    .rate_limit_burst unless overridden per-call. No-ops entirely if
+    settings.rate_limit_enabled is False (e.g. for load testing).
+
+    Keyed by user_id, not client IP — SoarUp is a team tool, so multiple
+    users legitimately share IPs (same office network, same VPN egress).
+    IP-based limiting would let one teammate's burst of activity throttle
+    everyone else on that network. Per-user keying bounds each person's
+    actions to their own behavior regardless of network topology, and is
+    also a stronger abuse-prevention signal than IP, which can be trivially
+    rotated. Every route this is used on already requires OnboardedDep (a
+    superset of auth), so user_ctx is always available at no extra cost.
+    """
+
+    async def _check(user_ctx: AuthDep, redis: RedisDep) -> None:
+        if not settings.rate_limit_enabled:
+            return
+
+        user_id = user_ctx["user_id"]
+        key = f"ratelimit:{scope}:{user_id}"
+
+        allowed, retry_after = await check_rate_limit(
+            redis,
+            key,
+            requests_per_minute or settings.rate_limit_requests_per_minute,
+            burst if burst is not None else settings.rate_limit_burst,
+        )
+        if not allowed:
+            logger.info(
+                "rate_limit_exceeded",
+                scope=scope,
+                user_id=user_id,
+                retry_after=round(retry_after, 2),
+            )
+            raise RateLimitExceededError(retry_after)
+
+    return _check
