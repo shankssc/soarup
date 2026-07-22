@@ -5,6 +5,26 @@ import { act, renderHook } from '@testing-library/react';
 import { useAuth, useAuthStore } from '@/hooks/useAuth';
 import { MOCK_TOKENS, MOCK_USER } from '../mocks/user';
 
+// ─── Supabase client mock ───────────────────────────────────────────────────
+// Without this, syncSupabaseSession() in useAuth.ts creates a REAL Supabase
+// client and calls setSession() against it — which either makes a real
+// network request or hangs, and waitForSupabaseSessionCookie() then polls
+// document.cookie for up to 12 seconds waiting for a cookie that will never
+// appear in jsdom (nothing here actually talks to Supabase). That 12s poll
+// blows past Vitest's 5000ms default test timeout on the very first login
+// test, and the still-running background promise from that timed-out test
+// corrupts every renderHook() call after it — which is why every subsequent
+// test in this file was failing with "Cannot read properties of null",
+// not because of anything wrong with useAuth.ts itself.
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: () => ({
+    auth: {
+      setSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
+    },
+  }),
+}));
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeLoginResponse(overrides = {}) {
@@ -43,6 +63,19 @@ function mockFetchNetworkError() {
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
 }
 
+// Seeds a cookie matching hasSupabaseSessionCookie()'s regex
+// (sb-<ref>-auth-token=...) so waitForSupabaseSessionCookie() resolves on
+// its very first synchronous check instead of polling — deterministic and
+// instant rather than racing a real 50ms-interval loop.
+function seedSupabaseSessionCookie() {
+  document.cookie = 'sb-test-project-ref-auth-token=fake-session-value; path=/';
+}
+
+function clearSupabaseSessionCookie() {
+  document.cookie =
+    'sb-test-project-ref-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+}
+
 // ─── Reset store between tests ────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -52,10 +85,15 @@ beforeEach(() => {
     isLoading: false,
     error: null,
   });
+  seedSupabaseSessionCookie();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals(); // vi.restoreAllMocks() does NOT undo vi.stubGlobal —
+  // without this, the fetch stub from one test can silently leak into the
+  // next test's setup ordering.
+  clearSupabaseSessionCookie();
 });
 
 // ─── useAuth derived state ────────────────────────────────────────────────────

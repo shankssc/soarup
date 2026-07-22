@@ -19,6 +19,18 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/signup',
 }));
 
+// Same fix as useAuth.test.ts / login-form.test.tsx — signup() also calls
+// syncSupabaseSession() internally, which without this mock creates a real
+// Supabase client and polls document.cookie for up to 12 seconds.
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: () => ({
+    auth: {
+      setSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
+    },
+  }),
+}));
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const mockUser = {
@@ -59,6 +71,15 @@ function mockSignupError(errorCode: string, status = 400) {
   );
 }
 
+function seedSupabaseSessionCookie() {
+  document.cookie = 'sb-test-project-ref-auth-token=fake-session-value; path=/';
+}
+
+function clearSupabaseSessionCookie() {
+  document.cookie =
+    'sb-test-project-ref-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+}
+
 const user = userEvent.setup();
 
 async function fillForm({
@@ -91,12 +112,15 @@ beforeEach(() => {
     error: null,
   });
   mockPush.mockClear();
+  seedSupabaseSessionCookie();
 
   vi.stubGlobal('fetch', vi.fn());
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  clearSupabaseSessionCookie();
 });
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
@@ -194,11 +218,27 @@ describe('SignupForm — validation', () => {
 // ─── Submission ───────────────────────────────────────────────────────────────
 
 describe('SignupForm — submission', () => {
-  it('redirects to /onboarding on success', async () => {
+  it('navigates to /onboarding via hard navigation on success', async () => {
     mockSignupSuccess();
+
+    const originalLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      configurable: true,
+      value: { ...originalLocation, href: '' },
+    });
+
     render(<SignupForm />);
     await fillAndSubmit();
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/onboarding'));
+
+    await waitFor(() => expect(window.location.href).toBe('/onboarding'));
+    expect(mockPush).not.toHaveBeenCalled();
+
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      configurable: true,
+      value: originalLocation,
+    });
   });
 
   it('calls onSuccess prop instead of redirecting when provided', async () => {
