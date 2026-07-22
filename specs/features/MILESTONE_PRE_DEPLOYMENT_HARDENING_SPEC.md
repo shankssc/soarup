@@ -52,18 +52,18 @@ gate, not a nice-to-have.
 13. UsernameIndicator — isError branch added, no silent false negative ✅
 14. Public profile — `loading.tsx` added, FOUC eliminated ✅
 
-### Visual Polish — 🟡 IN PROGRESS (see Part 5 Completion Notes)
+### Visual Polish — ✅ COMPLETE (see Part 5 Completion Notes)
 
 15. Settings sub-pages (Digest, Members) — visual balance pass (#108) ✅
-16. Public profile page — cosmetic pass to match Profile page quality — 🟡 PARTIAL (scrollbar fixed; full cosmetic pass + mobile verification not started)
+16. Public profile page — cosmetic pass to match Profile page quality ✅
 
-### Security & Compliance
+### Security & Compliance — ✅ COMPLETE (see Part 6 Completion Notes)
 
-17. Server-side `update_date` validation using stored timezone (#18)
-18. Rate limiting on update submission endpoints (#20)
-19. Signed unsubscribe token for digest emails — CAN-SPAM/GDPR (#47)
+17. Server-side `update_date` validation using stored timezone (#18) ✅
+18. Rate limiting on update submission endpoints (#20) ✅
+19. Signed unsubscribe token for digest emails — CAN-SPAM/GDPR (#47) ✅
 
-### Deployment Readiness
+### Deployment Readiness — 🔴 NOT STARTED
 
 20. Resend domain verification — real email delivery, not just
     `onboarding@resend.dev`
@@ -83,8 +83,8 @@ develop
     ├── feature/pdh-sentry               ← ✅ MERGED — backend + frontend observability
     ├── feature/pdh-first-impression     ← ✅ MERGED — #110, #109, #107
     ├── feature/pdh-m9-correctness       ← ✅ MERGED — IntegrityError, isError, loading.tsx
-    ├── feature/pdh-visual-polish        ← 🟡 IN PROGRESS — #108 done, public profile cosmetics pending
-    ├── feature/pdh-security             ← NOT STARTED — #18, #20, #47
+    ├── feature/pdh-visual-polish        ← ✅ MERGED — #108, #16 (scrollbar + mobile hero fix)
+    ├── feature/pdh-security             ← ✅ COMPLETE, ready for PR — #17, #18, #19
     └── feature/pdh-deploy-readiness     ← NOT STARTED — Resend domain, env audit, staging deploy
 
 Merge order:
@@ -92,8 +92,8 @@ Merge order:
   feature/pdh-sentry                → feature/milestone-pre-deployment-hardening  ✅ DONE
   feature/pdh-first-impression      → feature/milestone-pre-deployment-hardening  ✅ DONE
   feature/pdh-m9-correctness        → feature/milestone-pre-deployment-hardening  ✅ DONE
-  feature/pdh-visual-polish         → feature/milestone-pre-deployment-hardening
-  feature/pdh-security              → feature/milestone-pre-deployment-hardening
+  feature/pdh-visual-polish         → feature/milestone-pre-deployment-hardening  ✅ DONE
+  feature/pdh-security              → feature/milestone-pre-deployment-hardening  ← NEXT
   feature/pdh-deploy-readiness      → feature/milestone-pre-deployment-hardening
   feature/milestone-pre-deployment-hardening → develop
 ```
@@ -599,7 +599,7 @@ what `client.tsx` already had.
 
 ---
 
-## Part 5: Visual Polish — 🟡 IN PROGRESS
+## Part 5: Visual Polish — ✅ COMPLETE
 
 ### #108 — Settings sub-pages (Digest, Members) visual balance — ✅ DONE
 
@@ -620,82 +620,378 @@ Fixed both: added a matching `<h1>` header to `digest/page.tsx` and
 `max-w-lg` (matching `DigestSettingsPanel`, which already had this).
 Slack was left as-is — #108 scoped this to Digest and Members only.
 
-### #16 — Public profile cosmetic pass — 🟡 PARTIAL
+### #16 — Public profile cosmetic pass — ✅ DONE
 
-One concrete issue fixed: the horizontally-scrollable heatmap
-container on `/u/[username]` was rendering the native OS scrollbar
-(visible arrow buttons, mismatched styling) instead of anything
-matching the app's design. Added a `.custom-scrollbar` utility to
-`globals.css` (thin, theme-colored, no arrow buttons — uses
-`scrollbar-color`/`-width` with a `::-webkit-scrollbar` fallback) and
-applied it to the heatmap wrapper in `client.tsx`.
+**Scrollbar:** the horizontally-scrollable heatmap container on
+`/u/[username]` was rendering the native OS scrollbar (visible arrow
+buttons, mismatched styling) instead of anything matching the app's
+design. Added a `.custom-scrollbar` utility to `globals.css` (thin,
+theme-colored, no arrow buttons — `scrollbar-color`/`-width` with a
+`::-webkit-scrollbar` fallback) and applied it to the heatmap wrapper
+in `client.tsx`. Confirmed `Heatmap.tsx` itself has no internal scroll
+container of its own — it's a plain unstyled wrapper around the raw
+SVG — so the wrapper-level class is the complete fix; no changes
+needed inside the component.
 
-**Not yet done:**
+**Cosmetic parity check:** compared class-by-class against
+`settings/profile/page.tsx`. Card treatment, section-label typography,
+and spacing rhythm were already consistent between the two pages — no
+further changes needed there.
 
-- Full cosmetic pass comparing `/u/[username]` against
-  `/settings/profile` for parity (spacing, hierarchy, card treatment)
-  beyond the scrollbar fix
-- Mobile verification (acceptance criteria explicitly requires this,
-  not yet checked)
-- Confirming whether `Heatmap.tsx` has its own internal scroll
-  container that might need the same `.custom-scrollbar` treatment
-  applied directly inside the component, for consistency across
-  public profile, History's Analytics tab, and the dashboard
-  (component source not yet reviewed)
-
-### Deferred — app-wide visual depth pass (explicitly out of scope for this milestone)
-
-During this work, a broader observation came up: several pages
-(Members, Dashboard empty states, History) read as visually "bare"
-rather than intentionally minimal — flat surfaces with no elevation,
-large unclaimed whitespace with nothing anchoring it, empty states
-that are plain text with no icon/illustration, and uniform small-label
-typography with little hierarchical contrast. Secondary/tertiary
-accent colors already defined in `globals.css` currently see no use
-anywhere in the app.
-
-**Decision: this is real, worth doing, and explicitly deferred to
-post-deployment**, not squeezed into this milestone or done
-immediately pre-deploy. Reasoning: it's unbounded ("make it feel less
-bare" has no natural finish line, unlike "#110 is fixed"), Parts 6–7
-of this milestone (rate limiting, unsubscribe compliance, date
-validation, staging deploy) carry actual correctness/compliance risk
-and deserve priority over subjective visual work, and post-deployment
-gives access to real usage signal instead of two people guessing from
-screenshots. Track as a separate future milestone/pass, not a
-sub-item of Part 5.
-
-**Candidate approaches (brainstormed, not committed — for whoever
-picks this up to start from, not a spec):**
-
-- Turn up `shadow-card`'s dark-mode glow, and/or apply it to surfaces
-  that currently have none (Members rows, Dashboard's empty-state
-  card) — cheapest way to introduce real elevation without a redesign.
-- Give empty states (e.g. "No members yet.", "No pending invites.",
-  "Profile not found") a small `lucide-react` icon plus slightly
-  larger/warmer copy, instead of a single line of gray text. Empty
-  states are high-leverage here since they only show up when nothing
-  else is competing for attention.
-- Actually use the secondary/tertiary accent colors already defined
-  in `globals.css` (`--color-secondary`, `--color-tertiary`) somewhere
-  low-risk — currently defined but unused anywhere in the app per the
-  screenshots reviewed.
-- Reuse the existing `dot-grid` utility (already used on auth pages)
-  on empty/near-empty app pages like Dashboard when there's nothing to
-  show, instead of a flat black void.
-- Introduce more typographic size/weight contrast — right now nearly
-  every label across the app sits at the same 10–12px uppercase
-  `font-label` treatment, so full pages can read as one uniform gray
-  block with no hierarchy to anchor on.
-
-All of the above are small, additive, low-risk diffs individually —
-the reason this is deferred is scope/timing, not difficulty.
+**Mobile:** found and fixed a real responsive gap, not just cosmetic
+preference. The hero row (`flex items-start gap-6`, fixed 96px avatar,
+flex-1 identity block, flex-shrink-0 "Built with SoarUp" badge, all in
+one row) left very little width for the name/username/bio column on
+narrow viewports. Fixed by regrouping avatar+identity into one flex
+item and the badge into a second, stacking via `flex-col` →
+`sm:flex-row`; stepping avatar size and name font size down on mobile;
+adding `flex-wrap` to the footer row as an overflow safety net; adding
+horizontal padding to the not-found state (previously had none); and
+updating the loading skeleton to match the hero's new responsive
+sizing so loading → loaded doesn't visibly jump.
 
 ---
 
-## Part 6: Security & Compliance
+## Part 5 Completion Notes
 
-_(unchanged from original spec — not yet started)_
+- Verified via DevTools device-toolbar checks at 375×667 and 320px
+  widths — hero, stats grid, heatmap scroll, and footer all confirmed
+  to render without overflow or clipping at both sizes.
+- **Deferred — app-wide visual depth pass (explicitly out of scope for
+  this milestone).** During this work, a broader observation came up:
+  several pages (Members, Dashboard empty states, History) read as
+  visually "bare" rather than intentionally minimal — flat surfaces
+  with no elevation, large unclaimed whitespace with nothing anchoring
+  it, empty states that are plain text with no icon/illustration, and
+  uniform small-label typography with little hierarchical contrast.
+  Secondary/tertiary accent colors already defined in `globals.css`
+  currently see no use anywhere in the app.
+
+  **Decision: this is real, worth doing, and explicitly deferred to
+  post-deployment**, not squeezed into this milestone. Reasoning: it's
+  unbounded ("make it feel less bare" has no natural finish line,
+  unlike "#110 is fixed"), Parts 6–7 of this milestone carry actual
+  correctness/compliance/deployment risk and deserve priority over
+  subjective visual work, and post-deployment gives access to real
+  usage signal instead of two people guessing from screenshots. Track
+  as a separate future milestone/pass, not a sub-item of Part 5.
+
+  **Candidate approaches (brainstormed, not committed — for whoever
+  picks this up to start from, not a spec):**
+  - Turn up `shadow-card`'s dark-mode glow, and/or apply it to surfaces
+    that currently have none (Members rows, Dashboard's empty-state
+    card) — cheapest way to introduce real elevation without a redesign.
+  - Give empty states a small `lucide-react` icon plus slightly
+    larger/warmer copy, instead of a single line of gray text.
+  - Actually use the secondary/tertiary accent colors already defined
+    in `globals.css` somewhere low-risk.
+  - Reuse the existing `dot-grid` utility (already used on auth pages)
+    on empty/near-empty app pages like Dashboard.
+  - Introduce more typographic size/weight contrast — right now nearly
+    every label across the app sits at the same 10–12px uppercase
+    `font-label` treatment.
+
+  All of the above are small, additive, low-risk diffs individually —
+  the reason this is deferred is scope/timing, not difficulty.
+
+---
+
+## Part 6: Security & Compliance — ✅ COMPLETE
+
+### #17 — Server-side `update_date` validation using stored timezone
+
+`SubmitUpdateRequest.update_date` was previously accepted as an
+unvalidated string — the schema's own docstring said "ISO date string
+YYYY-MM-DD" but nothing actually enforced that format, and nothing
+checked the date against "today" at all. A client could submit a
+malformed string, a date years in the past or future, or a date
+computed from the wrong timezone, and none of it would be caught until
+something downstream choked on it — or worse, silently succeeded,
+letting a client bypass the one-update-per-day constraint or
+backdate/postdate entries.
+
+Fixed in `UpdateService.submit_update`:
+
+1. Strict `date.fromisoformat()` parsing — malformed strings now raise
+   `UpdateError("invalid_date_format", ...)` cleanly instead of
+   propagating as-is.
+2. The user's timezone is resolved via `ProfileRepository` (falling
+   back to UTC if unset or unrecognised), mirroring exactly the
+   pattern `_check_and_send_digests_async` already uses for digest
+   timezone resolution — kept consistent so "today" means the same
+   thing everywhere in the app, not a separately-invented notion per
+   call site.
+3. "Today" is computed **server-side**, in the user's own timezone —
+   never trusted from the client's local clock.
+4. `submitted_date != today_in_user_tz` raises
+   `UpdateError("invalid_update_date", ...)`.
+
+Both new error codes fall through `handle_update_error`'s existing
+default-to-400 status mapping correctly — no `_utils.py` changes
+needed, unlike #12's `username_taken` gap.
+
+Confirmed `edit_update` needs no equivalent change — `update_date` is
+immutable after creation (`UpdateUpdateRequest` only ever touches
+`content`).
+
+**Known edge case, not a bug:** "today" can differ by up to a full
+calendar day depending on how far a user's timezone is from UTC
+(e.g. `Pacific/Kiritimati` UTC+14 vs `Etc/GMT+12` UTC−12 can have
+"today" be two calendar days apart at the same instant). This is
+expected and correct — it's the entire reason "today" is resolved
+per-user rather than against server UTC.
+
+### #18 — Rate limiting on update submission endpoints
+
+No rate-limiting infrastructure existed prior to this work. Implemented
+using **GCRA (Generic Cell Rate Algorithm)** backed by Redis, chosen
+over sliding-window-log or fixed-window approaches:
+
+- Single Redis key per identity, storing one "theoretical arrival
+  time" (TAT) value — no sorted sets or counters to manage, consistent
+  with how Redis is already used elsewhere in this codebase (TTL
+  provisional holds).
+- Atomic check-and-consume via a single Lua script run through `EVAL`
+  — no separate GET-then-SET round trip, so concurrent requests for
+  the same key can't race each other.
+- Natural burst-allowance support on top of the steady-state rate.
+
+**Keying: per-user, not per-IP.** The original design used client IP,
+matching a common default pattern — but SoarUp is a team tool, so
+multiple users legitimately share IPs (same office network, same VPN
+egress). IP-based limiting would let one teammate's burst of activity
+throttle everyone else on that network. Switched to keying on
+`user_ctx["user_id"]` instead: every rate-limited route already
+requires `OnboardedDep` (a superset of auth), so the authenticated
+user's identity is always available at no extra dependency cost, and
+per-user keying is also a stronger abuse-prevention signal than IP
+(which can be trivially rotated). **This supersedes the original
+Known Tradeoff #1 wording ("flat per-IP limit") — see updated Known
+Tradeoffs below.**
+
+New files/additions:
+
+- `app/lib/rate_limit.py` — GCRA Lua script, `check_rate_limit()`,
+  `RateLimitExceededError`.
+- `app/api/dependencies.py` — `rate_limit(scope, requests_per_minute,
+burst)` dependency factory, scoped per-endpoint so different routes
+  don't share a bucket.
+- `app/main.py` — app-level exception handler for
+  `RateLimitExceededError` (a dependency-layer exception can't be
+  caught by a route's own try/except, since dependencies resolve
+  before the route body runs) → clean 429 with a `Retry-After` header.
+- `app/config.py` — `rate_limit_enabled`, `rate_limit_requests_per_minute`
+  (default 10), `rate_limit_burst` (default 3).
+
+Applied to all three mutating update routes in `updates.py`:
+`submit_update` (default limit), `edit_update` and `delete_update`
+(looser: 30/min, burst 5 — still guarded, but lower abuse risk than
+submission). Read endpoints (`GET` routes) deliberately left
+unrated — #18 scopes this to submission/mutation.
+
+### #19 — Signed unsubscribe token for digest emails (CAN-SPAM/GDPR)
+
+**Scope decision made explicitly, not defaulted:** initially considered
+a global per-user unsubscribe flag (matches the existing
+`Profile.email_notifications` schema, zero migration cost) versus a
+true per-workspace preference. Chose **per-workspace**, despite the
+added migration/repo/frontend cost, specifically because there is
+currently zero production data — doing this before any real users
+exist avoids an unresolvable-cleanly data-migration question later
+(what happens to users who already globally unsubscribed, once
+per-workspace preferences exist?). This was judged strictly cheaper to
+do now than to retrofit post-launch.
+
+**Token design (`app/lib/unsubscribe.py`):** HMAC-SHA256, not Fernet
+encryption — deliberately different primitive from
+`app/lib/slack_crypto.py`, since an unsubscribe token only needs to be
+tamper-evident (verifiable), not reversible. Token shape:
+`<b64url(payload_json)>.<b64url(hmac_signature)>`, payload =
+`{workspace_id, user_id}`. No expiry — CAN-SPAM requires unsubscribe
+mechanisms to remain functional, and an expired unsubscribe link that
+silently fails is worse than one that works indefinitely.
+`verify_unsubscribe_token` returns `None` uniformly on every failure
+mode (malformed, tampered, wrong key) rather than distinguishing
+why, so a forged-token attempt can't learn anything by probing.
+
+New setting: `unsubscribe_secret_key` (`SecretStr`, production-required
+via the same validator pattern as `slack_encryption_key`). Generated
+via `secrets.token_urlsafe(32)`, not `Fernet.generate_key()` — HMAC has
+no format requirement the way Fernet's key does, so the simpler stdlib
+generator is the correct tool rather than borrowing Slack's convention
+for a key that will never be used with Fernet.
+
+**Schema (migration):** added `email_notifications: bool` to
+`WorkspaceMember` (`server_default=sa.true()` — existing memberships
+backfill to opted-in, matching current behavior for every existing
+member until someone explicitly unsubscribes). Autogenerate initially
+bundled in an unrelated `profiles.profile_public` server_default
+change picked up from pre-existing model/DB drift — pulled out into
+its own separate migration rather than smuggled in alongside the
+compliance fix; the root cause of that drift is still unresolved and
+worth investigating before the next autogenerate run.
+
+**Public endpoint (`app/routers/unsubscribe.py`):**
+`GET /digests/unsubscribe/{token}` — deliberately its own router, not
+under `digests.py`'s `/workspaces` prefix, since this must be reachable
+with zero authentication (someone clicking an email link isn't logged
+in). Verifies the token, flips `WorkspaceMember.email_notifications`
+to `False` via `WorkspaceRepository.update_member_notification_preference`,
+then **redirects** (never returns a raw JSON error) to a frontend
+confirmation page — `/unsubscribe/success` (with or without
+`?workspace=` depending on whether a live membership was actually
+found — a stale/already-removed membership still redirects to success,
+since there's nothing left to unsubscribe from, which is itself a
+successful outcome) or `/unsubscribe/invalid`. Uses explicit
+`status_code=302` on every `RedirectResponse` call — `RedirectResponse`
+defaults to 307 unless told otherwise, which doesn't match what the
+route decorator declares.
+
+**Self-service settings toggle:** the one-way email link needed an
+in-app counterpart so someone who unsubscribed isn't permanently stuck
+with no way back short of a new digest email arriving. Added
+`GET`/`PATCH /workspaces/{workspace_id}/digest-settings/me` to
+`digests.py`, gated `WorkspaceMemberDep` (any member — self-service,
+not workspace configuration, unlike the admin-gated
+`digest-settings` route). Routed through `DigestService` for
+conformity with the rest of the file
+(`get_my_notification_preference` / `update_my_notification_preference`,
+both thin wrappers around the same `WorkspaceRepository` methods the
+public endpoint uses). Frontend: `MyNotificationToggle`, a
+structurally independent sub-component in `digest-settings-panel.tsx`
+(separate prop surface, separate save action, immediate-on-click
+rather than part of the workspace-config "Save settings" flow) — sits
+above the existing admin-only digest config, since it's a different
+kind of setting entirely (self vs. workspace).
+
+**Digest send pipeline (`tasks.py`, `_send_workspace_digest_async`):**
+recipient filtering changed from `Profile.email_notifications`
+(global) to the joined `WorkspaceMember.email_notifications`
+(per-workspace). Sending changed from one batched Resend call (up to
+50 recipients) to **per-recipient** sending, since each recipient now
+needs their own unique unsubscribe link baked into their copy of the
+email — see Known Tradeoff #3 (pre-existing, now realized). A real bug
+was introduced and caught via tests during this change: the final
+`digest_repo.update_status(..., status=final_status, ...)` call after
+the send loop was accidentally dropped during the batched→per-recipient
+rewrite, leaving successfully-sent digests stuck at `status="processing"`
+forever (and defeating the Part-1-existing-and-still-relevant
+idempotency check, risking duplicate re-sends on the next day's polling
+run). Caught by `test_send_workspace_digest.py` asserting on final
+digest status, not by manual testing — restored the call after the
+loop, before the (optional, Slack-only) block that had been the only
+other place `final_status` was consulted.
+
+**Frontend confirmation pages:** `/unsubscribe/success` and
+`/unsubscribe/invalid`, both under `(public)`, matching
+`invite/[code]/page.tsx`'s established conventions (narrow centered
+`PageShell` card, no shared extraction — see Part 6 Completion Notes
+for why not). Both explicitly reassure the reader about blast radius:
+success states "this only affects this one workspace"; the invalid
+state states "nothing was changed on your account" rather than
+leaving that ambiguous.
+
+---
+
+## Part 6 Completion Notes
+
+### Test coverage added
+
+- `tests/unit/test_unsubscribe.py` — HMAC round-trip, tampering
+  detection (payload tampering, signature tampering, wrong signing
+  key), malformed-token handling, missing-required-keys forgery
+  attempt.
+- `tests/integration/test_unsubscribe_endpoint.py` — valid token →
+  flag flips + correct redirect; invalid/tampered/wrong-key token →
+  redirect to failure page, flag unchanged; stale membership → no-op
+  success redirect; confirms unsubscribing one member doesn't affect
+  others in the same workspace.
+- `tests/integration/test_rate_limiting.py` — requests within limit
+  succeed; exceeding the limit returns 429 with a `Retry-After`
+  header and `error: "rate_limited"` body; different users have fully
+  independent limits (the actual regression test for the IP→user_id
+  keying decision); edit/delete endpoints confirmed rate-limited at
+  their own configured thresholds.
+- `tests/workers/test_send_workspace_digest.py` — new file, focused on
+  the #19-specific recipient-filtering and per-recipient token/send
+  behavior: opted-out members excluded from sends and never even get a
+  token generated for them; members with no email or missing profile
+  excluded without crashing; token generation confirmed per-recipient
+  (not shared); final digest status confirmed correct across
+  all-succeed / all-fail / partial-failure scenarios (this is the test
+  that caught the dropped `update_status` call above).
+- `tests/unit/test_digest_service.py` /
+  `tests/integration/test_digest_endpoints.py` — extended with
+  `TestGetMyNotificationPreference` / `TestUpdateMyNotificationPreference`
+  and matching router-level classes. Deliberately no "member cannot
+  access" negative tests for these two endpoints, unlike the existing
+  admin-gated digest routes — the entire point is that any member can
+  use them, so there's no access boundary to test against.
+- `tests/integration/test_update_endpoints.py` — new cases for
+  `invalid_date_format` / `invalid_update_date` → 400.
+
+### Test/CI infrastructure fixes (not feature work, but required to get here)
+
+1. **`docker-compose.test.yml` was defined but never actually running**
+   prior to this work — nothing before #18 needed a live test Redis
+   connection, so this had been silently unexercised. Minio's host
+   port (`9001`) turned out to fall inside a Windows Hyper-V/WSL2
+   TCP dynamic port exclusion range (confirmed via
+   `netsh interface ipv4 show excludedportrange protocol=tcp`), not an
+   actual process conflict — remapped to `9010`/`9011`.
+2. **`test_settings`'s `redis_url` was hardcoded**, ignoring the
+   `REDIS_URL` env var that `pr-checks.yml`'s CI job already correctly
+   provisions (`localhost:6379` in CI, via its own Redis service
+   container) — meaning CI would have silently tried to connect to the
+   wrong port the moment any test needed live Redis. Fixed to read
+   `os.environ.get("REDIS_URL", "redis://localhost:6380/1")`, so CI's
+   env var and local dev's isolated test container both resolve
+   correctly without one silently overriding the other.
+3. **`get_redis_client()` is a manually-memoized global singleton**
+   reading from the _global_ app settings object (`redis://redis:6379/0`,
+   the Docker-internal hostname) — no existing test fixture ever
+   overrode it, because nothing needed a live connection before #18.
+   `test_rate_limiting.py` and `test_unsubscribe_endpoint.py` both now
+   override `get_redis_client` via `app.dependency_overrides`,
+   pointing at a client built from `test_settings.redis_url` instead.
+4. **`db_session`'s SAVEPOINT-based test isolation broke the first time
+   a test exercised a real repo `commit()` call** (every prior
+   integration test mocked the service layer, so this was invisible
+   until `test_unsubscribe_endpoint.py` — the first test hitting
+   `WorkspaceRepository.update_member_notification_preference` for
+   real). Root cause: `begin_nested()`'s SAVEPOINT gets released the
+   moment code under test calls `commit()`, and nothing was restarting
+   it. Fixed by switching `db_session` to SQLAlchemy 2.0's
+   `join_transaction_mode="create_savepoint"` on a connection-bound
+   session — the documented built-in replacement for the older,
+   fragile hand-rolled `after_transaction_end` event-listener recipe
+   (which was tried first and did not fully resolve the issue).
+5. `RedisDep`'s manual `Redis.eval()` call required a `cast()` around
+   the awaited result to satisfy mypy — a known imprecision in
+   `redis-py`'s stubs (shared sync/async overloads on `eval()` don't
+   reliably discriminate the async client's actual return type), not a
+   real type error.
+
+### Deliberately not done in this part (flagged, not silently dropped)
+
+- **Slack digest block-count scaling gap**, found while reviewing
+  `slack_blocks.py` for pattern-matching purposes (not itself part of
+  #17–#19): Slack's Block Kit has a hard 50-block-per-message limit;
+  `build_digest_blocks` uses ~6 fixed blocks plus one block per update,
+  meaning a workspace with roughly 43+ same-day submitters would get a
+  digest payload Slack's API rejects outright — currently caught by a
+  generic exception handler and logged as `slack_digest_delivery_failed`
+  with no distinct signal that the cause was block count specifically.
+  Not fixed here — out of scope for #19, tracked as a follow-up (see
+  Known Tradeoffs #11).
+- **Frontend Stripe/billing note:** once tiered billing exists, the
+  flat per-user rate limit (#18) will need tier-aware thresholds, and
+  the frontend will need a "you've hit your usage limit" UI state —
+  right now a 429 just surfaces as a generic error with no
+  upgrade-prompt affordance, since there's nothing to upgrade to yet.
+  Noted for whenever Stripe integration lands, not actioned now.
+
+---
 
 ## Part 7: Deployment Readiness
 
@@ -703,28 +999,40 @@ _(unchanged from original spec — not yet started. **Note carried
 forward from Part 2:** `SENTRY_AUTH_TOKEN` must be added to
 Railway/Cloudflare's build-time env when this part is picked up, or
 staging source maps will not upload and Sentry stack traces from
-staging will show minified code instead of readable file/line info.)_
+staging will show minified code instead of readable file/line info.
+**Note carried forward from Part 6:** `UNSUBSCRIBE_SECRET_KEY` must be
+included in the Part 7 environment-variable audit — production-required,
+same enforcement pattern as `SLACK_ENCRYPTION_KEY`.)_
 
 ---
 
 ## Known Tradeoffs
 
-**1. Rate limiting is a flat per-IP limit, not tier-based**
-Since Stripe billing doesn't exist yet, rate limits can't be
-tier-differentiated. The flat 10/minute limit on update submission is
-a reasonable default that will need revisiting once paid tiers exist.
+**1. Rate limiting is a flat per-user limit, not tier-based**
+~~Flat per-IP limit~~ **Updated in Part 6: keyed per authenticated
+user, not per-IP** — see Part 6's #18 write-up for why (SoarUp is a
+team tool; multiple users legitimately share IPs, so IP-keying would
+let one teammate's activity throttle an entire office). Still flat
+across all users regardless of role or plan, since Stripe billing
+doesn't exist yet. The flat 10/minute (submit) / 30/minute (edit,
+delete) limits are reasonable defaults that will need revisiting once
+paid tiers exist — see Part 6 Completion Notes' Stripe/billing flag.
 
-**2. Unsubscribe token reuses infrastructure pattern from Slack encryption**
-A dedicated `UNSUBSCRIBE_SECRET_KEY` is used rather than reusing the
-Slack key, but the HMAC signing pattern itself is new, untested at
-scale, and worth a security review before relying on it heavily.
+**2. Unsubscribe token reuses infrastructure pattern from Slack encryption, but not the same primitive**
+Implemented in Part 6. A dedicated `UNSUBSCRIBE_SECRET_KEY` is used
+(not the Slack key), following the same production-required Settings
+validator pattern — but the actual cryptographic primitive is HMAC-SHA256
+signing, deliberately different from Slack's Fernet encryption, since
+an unsubscribe token needs to be tamper-evident, not reversible. New
+and, per the original note here, worth a security review before
+relying on it at greater scale than currently tested.
 
 **3. Per-recipient digest email rendering increases Resend API calls**
-Moving from batched (50 recipients/call) to per-recipient sending (for
-unique unsubscribe links) means a workspace with 20 members now makes
-20 Resend calls instead of 1. Acceptable at current team sizes;
-revisit with a shared-token + query-param-per-click model if this
-becomes a bottleneck.
+Realized in Part 6. Moving from batched (50 recipients/call) to
+per-recipient sending (for unique unsubscribe links) means a workspace
+with 20 members now makes 20 Resend calls instead of 1. Acceptable at
+current team sizes; revisit with a shared-token + query-param-per-click
+model if this becomes a bottleneck.
 
 **4. E2E full pipeline test still requires manual service orchestration**
 `voice-update-submission.spec.ts`'s full pipeline variant needs Celery,
@@ -776,6 +1084,22 @@ tracked as a follow-up chore, not blocking.
 See Part 5 notes. Real, worth doing, deliberately not squeezed into
 this milestone.
 
+**11. Slack digest posting has an unhandled block-count ceiling (~43 same-day submitters)**
+New in Part 6, found incidentally while reviewing `slack_blocks.py`
+for an unrelated reason. Not fixed — see Part 6 Completion Notes for
+detail. Tracked as a follow-up: "cap/paginate Slack digest blocks for
+large workspaces," currently invisible in production since no
+workspace has hit this size yet.
+
+**12. Per-workspace digest migration ran with zero production data**
+Noted here explicitly rather than assumed: because this schema change
+(Part 6, #19) landed before any real users exist, there was no
+migration-safety question to resolve (no existing global-unsubscribe
+data to reconcile against the new per-workspace model). This was the
+central reason per-workspace scope was chosen now rather than deferred
+— see Part 6's #19 write-up. Won't recur as an easy decision once real
+user data exists, worth remembering as precedent.
+
 ---
 
 ## Acceptance Criteria
@@ -800,11 +1124,11 @@ this milestone.
 [x] Save disabled when username check errored and field is dirty
 [x] Public profile shows loading.tsx skeleton, no FOUC
 [x] Settings sub-pages (Digest, Members) visually balanced against Profile
-[ ] Public profile page cosmetic pass complete, mobile verified
-[ ] Server-side update_date validation rejects mismatched dates
-[ ] Rate limiting active on POST/PATCH update endpoints
-[ ] Unsubscribe token generated and included in every digest email
-[ ] GET /digests/unsubscribe/:token successfully disables notifications
+[x] Public profile page cosmetic pass complete, mobile verified
+[x] Server-side update_date validation rejects mismatched dates
+[x] Rate limiting active on POST/PATCH update endpoints
+[x] Unsubscribe token generated and included in every digest email
+[x] GET /digests/unsubscribe/:token successfully disables notifications
 [ ] Resend domain verified — test email delivers to external inbox
 [ ] All required environment variables present and audited in staging
 [ ] Staging deployment successful — API, worker, beat, frontend all live
@@ -996,7 +1320,7 @@ src/app/u/[username]/loading.tsx           ← NEW — #14 — route-level Suspe
 
 ---
 
-## Files Created / Modified — Part 5 (Actual, in progress)
+## Files Created / Modified — Part 5 (Actual)
 
 ### Frontend (apps/web/)
 
@@ -1009,15 +1333,121 @@ src/components/domain/members/
                                               (previously unconstrained)
 src/app/globals.css                        ← #16 — new .custom-scrollbar utility
 src/app/u/[username]/client.tsx            ← #16 — .custom-scrollbar applied to heatmap
-                                              wrapper (partial — see Part 5 notes for
-                                              remaining scope)
+                                              wrapper; hero row regrouped + responsive
+                                              (flex-col → sm:flex-row); avatar/name sizing
+                                              stepped down on mobile; footer flex-wrap;
+                                              not-found state padding added; skeleton
+                                              updated to match responsive hero
 ```
 
-### Still to do
+---
+
+## Files Created / Modified — Part 6 (Actual)
+
+### Backend (apps/api/)
 
 ```
-- Heatmap.tsx — check for internal scroll container, apply .custom-scrollbar
-  there if present (component not yet reviewed)
-- Full cosmetic pass on /u/[username] vs /settings/profile
-- Mobile verification (explicit acceptance criterion, not yet checked)
+app/lib/rate_limit.py                      ← NEW — #18 — GCRA Lua script,
+                                              check_rate_limit(), RateLimitExceededError
+app/lib/unsubscribe.py                     ← NEW — #19 — HMAC token generate/verify
+app/api/dependencies.py                    ← #18 — rate_limit() dependency factory,
+                                              keyed per-user via AuthDep
+app/main.py                                ← #18 — RateLimitExceededError exception
+                                              handler → 429 + Retry-After
+app/config.py                              ← #18 — rate_limit_enabled,
+                                              rate_limit_requests_per_minute,
+                                              rate_limit_burst; #19 —
+                                              unsubscribe_secret_key + validator
+app/routers/updates.py                     ← #18 — rate_limit(...) dependency added to
+                                              submit_update, edit_update, delete_update
+app/services/update_service.py             ← #17 — submit_update: strict date parsing +
+                                              server-side timezone-aware "today" check
+app/models/workspace.py                    ← #19 — WorkspaceMember.email_notifications
+                                              column added
+app/repositories/workspace_repo.py         ← #19 — update_member_notification_preference()
+app/services/digest_service.py             ← #19 — get_my_notification_preference(),
+                                              update_my_notification_preference()
+app/schemas/digest.py                      ← #19 — UpdateMyDigestPreferenceRequest,
+                                              MyDigestPreferenceResponse
+app/routers/digests.py                     ← #19 — GET/PATCH
+                                              /{workspace_id}/digest-settings/me
+app/routers/unsubscribe.py                 ← NEW — #19 — public GET
+                                              /digests/unsubscribe/{token}
+app/main.py                                ← #19 — unsubscribe router registered
+app/workers/tasks.py                       ← #19 — _send_workspace_digest_async:
+                                              per-workspace email_notifications filter,
+                                              per-recipient token generation + send,
+                                              restored dropped final status update
+alembic/versions/..._add_email_
+  notifications_to_workspace_members.py    ← NEW — #19 — migration
+  (autogenerated, edited: added server_default=sa.true(), unrelated
+  profiles.profile_public drift removed to its own migration)
+```
+
+### Backend tests (apps/api/tests/)
+
+```
+unit/test_unsubscribe.py                  ← NEW — token round-trip, tampering,
+                                              malformed/forged-token handling
+integration/test_unsubscribe_endpoint.py  ← NEW — full endpoint behavior incl.
+                                              stale-membership and wrong-key cases
+integration/test_rate_limiting.py         ← NEW — GCRA behavior against real test Redis
+workers/test_send_workspace_digest.py     ← NEW — recipient filtering, token generation,
+                                              send-outcome → digest status
+unit/test_digest_service.py               ← +TestGetMyNotificationPreference,
+                                              +TestUpdateMyNotificationPreference
+integration/test_digest_endpoints.py      ← +TestGetMyDigestPreference,
+                                              +TestUpdateMyDigestPreference
+integration/test_update_endpoints.py      ← +invalid_date_format / invalid_update_date
+                                              400 cases
+conftest.py                               ← disable_rate_limiting autouse fixture;
+                                              test_settings.redis_url now reads
+                                              REDIS_URL env var instead of hardcoding;
+                                              db_session rewritten to use
+                                              join_transaction_mode="create_savepoint"
+                                              (replaces fragile hand-rolled SAVEPOINT
+                                              restart listener)
+```
+
+### Test/dev infrastructure
+
+```
+docker-compose.test.yml                   ← Minio ports remapped 9001→9010, 9002→9011
+                                              (9001 fell inside a Windows Hyper-V/WSL2
+                                              TCP exclusion range, not an actual conflict)
+Makefile                                  ← +test-services-up, +test-services-down,
+                                              +test-services-logs; old broken `test:`
+                                              target (referenced --abort-on-container-exit
+                                              against long-running services) replaced
+```
+
+### Frontend (apps/web/)
+
+```
+src/hooks/useDigests.ts                    ← #19 — MyDigestPreferenceResponse type,
+                                              digestKeys.myPreference, useMyDigestPreference,
+                                              useUpdateMyDigestPreference
+src/components/domain/digests/
+  digest-settings-panel.tsx                ← #19 — NEW export MyNotificationToggle
+                                              (independent sub-component, own prop surface)
+src/app/(app)/settings/digest/page.tsx     ← #19 — wires useMyDigestPreference /
+                                              useUpdateMyDigestPreference,
+                                              renders MyNotificationToggle above
+                                              DigestSettingsPanel
+src/app/(public)/unsubscribe/
+  success/page.tsx                         ← NEW — #19 — confirmation page, branches on
+                                              ?workspace= param
+src/app/(public)/unsubscribe/
+  invalid/page.tsx                         ← NEW — #19 — failure page
+src/stories/settings/
+  MyNotificationToggle.stories.tsx         ← NEW — subscribed/unsubscribed/loading/saving/
+                                              mobile states, dark+light
+```
+
+### Not done (deliberately, see Part 6 Completion Notes)
+
+```
+- Slack digest block-count ceiling (~43 same-day submitters) — found,
+  not fixed, tracked as Known Tradeoff #11
+- Frontend "usage limit hit" UI state — deferred until Stripe/billing exists
 ```
