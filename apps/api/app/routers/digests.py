@@ -16,7 +16,9 @@ from app.schemas.digest import (
     DigestListResponse,
     DigestPreviewResponse,
     DigestResponse,
+    MyDigestPreferenceResponse,
     UpdateDigestSettingsRequest,
+    UpdateMyDigestPreferenceRequest,
 )
 from app.services.digest_service import DigestError, DigestService
 
@@ -263,5 +265,108 @@ async def preview_digest(
         )
         return _handle_digest_error(
             DigestError("preview_failed", "Could not generate digest preview. Please try again."),
+            api_version,
+        )
+
+
+@router.get(
+    "/{workspace_id}/digest-settings/me",
+    response_model=MyDigestPreferenceResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get the current member's own digest notification preference",
+)
+async def get_my_digest_notification_preference(
+    workspace_id: str,
+    user_ctx: WorkspaceMemberDep,
+    api_version: ApiVersionDep,
+    db: DBSessionDep,
+    service: DigestService = Depends(get_digest_service),
+) -> Response:
+    """
+    Return whether the authenticated user has digest email notifications
+    enabled for this workspace. Any member can read their own
+    preference — no admin gate, since this is self-service rather than
+    workspace configuration.
+    """
+    try:
+        logger.info(
+            "get_my_digest_preference_attempt",
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+        )
+        result = await service.get_my_notification_preference(
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+        )
+        return create_success_response(result, api_version=api_version)
+    except DigestError as e:
+        logger.warning(
+            "get_my_digest_preference_failed",
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+            error_code=e.error_code,
+        )
+        return _handle_digest_error(e, api_version)
+    except Exception as e:
+        logger.exception(
+            "get_my_digest_preference_error",
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+            error=str(e),
+        )
+        return _handle_digest_error(
+            DigestError("fetch_failed", "Could not retrieve notification preference. Please try again."),
+            api_version,
+        )
+
+
+@router.patch(
+    "/{workspace_id}/digest-settings/me",
+    response_model=MyDigestPreferenceResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update the current member's own digest notification preference",
+)
+async def update_my_digest_notification_preference(
+    workspace_id: str,
+    request: UpdateMyDigestPreferenceRequest,
+    user_ctx: WorkspaceMemberDep,
+    api_version: ApiVersionDep,
+    db: DBSessionDep,
+    service: DigestService = Depends(get_digest_service),
+) -> Response:
+    """
+    Let the authenticated user turn their own digest emails for this
+    workspace back on or off — the in-app counterpart to the one-way
+    unsubscribe link. Any member can change their own preference.
+    """
+    try:
+        logger.info(
+            "update_my_digest_preference_attempt",
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+        )
+        result = await service.update_my_notification_preference(
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+            enabled=request.email_notifications,
+        )
+        return create_success_response(result, api_version=api_version)
+    except DigestError as e:
+        logger.warning(
+            "update_my_digest_preference_failed",
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+            error_code=e.error_code,
+        )
+        return _handle_digest_error(e, api_version)
+    except Exception as e:
+        logger.exception(
+            "update_my_digest_preference_error",
+            workspace_id=workspace_id,
+            user_id=user_ctx["user_id"],
+            error=str(e),
+        )
+        return _handle_digest_error(
+            DigestError("update_failed", "Could not update notification preference. Please try again."),
             api_version,
         )
