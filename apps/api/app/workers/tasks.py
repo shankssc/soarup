@@ -845,7 +845,19 @@ async def _send_workspace_digest_async(
         sent = sent_count > 0
         final_status = "sent" if sent else "failed"
 
-        # 12. Post digest to Slack after email delivery (non-fatal)
+        # 12. Persist the final outcome — must happen regardless of
+        # whether Slack posting is configured or succeeds; the Slack
+        # branch below may update the record a second time (adding
+        # delivered_to_slack=True) but must never be the only place
+        # final_status gets written.
+        await digest_repo.update_status(
+            digest.id,
+            status=final_status,
+            email_sent_at=datetime.now(UTC) if sent else None,
+        )
+        await db.commit()
+
+        # 13. Post digest to Slack after email delivery (non-fatal)
         if final_status == "sent" and settings.slack_integration_enabled and workspace.slack_digest_enabled and workspace.slack_webhook_url_encrypted:
             try:
                 from app.services.slack_service import SlackService
