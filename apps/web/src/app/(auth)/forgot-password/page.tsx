@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import { ForgotPasswordForm } from '@/components/domain/auth/forgot-password-form';
 
+export const runtime = 'edge';
+
 export default function ForgotPasswordPage() {
   return (
     <div className="space-y-8">

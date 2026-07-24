@@ -4,6 +4,8 @@
 // Root layout (app/layout.tsx) already provides ThemeProvider,
 // QueryProvider, fonts, and globals — nothing to add here.
 
+export const runtime = 'edge';
+
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-screen flex-col bg-background">{children}</div>;
 }

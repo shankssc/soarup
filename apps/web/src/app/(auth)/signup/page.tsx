@@ -6,6 +6,8 @@ import { SignupForm } from '@/components/domain/auth/signup-form';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
+export const runtime = 'edge';
+
 export default async function SignupPage() {
   // Redirect if already authenticated — no point showing signup to logged-in users
   const supabase = await createServerSupabaseClient();
