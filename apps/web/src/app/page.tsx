@@ -5,6 +5,8 @@ export const dynamic = 'force-dynamic';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
+export const runtime = 'edge';
+
 export default async function RootPage() {
   const supabase = await createServerSupabaseClient();
   const {

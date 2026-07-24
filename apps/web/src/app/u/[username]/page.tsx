@@ -4,6 +4,8 @@
 import type { Metadata } from 'next';
 import { PublicProfileClient } from './client';
 
+export const runtime = 'edge';
+
 interface Props {
   params: { username: string };
 }
