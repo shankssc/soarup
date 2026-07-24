@@ -4,16 +4,16 @@
 import type { Metadata } from 'next';
 import { PublicProfileClient } from './client';
 
-export const runtime = 'edge';
-
 interface Props {
-  params: { username: string };
+  params: Promise<{ username: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { username } = await params;
+
   try {
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/profiles/${params.username}`,
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/profiles/${username}`,
       { next: { revalidate: 300 } },
     );
 
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description:
           `${streakText}${profile.streak.total_submissions} standup updates · ` +
           (profile.bio ?? 'Building in public with SoarUp'),
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/u/${params.username}`,
+        url: `${process.env.NEXT_PUBLIC_APP_URL}/u/${username}`,
         siteName: 'SoarUp',
         images: profile.avatar_url
           ? [{ url: profile.avatar_url, width: 400, height: 400 }]
@@ -57,6 +57,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default function PublicProfilePage({ params }: Props) {
-  return <PublicProfileClient username={params.username} />;
+export default async function PublicProfilePage({ params }: Props) {
+  const { username } = await params;
+  return <PublicProfileClient username={username} />;
 }
