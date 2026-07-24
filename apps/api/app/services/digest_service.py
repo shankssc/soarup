@@ -15,6 +15,7 @@ from app.schemas.digest import (
     DigestListResponse,
     DigestPreviewResponse,
     DigestResponse,
+    MyDigestPreferenceResponse,
     UpdateDigestSettingsRequest,
 )
 
@@ -186,6 +187,63 @@ class DigestService:
             email_sent_at=None,
             created_at=datetime.now(UTC),
             items=[],
+        )
+
+    async def get_my_notification_preference(
+        self,
+        workspace_id: str,
+        user_id: str,
+    ) -> MyDigestPreferenceResponse:
+        """
+        Return whether the given user has digest email notifications
+        enabled for this specific workspace. Self-service — any member
+        can read their own preference, no admin gate (contrast with
+        update_digest_settings, which changes workspace-wide config and
+        is admin-only).
+        """
+        workspace_repo = self._get_workspace_repo()
+
+        member = await workspace_repo.get_member(workspace_id, user_id)
+        if not member:
+            raise DigestError(
+                "workspace_not_found",
+                "You are not a member of this workspace.",
+            )
+
+        return MyDigestPreferenceResponse(
+            email_notifications=member.email_notifications,
+        )
+
+    async def update_my_notification_preference(
+        self,
+        workspace_id: str,
+        user_id: str,
+        enabled: bool,
+    ) -> MyDigestPreferenceResponse:
+        """
+        Let a member turn their own digest emails for this workspace back
+        on or off — the in-app counterpart to the one-way unsubscribe
+        link (see app/routers/unsubscribe.py and app/lib/unsubscribe.py).
+        Self-service — any member can change their own preference.
+        """
+        workspace_repo = self._get_workspace_repo()
+
+        member = await workspace_repo.update_member_notification_preference(workspace_id, user_id, enabled=enabled)
+        if not member:
+            raise DigestError(
+                "workspace_not_found",
+                "You are not a member of this workspace.",
+            )
+
+        logger.info(
+            "digest_notification_preference_updated",
+            workspace_id=workspace_id,
+            user_id=user_id,
+            enabled=enabled,
+        )
+
+        return MyDigestPreferenceResponse(
+            email_notifications=member.email_notifications,
         )
 
     async def preview_digest(self, workspace_id: str) -> DigestPreviewResponse:

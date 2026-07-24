@@ -87,6 +87,7 @@ test-results/
 *.lcov
 .auth/
 debug-*.png
+tests/e2e/.auth/*
 
 # --- Storybook ---
 storybook-static/
@@ -116,3 +117,6 @@ supabase/logs/
 supabase/storage/
 supabase/.temp/
 supabase/studio/dist/
+
+# --- Sentry files
+.env.sentry-build-plugin

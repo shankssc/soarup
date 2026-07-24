@@ -6,12 +6,7 @@
 import { create } from 'zustand';
 
 export type WsStatus =
-  | 'idle'
-  | 'connecting'
-  | 'connected'
-  | 'reconnecting'
-  | 'disconnected'
-  | 'error';
+  'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'error';
 
 interface WebSocketState {
   status: WsStatus;

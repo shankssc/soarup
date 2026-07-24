@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -22,11 +22,13 @@ class Update(Base):
     __tablename__ = "updates"
 
     __table_args__ = (
-        UniqueConstraint(
+        Index(
+            "uq_updates_user_workspace_date_active",
             "workspace_id",
             "user_id",
             "update_date",
-            name="uq_updates_user_workspace_date",
+            unique=True,
+            postgresql_where=text("is_deleted = false"),  # noqa: E712
         ),
         # History queries — filter by workspace + date range, order by date
         Index("ix_updates_workspace_date", "workspace_id", "update_date"),

@@ -3,6 +3,7 @@
 // apps/web/src/components/ui/input.tsx
 
 import * as React from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { Label } from '@/components/ui/label';
 
@@ -28,7 +29,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
   /**
    * Icon rendered on the left side of the input.
-   * Accepts any React node — typically a Material Symbol span.
+   * Accepts any React node — typically a lucide-react icon.
    */
   leadingIcon?: React.ReactNode;
 
@@ -160,12 +161,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               )}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              <span
-                className="material-symbols-outlined text-[18px]"
-                style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
-              >
-                {showPassword ? 'visibility_off' : 'visibility'}
-              </span>
+              {showPassword ? (
+                <EyeOff className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              ) : (
+                <Eye className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              )}
             </button>
           ) : trailingIcon ? (
             <div className="pointer-events-none absolute bottom-3 right-0 text-outline">

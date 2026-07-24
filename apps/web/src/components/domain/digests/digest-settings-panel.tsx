@@ -5,6 +5,7 @@
 'use client';
 
 import * as React from 'react';
+import { X, Eye, Loader2 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,14 @@ export interface DigestSettingsPanelProps {
   onDaysChange: (days: string) => void;
   onSave: () => void;
   onPreview: () => void;
+}
+
+export interface MyNotificationToggleProps {
+  /** undefined while loading — distinct from false (loaded, disabled) */
+  emailNotifications: boolean | undefined;
+  isLoading: boolean;
+  isSaving: boolean;
+  onToggle: (enabled: boolean) => void;
 }
 
 // ─── Day pills ────────────────────────────────────────────────────────────────
@@ -57,7 +66,6 @@ function DayPills({
     } else {
       next.add(iso);
     }
-    // Keep canonical order 1–7
     const sorted = ['1', '2', '3', '4', '5', '6', '7'].filter((d) => next.has(d));
     onChange(sorted.join(','));
   }
@@ -92,12 +100,10 @@ function DayPills({
 // ─── Preview modal ────────────────────────────────────────────────────────────
 
 function DigestPreviewModal({ html, onClose }: { html: string; onClose: () => void }) {
-  // Close on backdrop click
   function handleBackdrop(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose();
   }
 
-  // Close on Escape
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
@@ -112,7 +118,6 @@ function DigestPreviewModal({ html, onClose }: { html: string; onClose: () => vo
       onClick={handleBackdrop}
     >
       <div className="shadow-modal relative mx-4 flex h-[80vh] w-full max-w-2xl flex-col border border-outline-variant bg-surface">
-        {/* Modal header */}
         <div className="flex items-center justify-between border-b border-outline-variant px-6 py-4">
           <span className="font-label text-[11px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">
             Digest preview
@@ -123,17 +128,9 @@ function DigestPreviewModal({ html, onClose }: { html: string; onClose: () => vo
             className="text-on-surface-variant transition-colors hover:text-on-surface"
             aria-label="Close preview"
           >
-            <span
-              className="material-symbols-outlined text-[20px]"
-              style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
-              aria-hidden="true"
-            >
-              close
-            </span>
+            <X className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
-
-        {/* Iframe — sandboxed, never dangerouslySetInnerHTML */}
         <iframe
           srcDoc={html}
           sandbox="allow-same-origin"
@@ -141,6 +138,80 @@ function DigestPreviewModal({ html, onClose }: { html: string; onClose: () => vo
           title="Digest email preview"
         />
       </div>
+    </div>
+  );
+}
+
+// ─── My notification toggle — self-service, independent of everything else ────
+//
+// Distinct from the "Daily digest" toggle below: that one is workspace-wide
+// config (does this workspace generate/send digests at all — admin only).
+// This one is "do *I* personally receive them" — every member controls
+// their own, regardless of role. It's the in-app counterpart to the
+// one-way email unsubscribe link (see app/routers/unsubscribe.py on the
+// backend) — someone who clicked unsubscribe can turn it back on here
+// without needing another email.
+
+export function MyNotificationToggle({
+  emailNotifications,
+  isLoading,
+  isSaving,
+  onToggle,
+}: MyNotificationToggleProps) {
+  return (
+    <div className="flex flex-col gap-4 border-b border-outline-variant pb-8">
+      <div>
+        <h2 className="font-label text-[10px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">
+          Your notifications
+        </h2>
+        <p className="mt-1 font-body text-[12px] text-on-surface-variant">
+          Controls whether you personally receive this workspace&apos;s digest emails —
+          separate from whether the workspace sends them at all.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <Loader2
+          className="h-5 w-5 animate-spin text-outline"
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
+      ) : (
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-body text-[14px] text-on-surface">
+              Email me the daily digest
+            </span>
+            <span className="font-body text-[12px] text-on-surface-variant">
+              {emailNotifications
+                ? "You're currently receiving digest emails for this workspace."
+                : "You've unsubscribed from this workspace's digest emails."}
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={emailNotifications ?? false}
+            disabled={isSaving}
+            onClick={() => onToggle(!emailNotifications)}
+            className={[
+              'relative inline-flex h-6 w-11 shrink-0 cursor-pointer',
+              'rounded-full border-2 border-transparent',
+              'transition-colors duration-200',
+              'disabled:cursor-not-allowed disabled:opacity-50',
+              emailNotifications ? 'bg-primary' : 'bg-surface-high',
+            ].join(' ')}
+          >
+            <span
+              className={[
+                'pointer-events-none inline-block h-5 w-5 rounded-full bg-surface',
+                'shadow ring-0 transition-transform duration-200',
+                emailNotifications ? 'translate-x-5' : 'translate-x-0',
+              ].join(' ')}
+            />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -162,7 +233,6 @@ export function DigestSettingsPanel({
 }: DigestSettingsPanelProps) {
   const [showPreview, setShowPreview] = React.useState(false);
 
-  // Split HH:MM for separate selects
   const [sendHour, sendMinute] = values.digest_send_time.split(':');
 
   function handleHourChange(h: string) {
@@ -213,10 +283,8 @@ export function DigestSettingsPanel({
         </button>
       </div>
 
-      {/* Settings — only shown when enabled */}
       {values.digest_enabled && (
         <>
-          {/* Send time */}
           <div className="flex flex-col gap-2">
             <label className="font-label text-[10px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">
               Send time
@@ -260,7 +328,6 @@ export function DigestSettingsPanel({
             </div>
           </div>
 
-          {/* Timezone */}
           <div className="flex flex-col gap-2">
             <label className="font-label text-[10px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">
               Timezone
@@ -286,7 +353,6 @@ export function DigestSettingsPanel({
             </select>
           </div>
 
-          {/* Days of week */}
           <div className="flex flex-col gap-2">
             <label className="font-label text-[10px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">
               Send on
@@ -294,7 +360,6 @@ export function DigestSettingsPanel({
             <DayPills value={values.digest_days} onChange={onDaysChange} />
           </div>
 
-          {/* Preview button */}
           <div>
             <button
               type="button"
@@ -309,20 +374,13 @@ export function DigestSettingsPanel({
                 'disabled:cursor-not-allowed disabled:opacity-50',
               ].join(' ')}
             >
-              <span
-                className="material-symbols-outlined text-[16px]"
-                style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
-                aria-hidden="true"
-              >
-                preview
-              </span>
+              <Eye className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
               {isLoadingPreview ? 'Generating...' : 'Preview digest'}
             </button>
           </div>
         </>
       )}
 
-      {/* Save button */}
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -344,7 +402,6 @@ export function DigestSettingsPanel({
         )}
       </div>
 
-      {/* Preview modal */}
       {showPreview && previewHtml !== null && previewHtml !== '' && (
         <DigestPreviewModal html={previewHtml} onClose={() => setShowPreview(false)} />
       )}

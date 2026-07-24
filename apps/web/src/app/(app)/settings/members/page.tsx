@@ -6,6 +6,7 @@
 // All rendering logic lives in MembersPanel for Storybook testability.
 
 import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import {
@@ -69,25 +70,23 @@ export default function MembersSettingsPage() {
   if (!workspace) {
     return (
       <div className="flex justify-center py-16">
-        <span
-          className="material-symbols-outlined animate-spin text-[32px] text-primary"
-          style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
+        <Loader2
+          className="h-8 w-8 animate-spin text-primary"
+          strokeWidth={1.75}
           aria-hidden="true"
-        >
-          progress_activity
-        </span>
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Page header */}
-      <div className="border-b border-outline-variant pb-3">
-        <h2 className="font-label text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
-          Settings — Members
-        </h2>
-      </div>
+    <div className="max-w-lg px-6 py-10">
+      {/* Matches Profile settings' header pattern. Also: this wrapper now
+          constrains width to max-w-lg — previously MembersPanel had no
+          width limit at all, so the invite input stretched to the full
+          content area while every other settings page held a narrow
+          column. See #15. */}
+      <h1 className="mb-8 font-serif text-3xl text-on-surface">Members</h1>
 
       <MembersPanel
         members={members}

@@ -5,6 +5,7 @@
 'use client';
 
 import * as React from 'react';
+import { ScrollText, History, LineChart } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useDigests } from '@/hooks/useDigests';
@@ -121,12 +122,10 @@ export default function HistoryPage() {
           {/* Empty state */}
           {!digestsLoading && allDigests.length === 0 && (
             <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <span
-                className="material-symbols-outlined text-[40px] text-on-surface-variant"
+              <ScrollText
+                className="h-10 w-10 text-on-surface-variant"
                 aria-hidden="true"
-              >
-                summarize
-              </span>
+              />
               <p className="max-w-xs font-body text-[14px] text-on-surface-variant">
                 No digests yet. Digests are generated daily when updates exist.
               </p>
@@ -206,12 +205,10 @@ export default function HistoryPage() {
           {/* Empty state */}
           {!updatesLoading && allUpdates.length === 0 && (
             <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <span
-                className="material-symbols-outlined text-[40px] text-on-surface-variant"
+              <History
+                className="h-10 w-10 text-on-surface-variant"
                 aria-hidden="true"
-              >
-                history
-              </span>
+              />
               <p className="max-w-xs font-body text-[14px] text-on-surface-variant">
                 No updates in this period.
               </p>
@@ -308,12 +305,10 @@ export default function HistoryPage() {
               {/* Empty state */}
               {!personalLoading && !personalData && (
                 <div className="flex flex-col items-center gap-3 py-16 text-center">
-                  <span
-                    className="material-symbols-outlined text-[40px] text-on-surface-variant"
+                  <LineChart
+                    className="h-10 w-10 text-on-surface-variant"
                     aria-hidden="true"
-                  >
-                    insights
-                  </span>
+                  />
                   <p className="max-w-xs font-body text-[14px] text-on-surface-variant">
                     No analytics yet. Submit your first update to start tracking.
                   </p>

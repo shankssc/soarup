@@ -40,7 +40,7 @@ structlog==24.4.0
 python-multipart>=0.0.9
 
 # === Observability ===
-sentry-sdk[fastapi]==2.13.0
+sentry-sdk[fastapi]==2.65.0
 
 # === Supabase Transitive Dependencies (auto-installed) ===
 # These are pulled in by supabase==2.28.3 — listing for transparency

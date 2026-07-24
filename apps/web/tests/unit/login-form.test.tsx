@@ -20,6 +20,22 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/login',
 }));
 
+// Without this, login() → syncSupabaseSession() in useAuth.ts creates a REAL
+// Supabase client and polls document.cookie for up to 12 seconds waiting for
+// a session cookie that will never appear in jsdom. That's why the three
+// submission tests below were failing — not because redirect/onSuccess logic
+// is broken, but because login() never resolved in time for isLoading to
+// flip back to false. See the matching fix in useAuth.test.ts for the fuller
+// explanation.
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: () => ({
+    auth: {
+      setSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
+    },
+  }),
+}));
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const mockUser = {
@@ -60,6 +76,18 @@ function mockLoginError(errorCode: string, status = 401) {
   );
 }
 
+// Seeds a cookie matching hasSupabaseSessionCookie()'s regex in useAuth.ts
+// (sb-<ref>-auth-token=...) so waitForSupabaseSessionCookie() resolves on
+// its first synchronous check instead of polling for real.
+function seedSupabaseSessionCookie() {
+  document.cookie = 'sb-test-project-ref-auth-token=fake-session-value; path=/';
+}
+
+function clearSupabaseSessionCookie() {
+  document.cookie =
+    'sb-test-project-ref-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+}
+
 const user = userEvent.setup();
 
 async function fillAndSubmit(email = 'test@soarup.app', password = 'Password1') {
@@ -79,12 +107,15 @@ beforeEach(() => {
     error: null,
   });
   mockPush.mockClear();
+  seedSupabaseSessionCookie();
 
   vi.stubGlobal('fetch', vi.fn());
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  clearSupabaseSessionCookie();
 });
 
 // ─── Rendering ────────────────────────────────────────────────────────────────

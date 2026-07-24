@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,8 +89,18 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
         // The pending invite code is in localStorage and onboarding will
         // pre-fill it. Redirecting to the invite page before onboarding
         // completes causes OnboardedDep to reject the accept call.
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        router.push('/onboarding');
+        //
+        // Uses a hard navigation (not router.push) deliberately: signup()
+        // awaits syncSupabaseSession(), but the underlying Supabase cookie
+        // write can trail slightly behind that await resolving (it's driven
+        // by an onAuthStateChange listener, not guaranteed synchronous).
+        // router.push is a soft client-side nav — middleware would read
+        // whatever cookie state exists at that instant, which was racy
+        // enough to intermittently fail (most visible on WebKit, where the
+        // gap is wider). A full navigation re-reads cookies fresh from the
+        // browser on the actual request, side-stepping the race entirely
+        // instead of papering over it with a fixed delay.
+        window.location.href = '/onboarding';
       }
     } catch {
       // Error already set in useAuth store
@@ -174,7 +185,7 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
           data-testid="signup-submit"
         >
           Create account
-          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+          <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
         </Button>
       </form>
 

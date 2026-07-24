@@ -5,6 +5,7 @@
 
 import * as React from 'react';
 import { format, parseISO } from 'date-fns';
+import { Tag, ChevronDown } from 'lucide-react';
 import type { Digest } from '@/hooks/useDigests';
 import { useDigest } from '@/hooks/useDigests';
 import { DigestItemRow } from './digest-item-row';
@@ -77,12 +78,7 @@ export function DigestCard({ digest, workspaceId }: DigestCardProps) {
             </span>
             {digest.delivered_to_slack && (
               <span className="flex items-center gap-1 font-label text-[9px] uppercase tracking-[0.1em] text-outline">
-                <span
-                  className="material-symbols-outlined text-[11px] text-outline"
-                  aria-hidden="true"
-                >
-                  label
-                </span>
+                <Tag className="h-[11px] w-[11px] text-outline" aria-hidden="true" />
                 Slack
               </span>
             )}
@@ -123,13 +119,11 @@ export function DigestCard({ digest, workspaceId }: DigestCardProps) {
               'transition-colors duration-150',
             ].join(' ')}
           >
-            <span
-              className="material-symbols-outlined text-[14px] transition-transform duration-200"
+            <ChevronDown
+              className="h-[14px] w-[14px] transition-transform duration-200"
               style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
               aria-hidden="true"
-            >
-              expand_circle_down
-            </span>
+            />
             {expanded ? 'Hide updates' : `View updates (${digest.update_count})`}
           </button>
 

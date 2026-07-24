@@ -14,7 +14,6 @@ from app.config import settings
 from app.workers.celery_app import celery_app
 
 if TYPE_CHECKING:
-    from redis.asyncio import Redis
     from sqlalchemy.ext.asyncio import AsyncEngine
 
 logger = structlog.get_logger(__name__)
@@ -29,7 +28,6 @@ class ProcessUpdateTask(Task):  # type: ignore[misc]
 
     abstract = True
     _db_engine = None
-    _redis = None
 
     @property
     def db_engine(self) -> AsyncEngine:
@@ -48,14 +46,6 @@ class ProcessUpdateTask(Task):  # type: ignore[misc]
                 poolclass=NullPool,
             )
         return self._db_engine
-
-    @property
-    def redis(self) -> Redis | Any:
-        if self._redis is None:
-            from redis.asyncio import Redis
-
-            self._redis = Redis.from_url(settings.redis_url)
-        return self._redis
 
 
 # Decorator arg to configure this specific task retry behavior
@@ -139,6 +129,7 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
     at module load time — celery_app imports tasks, tasks would import
     from app modules that may not be fully initialised yet.
     """
+    from redis.asyncio import Redis
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.lib.claude import summarise
@@ -150,129 +141,138 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
 
     async_session = async_sessionmaker(task.db_engine, expire_on_commit=False)
 
-    async with async_session() as db:
-        update_repo = UpdateRepository.from_session(db)
-        workspace_repo = WorkspaceRepository.from_session(db)
-        profile_repo = ProfileRepository.from_session(db)
+    # Created fresh per task invocation, scoped to THIS event loop only —
+    # see the comment on ProcessUpdateTask for why this can't be cached
+    # on the Task instance. Closed in finally regardless of how this
+    # function exits (success, terminal failure, or re-raise for retry).
+    redis = Redis.from_url(settings.redis_url)
 
-        # 1. Fetch records — bail early if update no longer exists
-        update = await update_repo.get_by_id(update_id)
-        if not update:
-            logger.warning(
-                "process_update_skipped",
-                update_id=update_id,
-                reason="not_found",
-            )
-            return
+    try:
+        async with async_session() as db:
+            update_repo = UpdateRepository.from_session(db)
+            workspace_repo = WorkspaceRepository.from_session(db)
+            profile_repo = ProfileRepository.from_session(db)
 
-        workspace = await workspace_repo.get_by_id(update.workspace_id)
-        profile = await profile_repo.get_by_user_id(update.user_id)
+            # 1. Fetch records — bail early if update no longer exists
+            update = await update_repo.get_by_id(update_id)
+            if not update:
+                logger.warning(
+                    "process_update_skipped",
+                    update_id=update_id,
+                    reason="not_found",
+                )
+                return
 
-        # 2. Set status → processing and notify connected clients
-        await update_repo.update_status(update, "processing")
-        await append_event(
-            task.redis,
-            "update.status_changed",
-            update.workspace_id,
-            {
-                "update_id": update_id,
-                "workspace_id": update.workspace_id,
-                "update_date": update.update_date,
-                "status": "processing",
-                "summary": None,
-            },
-        )
+            workspace = await workspace_repo.get_by_id(update.workspace_id)
+            profile = await profile_repo.get_by_user_id(update.user_id)
 
-        # 3. Build prompt — use Sonnet on retries, Haiku on first attempt
-        use_fallback = task.request.retries > 0
-        prompt = build_summarisation_prompt(
-            content=update.content,
-            author_name=profile.full_name if profile is not None else "the user",
-            update_date=update.update_date,
-            custom_prompt=workspace.summarisation_prompt if workspace else None,
-        )
-
-        try:
-            # 4. Call Claude
-            summary = await summarise(prompt, use_fallback=use_fallback)
-
-            # 5. Store summary and notify connected clients of success
-            await update_repo.update_status(update, "processed", summary=summary)
+            # 2. Set status → processing and notify connected clients
+            await update_repo.update_status(update, "processing")
             await append_event(
-                task.redis,
+                redis,
                 "update.status_changed",
                 update.workspace_id,
                 {
                     "update_id": update_id,
                     "workspace_id": update.workspace_id,
                     "update_date": update.update_date,
-                    "status": "processed",
-                    "summary": summary,
+                    "status": "processing",
+                    "summary": None,
                 },
             )
 
-            # 6. Post update notification to Slack (non-fatal)
-            if settings.slack_integration_enabled and workspace and workspace.slack_updates_enabled and workspace.slack_webhook_url_encrypted:
-                try:
-                    from app.services.slack_service import SlackService
-
-                    author_name = (profile.full_name if profile is not None else None) or "A team member"
-
-                    slack_service = SlackService(db)
-                    await slack_service.post_update_notification(
-                        workspace_id=update.workspace_id,
-                        author_name=author_name,
-                        workspace_name=workspace.name,
-                        update_date=update.update_date,
-                        content=update.content,
-                        summary=summary,
-                        mode=update.mode,
-                    )
-                except Exception as slack_exc:
-                    logger.warning(
-                        "slack_update_notification_failed",
-                        update_id=update_id,
-                        error=str(slack_exc),
-                    )
-
-            logger.info(
-                "process_update_complete",
-                update_id=update_id,
-                retries=task.request.retries,
+            # 3. Build prompt — use Sonnet on retries, Haiku on first attempt
+            use_fallback = task.request.retries > 0
+            prompt = build_summarisation_prompt(
+                content=update.content,
+                author_name=profile.full_name if profile is not None else "the user",
+                update_date=update.update_date,
+                custom_prompt=workspace.summarisation_prompt if workspace else None,
             )
 
-        except Exception as exc:
-            logger.warning(
-                "process_update_failed",
-                update_id=update_id,
-                attempt=task.request.retries + 1,
-                error=str(exc),
-            )
+            try:
+                # 4. Call Claude
+                summary = await summarise(prompt, use_fallback=use_fallback)
 
-            if task.request.retries >= task.max_retries:
-                # Terminal failure — all retries exhausted
-                await update_repo.update_status(update, "failed")
+                # 5. Store summary and notify connected clients of success
+                await update_repo.update_status(update, "processed", summary=summary)
                 await append_event(
-                    task.redis,
+                    redis,
                     "update.status_changed",
                     update.workspace_id,
                     {
                         "update_id": update_id,
                         "workspace_id": update.workspace_id,
                         "update_date": update.update_date,
-                        "status": "failed",
-                        "summary": None,
+                        "status": "processed",
+                        "summary": summary,
                     },
                 )
-                logger.error(
-                    "process_update_exhausted",
-                    update_id=update_id,
-                    max_retries=task.max_retries,
-                )
-                return
 
-            # Re-raise so Celery's autoretry_for picks it up
-            raise exc
+                # 6. Post update notification to Slack (non-fatal)
+                if settings.slack_integration_enabled and workspace and workspace.slack_updates_enabled and workspace.slack_webhook_url_encrypted:
+                    try:
+                        from app.services.slack_service import SlackService
+
+                        author_name = (profile.full_name if profile is not None else None) or "A team member"
+
+                        slack_service = SlackService(db)
+                        await slack_service.post_update_notification(
+                            workspace_id=update.workspace_id,
+                            author_name=author_name,
+                            workspace_name=workspace.name,
+                            update_date=update.update_date,
+                            content=update.content,
+                            summary=summary,
+                            mode=update.mode,
+                        )
+                    except Exception as slack_exc:
+                        logger.warning(
+                            "slack_update_notification_failed",
+                            update_id=update_id,
+                            error=str(slack_exc),
+                        )
+
+                logger.info(
+                    "process_update_complete",
+                    update_id=update_id,
+                    retries=task.request.retries,
+                )
+
+            except Exception as exc:
+                logger.warning(
+                    "process_update_failed",
+                    update_id=update_id,
+                    attempt=task.request.retries + 1,
+                    error=str(exc),
+                )
+
+                if task.request.retries >= task.max_retries:
+                    # Terminal failure — all retries exhausted
+                    await update_repo.update_status(update, "failed")
+                    await append_event(
+                        redis,
+                        "update.status_changed",
+                        update.workspace_id,
+                        {
+                            "update_id": update_id,
+                            "workspace_id": update.workspace_id,
+                            "update_date": update.update_date,
+                            "status": "failed",
+                            "summary": None,
+                        },
+                    )
+                    logger.error(
+                        "process_update_exhausted",
+                        update_id=update_id,
+                        max_retries=task.max_retries,
+                    )
+                    return
+
+                # Re-raise so Celery's autoretry_for picks it up
+                raise exc
+    finally:
+        await redis.aclose()
 
 
 async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -> None:
@@ -286,6 +286,7 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
 
     import aioboto3
     from pydub import AudioSegment
+    from redis.asyncio import Redis
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.lib.claude import summarise
@@ -298,99 +299,67 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
 
     async_session = async_sessionmaker(task.db_engine, expire_on_commit=False)
 
-    async with async_session() as db:
-        update_repo = UpdateRepository.from_session(db)
-        workspace_repo = WorkspaceRepository.from_session(db)
-        profile_repo = ProfileRepository.from_session(db)
+    # Same reasoning as _process_update_async — created fresh per task
+    # invocation, scoped to THIS event loop only, closed in finally.
+    redis = Redis.from_url(settings.redis_url)
 
-        # 1. Fetch records — bail early if update missing or has no audio
-        update = await update_repo.get_by_id(update_id)
-        if not update or not update.audio_key:
-            logger.warning(
-                "process_audio_skipped",
-                update_id=update_id,
-                reason="not_found_or_no_audio_key",
-            )
-            return
+    try:
+        async with async_session() as db:
+            update_repo = UpdateRepository.from_session(db)
+            workspace_repo = WorkspaceRepository.from_session(db)
+            profile_repo = ProfileRepository.from_session(db)
 
-        workspace = await workspace_repo.get_by_id(update.workspace_id)
-        profile = await profile_repo.get_by_user_id(update.user_id)
+            # 1. Fetch records — bail early if update missing or has no audio
+            update = await update_repo.get_by_id(update_id)
+            if not update or not update.audio_key:
+                logger.warning(
+                    "process_audio_skipped",
+                    update_id=update_id,
+                    reason="not_found_or_no_audio_key",
+                )
+                return
 
-        # 2. Set status → processing
-        await update_repo.update_status(update, "processing")
+            workspace = await workspace_repo.get_by_id(update.workspace_id)
+            profile = await profile_repo.get_by_user_id(update.user_id)
 
-        # 3. Download audio from R2 via aioboto3
-        session = aioboto3.Session()
-        audio_buffer = io.BytesIO()
-        async with session.client(
-            "s3",
-            endpoint_url=settings.r2_endpoint_url,
-            aws_access_key_id=(settings.r2_access_key_id.get_secret_value() if settings.r2_access_key_id else ""),
-            aws_secret_access_key=(settings.r2_secret_access_key.get_secret_value() if settings.r2_secret_access_key else ""),
-            region_name="auto",
-        ) as s3:
-            await s3.download_fileobj(settings.r2_bucket_name, update.audio_key, audio_buffer)
-        audio_buffer.seek(0)
+            # 2. Set status → processing
+            await update_repo.update_status(update, "processing")
 
-        # 4. Transcode to WAV/16kHz mono via pydub + ffmpeg
-        # Normalises format differences between Chrome (WebM/Opus) and Safari (MP4/AAC)
-        wav_path: str | None = None
-        try:
-            audio = AudioSegment.from_file(audio_buffer)
-            audio = audio.set_frame_rate(16000).set_channels(1)
+            # 3. Download audio from R2 via aioboto3
+            session = aioboto3.Session()
+            audio_buffer = io.BytesIO()
+            async with session.client(
+                "s3",
+                endpoint_url=settings.r2_endpoint_url,
+                aws_access_key_id=(settings.r2_access_key_id.get_secret_value() if settings.r2_access_key_id else ""),
+                aws_secret_access_key=(settings.r2_secret_access_key.get_secret_value() if settings.r2_secret_access_key else ""),
+                region_name="auto",
+            ) as s3:
+                await s3.download_fileobj(settings.r2_bucket_name, update.audio_key, audio_buffer)
+            audio_buffer.seek(0)
 
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                audio.export(tmp.name, format="wav")
-                wav_path = tmp.name
-        except Exception as e:
-            logger.error(
-                "audio_transcode_failed",
-                update_id=update_id,
-                error=str(e),
-            )
-            raise
+            # 4. Transcode to WAV/16kHz mono via pydub + ffmpeg
+            # Normalises format differences between Chrome (WebM/Opus) and Safari (MP4/AAC)
+            wav_path: str | None = None
+            try:
+                audio = AudioSegment.from_file(audio_buffer)
+                audio = audio.set_frame_rate(16000).set_channels(1)
 
-        # 5. Publish transcription started
-        await append_event(
-            task.redis,
-            "audio.transcription_started",
-            update.workspace_id,
-            {
-                "update_id": update_id,
-                "workspace_id": update.workspace_id,
-                "update_date": update.update_date,
-            },
-        )
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                    audio.export(tmp.name, format="wav")
+                    wav_path = tmp.name
+            except Exception as e:
+                logger.error(
+                    "audio_transcode_failed",
+                    update_id=update_id,
+                    error=str(e),
+                )
+                raise
 
-        # 6. Transcribe with faster-whisper
-        try:
-            model = get_whisper_model()
-            segments, info = model.transcribe(
-                wav_path,
-                language=None,  # auto-detect language
-                beam_size=5,
-                vad_filter=True,  # skip silence segments
-                vad_parameters={"min_silence_duration_ms": 500},
-            )
-            transcript = " ".join(seg.text.strip() for seg in segments).strip()
-
-            logger.info(
-                "transcription_complete",
-                update_id=update_id,
-                duration=info.duration,
-                language=info.language,
-                language_probability=info.language_probability,
-                transcript_length=len(transcript),
-            )
-        except Exception as e:
-            logger.error(
-                "transcription_failed",
-                update_id=update_id,
-                error=str(e),
-            )
+            # 5. Publish transcription started
             await append_event(
-                task.redis,
-                "audio.transcription_failed",
+                redis,
+                "audio.transcription_started",
                 update.workspace_id,
                 {
                     "update_id": update_id,
@@ -398,114 +367,153 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
                     "update_date": update.update_date,
                 },
             )
-            raise
-        finally:
-            # Always clean up the temp WAV file
-            if wav_path:
-                try:  # Noqa: SIM105
-                    os.unlink(wav_path)  # Noqa: PTH108
-                except Exception:  # Noqa: S110
-                    pass
 
-        # 7. Store transcript, publish transcription complete
-        await update_repo.update_transcript(update, transcript)
-        await append_event(
-            task.redis,
-            "audio.transcription_complete",
-            update.workspace_id,
-            {
-                "update_id": update_id,
-                "workspace_id": update.workspace_id,
-                "update_date": update.update_date,
-                "transcript": transcript,
-            },
-        )
+            # 6. Transcribe with faster-whisper
+            try:
+                model = get_whisper_model()
+                segments, info = model.transcribe(
+                    wav_path,
+                    language=None,  # auto-detect language
+                    beam_size=5,
+                    vad_filter=True,  # skip silence segments
+                    vad_parameters={"min_silence_duration_ms": 500},
+                )
+                transcript = " ".join(seg.text.strip() for seg in segments).strip()
 
-        # 8. Summarise transcript with Claude (same pipeline as text updates)
-        use_fallback = task.request.retries > 0
-        prompt = build_summarisation_prompt(
-            content=transcript,
-            author_name=profile.full_name if profile else "the user",
-            update_date=update.update_date,
-            custom_prompt=workspace.summarisation_prompt if workspace else None,
-        )
-
-        try:
-            summary = await summarise(prompt, use_fallback=use_fallback)
-
-            # 9. Store summary, set status → processed
-            await update_repo.update_status(update, "processed", summary=summary)
-            await append_event(
-                task.redis,
-                "update.status_changed",
-                update.workspace_id,
-                {
-                    "update_id": update_id,
-                    "workspace_id": update.workspace_id,
-                    "update_date": update.update_date,
-                    "status": "processed",
-                    "summary": summary,
-                },
-            )
-
-            # 10. Post update notification to Slack (non-fatal)
-            if settings.slack_integration_enabled and workspace and workspace.slack_updates_enabled and workspace.slack_webhook_url_encrypted:
-                try:
-                    from app.services.slack_service import SlackService
-
-                    author_name = (profile.full_name if profile is not None else None) or "A team member"
-
-                    slack_service = SlackService(db)
-                    await slack_service.post_update_notification(
-                        workspace_id=update.workspace_id,
-                        author_name=author_name,
-                        workspace_name=workspace.name,
-                        update_date=update.update_date,
-                        content=update.content,
-                        summary=summary,
-                        mode=update.mode,
-                    )
-                except Exception as slack_exc:
-                    logger.warning(
-                        "slack_audio_update_notification_failed",
-                        update_id=update_id,
-                        error=str(slack_exc),
-                    )
-
-            logger.info(
-                "process_audio_update_complete",
-                update_id=update_id,
-                retries=task.request.retries,
-            )
-
-        except Exception as exc:
-            logger.warning(
-                "process_audio_update_failed",
-                update_id=update_id,
-                attempt=task.request.retries + 1,
-                error=str(exc),
-            )
-            if task.request.retries >= task.max_retries:
-                await update_repo.update_status(update, "failed")
+                logger.info(
+                    "transcription_complete",
+                    update_id=update_id,
+                    duration=info.duration,
+                    language=info.language,
+                    language_probability=info.language_probability,
+                    transcript_length=len(transcript),
+                )
+            except Exception as e:
+                logger.error(
+                    "transcription_failed",
+                    update_id=update_id,
+                    error=str(e),
+                )
                 await append_event(
-                    task.redis,
+                    redis,
+                    "audio.transcription_failed",
+                    update.workspace_id,
+                    {
+                        "update_id": update_id,
+                        "workspace_id": update.workspace_id,
+                        "update_date": update.update_date,
+                    },
+                )
+                raise
+            finally:
+                # Always clean up the temp WAV file
+                if wav_path:
+                    try:  # Noqa: SIM105
+                        os.unlink(wav_path)  # Noqa: PTH108
+                    except Exception:  # Noqa: S110
+                        pass
+
+            # 7. Store transcript, publish transcription complete
+            await update_repo.update_transcript(update, transcript)
+            await append_event(
+                redis,
+                "audio.transcription_complete",
+                update.workspace_id,
+                {
+                    "update_id": update_id,
+                    "workspace_id": update.workspace_id,
+                    "update_date": update.update_date,
+                    "transcript": transcript,
+                },
+            )
+
+            # 8. Summarise transcript with Claude (same pipeline as text updates)
+            use_fallback = task.request.retries > 0
+            prompt = build_summarisation_prompt(
+                content=transcript,
+                author_name=profile.full_name if profile else "the user",
+                update_date=update.update_date,
+                custom_prompt=workspace.summarisation_prompt if workspace else None,
+            )
+
+            try:
+                summary = await summarise(prompt, use_fallback=use_fallback)
+
+                # 9. Store summary, set status → processed
+                await update_repo.update_status(update, "processed", summary=summary)
+                await append_event(
+                    redis,
                     "update.status_changed",
                     update.workspace_id,
                     {
                         "update_id": update_id,
                         "workspace_id": update.workspace_id,
                         "update_date": update.update_date,
-                        "status": "failed",
-                        "summary": None,
+                        "status": "processed",
+                        "summary": summary,
                     },
                 )
-                logger.error(
-                    "process_audio_exhausted",
+
+                # 10. Post update notification to Slack (non-fatal)
+                if settings.slack_integration_enabled and workspace and workspace.slack_updates_enabled and workspace.slack_webhook_url_encrypted:
+                    try:
+                        from app.services.slack_service import SlackService
+
+                        author_name = (profile.full_name if profile is not None else None) or "A team member"
+
+                        slack_service = SlackService(db)
+                        await slack_service.post_update_notification(
+                            workspace_id=update.workspace_id,
+                            author_name=author_name,
+                            workspace_name=workspace.name,
+                            update_date=update.update_date,
+                            content=update.content,
+                            summary=summary,
+                            mode=update.mode,
+                        )
+                    except Exception as slack_exc:
+                        logger.warning(
+                            "slack_audio_update_notification_failed",
+                            update_id=update_id,
+                            error=str(slack_exc),
+                        )
+
+                logger.info(
+                    "process_audio_update_complete",
                     update_id=update_id,
-                    max_retries=task.max_retries,
+                    retries=task.request.retries,
                 )
-                return
-            raise exc
+
+            except Exception as exc:
+                logger.warning(
+                    "process_audio_update_failed",
+                    update_id=update_id,
+                    attempt=task.request.retries + 1,
+                    error=str(exc),
+                )
+                if task.request.retries >= task.max_retries:
+                    await update_repo.update_status(update, "failed")
+                    await append_event(
+                        redis,
+                        "update.status_changed",
+                        update.workspace_id,
+                        {
+                            "update_id": update_id,
+                            "workspace_id": update.workspace_id,
+                            "update_date": update.update_date,
+                            "status": "failed",
+                            "summary": None,
+                        },
+                    )
+                    logger.error(
+                        "process_audio_exhausted",
+                        update_id=update_id,
+                        max_retries=task.max_retries,
+                    )
+                    return
+                raise exc
+    finally:
+        await redis.aclose()
 
 
 @worker_ready.connect  # type: ignore[misc]
@@ -669,6 +677,7 @@ async def _send_workspace_digest_async(
 
     from app.lib.claude import summarise
     from app.lib.email import render_digest_email, send_digest_email
+    from app.lib.unsubscribe import generate_unsubscribe_token
     from app.repositories.digest_repo import DigestRepository
     from app.repositories.update_repo import UpdateRepository
     from app.repositories.workspace_repo import WorkspaceRepository
@@ -776,15 +785,10 @@ async def _send_workspace_digest_async(
             update_count=len(updates),
         )
 
-        # 9. Fetch recipients — members with email_notifications=True + email set
+        # 9. Fetch recipients — members with per-workspace email_notifications=True
         rows = await workspace_repo.get_workspace_members_with_profiles(workspace_id)
-        to_emails = [
-            profile.email
-            for _, profile in rows
-            if profile
-            and profile.email_notifications  # on Profile, not WorkspaceMember
-            and profile.email
-        ]
+        recipients = [(member, profile) for member, profile in rows if profile and member.email_notifications and profile.email]
+        to_emails = [profile.email for _, profile in recipients]
 
         if not to_emails:
             logger.warning(
@@ -801,7 +805,8 @@ async def _send_workspace_digest_async(
             await db.commit()
             return
 
-        # 10. Render email HTML
+        # 10. Build the shared items_for_template once — identical across
+        # every recipient, only the unsubscribe link differs per-person.
         items_for_template = [
             {
                 "author_name": item["author_name"],
@@ -809,23 +814,42 @@ async def _send_workspace_digest_async(
             }
             for item in items_payload
         ]
-        html = render_digest_email(
-            workspace_name=workspace.name,
-            digest_date=digest_date,
-            team_summary=team_summary,
-            items=items_for_template,
-            unsubscribe_url="",  # post-M6 feature
-        )
 
-        # 11. Send + finalize status
-        sent = await send_digest_email(
-            to_emails=to_emails,
-            workspace_name=workspace.name,
-            digest_date=digest_date,
-            html=html,
-        )
+        # 11. Render + send per-recipient — each email needs its own
+        # unsubscribe link, so batched sending (previously up to 50
+        # recipients/call) is no longer possible. See Known Tradeoff #3.
 
+        sent_count = 0
+        for member, profile in recipients:
+            assert profile.email is not None
+
+            token = generate_unsubscribe_token(workspace_id, member.user_id)
+            unsubscribe_url = f"{settings.app_base_url}/api/v1/digests/unsubscribe/{token}"
+
+            html = render_digest_email(
+                workspace_name=workspace.name,
+                digest_date=digest_date,
+                team_summary=team_summary,
+                items=items_for_template,
+                unsubscribe_url=unsubscribe_url,
+            )
+            ok = await send_digest_email(
+                to_emails=[profile.email],
+                workspace_name=workspace.name,
+                digest_date=digest_date,
+                html=html,
+            )
+            if ok:
+                sent_count += 1
+
+        sent = sent_count > 0
         final_status = "sent" if sent else "failed"
+
+        # 12. Persist the final outcome — must happen regardless of
+        # whether Slack posting is configured or succeeds; the Slack
+        # branch below may update the record a second time (adding
+        # delivered_to_slack=True) but must never be the only place
+        # final_status gets written.
         await digest_repo.update_status(
             digest.id,
             status=final_status,
@@ -833,7 +857,7 @@ async def _send_workspace_digest_async(
         )
         await db.commit()
 
-        # 12. Post digest to Slack after email delivery (non-fatal)
+        # 13. Post digest to Slack after email delivery (non-fatal)
         if final_status == "sent" and settings.slack_integration_enabled and workspace.slack_digest_enabled and workspace.slack_webhook_url_encrypted:
             try:
                 from app.services.slack_service import SlackService

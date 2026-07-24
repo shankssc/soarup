@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import { Mic, Square, ArrowRight, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
 import { useRequestUploadUrl, uploadAudioBlob } from '@/hooks/useAudio';
@@ -9,12 +10,7 @@ import { useRequestUploadUrl, uploadAudioBlob } from '@/hooks/useAudio';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type RecorderState =
-  | 'idle'
-  | 'requesting_permission'
-  | 'recording'
-  | 'preview'
-  | 'uploading'
-  | 'error';
+  'idle' | 'requesting_permission' | 'recording' | 'preview' | 'uploading' | 'error';
 
 interface VoiceRecorderProps {
   workspaceId: string;
@@ -210,13 +206,7 @@ export function VoiceRecorder({
             aria-label="Start recording"
             data-testid="record-btn"
           >
-            <span
-              className="material-symbols-outlined text-[36px]"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-              aria-hidden="true"
-            >
-              mic
-            </span>
+            <Mic className="h-9 w-9" fill="currentColor" aria-hidden="true" />
           </button>
           <span className="font-label text-[10px] uppercase tracking-[0.15em] text-on-surface-variant">
             Tap to record
@@ -258,13 +248,7 @@ export function VoiceRecorder({
               aria-label="Stop recording"
               data-testid="stop-btn"
             >
-              <span
-                className="material-symbols-outlined text-[28px]"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-                aria-hidden="true"
-              >
-                stop
-              </span>
+              <Square className="h-7 w-7" fill="currentColor" aria-hidden="true" />
             </button>
           </div>
 
@@ -320,12 +304,7 @@ export function VoiceRecorder({
               data-testid="submit-voice-btn"
             >
               Submit update
-              <span
-                className="material-symbols-outlined text-[18px]"
-                aria-hidden="true"
-              >
-                arrow_forward
-              </span>
+              <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
             </Button>
             <Button variant="secondary" onClick={reRecord} data-testid="rerecord-btn">
               Re-record
@@ -364,12 +343,7 @@ export function VoiceRecorder({
       {/* ── ERROR ── */}
       {recorderState === 'error' && (
         <div className="flex flex-col items-center gap-4 py-4">
-          <span
-            className="material-symbols-outlined text-[36px] text-error"
-            aria-hidden="true"
-          >
-            mic_off
-          </span>
+          <MicOff className="h-9 w-9 text-error" aria-hidden="true" />
           <p className="text-center font-label text-[10px] uppercase tracking-[0.08em] text-error">
             {error}
           </p>

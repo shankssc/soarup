@@ -54,6 +54,12 @@ export interface UpdateDigestSettingsPayload {
   digest_days?: string;
 }
 
+// add to the existing type exports
+
+export interface MyDigestPreferenceResponse {
+  email_notifications: boolean;
+}
+
 // ─── Query keys ───────────────────────────────────────────────────────────────
 
 export const digestKeys = {
@@ -62,6 +68,8 @@ export const digestKeys = {
   detail: (workspaceId: string, digestId: string) =>
     ['digests', workspaceId, digestId] as const,
   settings: (workspaceId: string) => ['digests', workspaceId, 'settings'] as const,
+  myPreference: (workspaceId: string) =>
+    ['digests', workspaceId, 'my-preference'] as const,
 };
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -154,5 +162,48 @@ export function useDigestPreview(workspaceId: string) {
         {},
         tokens?.access_token,
       ),
+  });
+}
+
+/**
+ * The authenticated member's own digest notification preference for this
+ * workspace — distinct from useUpdateDigestSettings, which changes
+ * workspace-wide config and requires admin. Any member can read their own
+ * preference.
+ */
+export function useMyDigestPreference(workspaceId: string | undefined) {
+  const { tokens } = useAuth();
+
+  return useQuery({
+    queryKey: digestKeys.myPreference(workspaceId ?? ''),
+    queryFn: () =>
+      apiClient.get<MyDigestPreferenceResponse>(
+        `/workspaces/${workspaceId}/digest-settings/me`,
+        tokens?.access_token,
+      ),
+    enabled: !!workspaceId && !!tokens?.access_token,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Update the authenticated member's own digest notification preference —
+ * the in-app counterpart to the one-way email unsubscribe link. Any
+ * member can change their own preference; no admin gate.
+ */
+export function useUpdateMyDigestPreference(workspaceId: string) {
+  const { tokens } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (email_notifications: boolean) =>
+      apiClient.patch<MyDigestPreferenceResponse>(
+        `/workspaces/${workspaceId}/digest-settings/me`,
+        { email_notifications },
+        tokens?.access_token,
+      ),
+    onSuccess: (data) => {
+      queryClient.setQueryData(digestKeys.myPreference(workspaceId), data);
+    },
   });
 }

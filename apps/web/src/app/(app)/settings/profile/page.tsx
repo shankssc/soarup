@@ -4,6 +4,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import { CheckCircle2, Loader2, XCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useUpdateProfile,
@@ -56,6 +57,20 @@ export default function ProfileSettingsPage() {
     .join('')
     .toUpperCase();
 
+  const usernameChangedFromSaved = usernameInput !== (user?.username ?? '');
+
+  // Username availability could not be confirmed — either the check is
+  // still pending confirmation or the request itself failed. In both
+  // cases we don't actually know if the desired username is free, so
+  // saving is blocked rather than silently allowing a save that could
+  // 409 on the backend, or worse, silently telling the user "taken"
+  // when the truth is "we couldn't check."
+  const usernameCheckErrored =
+    usernameDirty &&
+    usernameChangedFromSaved &&
+    usernameInput.length >= 3 &&
+    availabilityQuery.isError;
+
   // Username is usable if it's the saved one or a newly available one
   const hasUsername = !!(
     user?.username ||
@@ -83,29 +98,42 @@ export default function ProfileSettingsPage() {
     if (usernameInput === user?.username) {
       return (
         <span className="flex items-center gap-1 font-label text-[10px] text-emerald-400">
-          <span className="material-symbols-outlined text-[12px]">check_circle</span>
+          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
           Your current username
         </span>
       );
     }
     if (availabilityQuery.isLoading) {
       return (
-        <span className="material-symbols-outlined animate-spin text-[14px] text-outline">
-          progress_activity
+        <Loader2
+          className="h-[14px] w-[14px] animate-spin text-outline"
+          aria-hidden="true"
+        />
+      );
+    }
+    // Explicit error branch — previously this fell through to the
+    // "Already taken" return below, which told the user their username
+    // was unavailable when the actual problem was a failed request.
+    // That's not just unhelpful, it's actively wrong information.
+    if (availabilityQuery.isError) {
+      return (
+        <span className="flex items-center gap-1 font-label text-[10px] text-amber-400">
+          <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+          Couldn&apos;t check availability
         </span>
       );
     }
     if (availabilityQuery.data?.available) {
       return (
         <span className="flex items-center gap-1 font-label text-[10px] text-emerald-400">
-          <span className="material-symbols-outlined text-[12px]">check_circle</span>
+          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
           Available
         </span>
       );
     }
     return (
       <span className="flex items-center gap-1 font-label text-[10px] text-error">
-        <span className="material-symbols-outlined text-[12px]">cancel</span>
+        <XCircle className="h-3 w-3" aria-hidden="true" />
         Already taken
       </span>
     );
@@ -136,6 +164,12 @@ export default function ProfileSettingsPage() {
         <p className="mt-1 font-label text-[10px] text-outline">
           soarup.app/u/{usernameInput || 'your-username'}
         </p>
+        {usernameCheckErrored && (
+          <p className="mt-1 font-label text-[10px] text-amber-400">
+            We couldn&apos;t confirm this username is available. Saving is disabled
+            until the check succeeds — try editing the field again to retry.
+          </p>
+        )}
       </div>
 
       {/* Bio */}
@@ -308,12 +342,12 @@ export default function ProfileSettingsPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={handleSave}
-          disabled={!isDirty || updateProfile.isPending}
+          disabled={!isDirty || updateProfile.isPending || usernameCheckErrored}
           className="asymmetric-btn bg-primary px-6 py-2.5 font-label text-[12px] font-medium uppercase tracking-[0.06em] text-primary-on transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {updateProfile.isPending ? 'Saving…' : 'Save changes'}
         </button>
-        {isDirty && (
+        {isDirty && !usernameCheckErrored && (
           <span className="h-2 w-2 rounded-full bg-amber-400" title="Unsaved changes" />
         )}
       </div>

@@ -5,6 +5,7 @@
 'use client';
 
 import * as React from 'react';
+import { X } from 'lucide-react';
 
 interface ToastProps {
   message: string;
@@ -31,7 +32,7 @@ export function Toast({ message, onDismiss, duration = 6000 }: ToastProps) {
         className="flex-shrink-0 text-outline transition-colors hover:text-on-surface"
         aria-label="Dismiss"
       >
-        <span className="material-symbols-outlined text-[16px]">close</span>
+        <X className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
       </button>
     </div>
   );

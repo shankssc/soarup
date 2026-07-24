@@ -12,13 +12,13 @@
 # These tests are additive — they do not replace test_update_service.py.
 # The existing tests cover submit/edit/delete; this file covers the batch path.
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.services.update_service import UpdateService
 
-TODAY = "2026-05-14"
+TODAY = date.today().isoformat()
 WORKSPACE_ID = "workspace-123"
 USER_ID = "user-abc"
 OTHER_USER_ID = "user-def"

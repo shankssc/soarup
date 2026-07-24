@@ -4,6 +4,17 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  ScrollText,
+  Settings,
+  User,
+  Users,
+  Mail,
+  Tag,
+  Building2,
+  LogOut,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocketStore } from '@/stores/websocket-store';
 import { Button } from '@/components/ui/button';
@@ -16,35 +27,38 @@ interface SidebarProps {
 }
 
 const NAV_LINKS = [
-  { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-  { href: '/history', label: 'History', icon: 'summarize' },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/history', label: 'History', icon: ScrollText },
   {
     href: '/settings/members',
     label: 'Settings',
-    icon: 'settings',
+    icon: Settings,
     activePrefix: '/settings',
   },
 ];
 
 const SETTINGS_LINKS = [
-  { href: '/settings/profile', label: 'Profile', icon: 'person' },
-  { href: '/settings/members', label: 'Members', icon: 'group' },
-  { href: '/settings/digest', label: 'Digest', icon: 'mail' },
-  { href: '/settings/slack', label: 'Slack', icon: 'label' },
-  { href: '/settings/workspace', label: 'Workspace', icon: 'business' },
+  { href: '/settings/profile', label: 'Profile', icon: User },
+  { href: '/settings/members', label: 'Members', icon: Users },
+  { href: '/settings/digest', label: 'Digest', icon: Mail },
+  { href: '/settings/slack', label: 'Slack', icon: Tag },
+  { href: '/settings/workspace', label: 'Workspace', icon: Building2 },
 ];
 
-function NavIcon({ icon, filled }: { icon: string; filled?: boolean }) {
+function NavIcon({
+  icon: Icon,
+  filled,
+}: {
+  icon: React.ElementType;
+  filled?: boolean;
+}) {
   return (
-    <span
-      className={cn('material-symbols-outlined text-[18px]', filled && 'filled')}
-      style={{
-        fontVariationSettings: filled ? "'FILL' 1, 'wght' 400" : "'FILL' 0, 'wght' 300",
-      }}
+    <Icon
+      className="h-[18px] w-[18px]"
+      strokeWidth={filled ? 2.5 : 1.75}
+      fill={filled ? 'currentColor' : 'none'}
       aria-hidden="true"
-    >
-      {icon}
-    </span>
+    />
   );
 }
 
@@ -266,13 +280,11 @@ export function Sidebar({ workspace, workspaceLoading }: SidebarProps) {
               aria-label="Sign out"
               className="shrink-0 text-on-surface-variant hover:text-error"
             >
-              <span
-                className="material-symbols-outlined text-[18px]"
-                style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
+              <LogOut
+                className="h-[18px] w-[18px]"
+                strokeWidth={1.75}
                 aria-hidden="true"
-              >
-                logout
-              </span>
+              />
             </Button>
           </div>
         </div>

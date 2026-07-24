@@ -1,15 +1,22 @@
 // apps/web/src/app/(app)/settings/digest/page.tsx
 // Thin data wrapper — wires useWorkspace + useUpdateDigestSettings +
-// useDigestPreview into DigestSettingsPanel.
+// useDigestPreview + useMyDigestPreference into DigestSettingsPanel.
 
 'use client';
 
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useUpdateDigestSettings, useDigestPreview } from '@/hooks/useDigests';
+import { Loader2 } from 'lucide-react';
+import {
+  useUpdateDigestSettings,
+  useDigestPreview,
+  useMyDigestPreference,
+  useUpdateMyDigestPreference,
+} from '@/hooks/useDigests';
 import { useWorkspace, workspaceKeys } from '@/hooks/useWorkspace';
 import {
   DigestSettingsPanel,
+  MyNotificationToggle,
   type DigestSettingsValues,
 } from '@/components/domain/digests/digest-settings-panel';
 
@@ -21,7 +28,9 @@ export default function DigestSettingsPage() {
   const digestPreview = useDigestPreview(workspaceId);
   const queryClient = useQueryClient();
 
-  // Local form state — initialised from workspace once loaded
+  const myPreference = useMyDigestPreference(workspaceId || undefined);
+  const updateMyPreference = useUpdateMyDigestPreference(workspaceId);
+
   const [values, setValues] = React.useState<DigestSettingsValues>({
     digest_enabled: false,
     digest_send_time: '09:00',
@@ -31,7 +40,6 @@ export default function DigestSettingsPage() {
   const [isDirty, setIsDirty] = React.useState(false);
   const [previewHtml, setPreviewHtml] = React.useState<string | null>(null);
 
-  // Sync form state from workspace once it loads
   React.useEffect(() => {
     if (!workspace) return;
     setValues({
@@ -42,7 +50,7 @@ export default function DigestSettingsPage() {
     });
     setIsDirty(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspace?.id]); // only re-sync on workspace change, not on every render
+  }, [workspace?.id]);
 
   React.useEffect(() => {
     function handleVisibilityChange() {
@@ -76,42 +84,48 @@ export default function DigestSettingsPage() {
     setPreviewHtml(result.html);
   }
 
+  function handleToggleMyNotifications(enabled: boolean) {
+    updateMyPreference.mutate(enabled);
+  }
+
   if (!workspace) {
     return (
       <div className="flex justify-center py-16">
-        <span
-          className="material-symbols-outlined animate-spin text-[32px] text-primary"
-          style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
+        <Loader2
+          className="h-8 w-8 animate-spin text-primary"
+          strokeWidth={1.75}
           aria-hidden="true"
-        >
-          progress_activity
-        </span>
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Page header */}
-      <div className="border-b border-outline-variant pb-3">
-        <h2 className="font-label text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
-          Settings — Digest
-        </h2>
-      </div>
+    <div className="max-w-lg px-6 py-10">
+      <h1 className="mb-8 font-serif text-3xl text-on-surface">Digest</h1>
 
-      <DigestSettingsPanel
-        values={values}
-        isSaving={updateSettings.isPending}
-        isDirty={isDirty}
-        previewHtml={previewHtml}
-        isLoadingPreview={digestPreview.isPending}
-        onToggleEnabled={(enabled) => update({ digest_enabled: enabled })}
-        onSendTimeChange={(time) => update({ digest_send_time: time })}
-        onTimezoneChange={(tz) => update({ digest_timezone: tz || null })}
-        onDaysChange={(days) => update({ digest_days: days })}
-        onSave={handleSave}
-        onPreview={handlePreview}
-      />
+      <div className="flex flex-col gap-8">
+        <MyNotificationToggle
+          emailNotifications={myPreference.data?.email_notifications}
+          isLoading={myPreference.isLoading}
+          isSaving={updateMyPreference.isPending}
+          onToggle={handleToggleMyNotifications}
+        />
+
+        <DigestSettingsPanel
+          values={values}
+          isSaving={updateSettings.isPending}
+          isDirty={isDirty}
+          previewHtml={previewHtml}
+          isLoadingPreview={digestPreview.isPending}
+          onToggleEnabled={(enabled) => update({ digest_enabled: enabled })}
+          onSendTimeChange={(time) => update({ digest_send_time: time })}
+          onTimezoneChange={(tz) => update({ digest_timezone: tz || null })}
+          onDaysChange={(days) => update({ digest_days: days })}
+          onSave={handleSave}
+          onPreview={handlePreview}
+        />
+      </div>
     </div>
   );
 }

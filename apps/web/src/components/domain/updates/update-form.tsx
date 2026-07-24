@@ -105,7 +105,7 @@ export function UpdateForm({ onSubmit, onCancel, isSubmitting }: UpdateFormProps
         </span>
 
         {/* Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-testid="update-form-cancel">
           <Button variant="ghost" size="sm" onClick={onCancel} disabled={isSubmitting}>
             Cancel
           </Button>
