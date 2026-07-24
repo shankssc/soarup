@@ -14,6 +14,7 @@
 // block this page from rendering.
 
 import * as React from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -30,12 +31,16 @@ function PageShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function UnsubscribeSuccessPage() {
+// useSearchParams() requires a Suspense boundary during static prerendering —
+// Next.js can't know the query string at build time, so this inner component
+// is deferred behind Suspense while the static shell around it still
+// prerenders normally.
+function UnsubscribeSuccessContent() {
   const searchParams = useSearchParams();
   const workspaceId = searchParams.get('workspace');
 
   return (
-    <PageShell>
+    <>
       <CheckCircle2 className="mb-4 h-10 w-10 text-primary" aria-hidden="true" />
       <h1 className="mb-3 font-headline text-3xl italic text-on-surface">
         You&apos;re unsubscribed
@@ -72,6 +77,16 @@ export default function UnsubscribeSuccessPage() {
       >
         Go to SoarUp
       </a>
+    </>
+  );
+}
+
+export default function UnsubscribeSuccessPage() {
+  return (
+    <PageShell>
+      <Suspense fallback={null}>
+        <UnsubscribeSuccessContent />
+      </Suspense>
     </PageShell>
   );
 }
