@@ -21,6 +21,7 @@
 //     - Not found: show not found state
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -139,12 +140,12 @@ export default function InvitePage() {
         <p className="mb-8 font-body text-[15px] text-on-surface-variant">
           This invite link is invalid or has been removed.
         </p>
-        <a
+        <Link
           href="/"
           className="font-label text-[13px] text-primary underline-offset-2 hover:underline"
         >
           Go to homepage
-        </a>
+        </Link>
       </PageShell>
     );
   }
@@ -159,12 +160,12 @@ export default function InvitePage() {
           This invite link has expired or has already been used. Ask an admin to send
           you a new one.
         </p>
-        <a
+        <Link
           href="/"
           className="font-label text-[13px] text-primary underline-offset-2 hover:underline"
         >
           Go to homepage
-        </a>
+        </Link>
       </PageShell>
     );
   }

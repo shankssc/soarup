@@ -6,7 +6,7 @@ import reactPlugin from 'eslint-plugin-react';
 import storybookPlugin from 'eslint-plugin-storybook';
 import prettierConfig from 'eslint-config-prettier/flat';
 
-export default [
+const config = [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...nextVitals,
@@ -32,3 +32,5 @@ export default [
     },
   },
 ];
+
+export default config;

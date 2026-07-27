@@ -2,7 +2,7 @@
 
 // apps/web/src/app/(app)/settings/profile/page.tsx
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import Image from 'next/image';
 import { CheckCircle2, Loader2, XCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +13,64 @@ import {
 } from '@/hooks/useProfileSettings';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useUsernameAvailability } from '@/hooks/usePublicProfile';
+
+interface UsernameIndicatorProps {
+  usernameDirty: boolean;
+  usernameInput: string;
+  currentUsername: string | null | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  isAvailable: boolean | undefined;
+}
+
+function UsernameIndicator({
+  usernameDirty,
+  usernameInput,
+  currentUsername,
+  isLoading,
+  isError,
+  isAvailable,
+}: UsernameIndicatorProps) {
+  if (!usernameDirty || usernameInput.length < 3) return null;
+  if (usernameInput === currentUsername) {
+    return (
+      <span className="flex items-center gap-1 font-label text-[10px] text-emerald-400">
+        <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+        Your current username
+      </span>
+    );
+  }
+  if (isLoading) {
+    return (
+      <Loader2
+        className="h-[14px] w-[14px] animate-spin text-outline"
+        aria-hidden="true"
+      />
+    );
+  }
+  if (isError) {
+    return (
+      <span className="flex items-center gap-1 font-label text-[10px] text-amber-400">
+        <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+        Couldn&apos;t check availability
+      </span>
+    );
+  }
+  if (isAvailable) {
+    return (
+      <span className="flex items-center gap-1 font-label text-[10px] text-emerald-400">
+        <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+        Available
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1 font-label text-[10px] text-error">
+      <XCircle className="h-3 w-3" aria-hidden="true" />
+      Already taken
+    </span>
+  );
+}
 
 export default function ProfileSettingsPage() {
   const { user } = useAuth();
@@ -28,7 +86,6 @@ export default function ProfileSettingsPage() {
   const [bio, setBio] = useState(user?.bio ?? '');
   const [tagline, setTagline] = useState(user?.tagline ?? '');
 
-  const [isDirty, setIsDirty] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const debouncedUsername = useDebounce(usernameInput, 500);
@@ -39,16 +96,12 @@ export default function ProfileSettingsPage() {
     usernameDirty && debouncedUsername.length >= 3,
   );
 
-  useEffect(() => {
-    const nameChanged = displayName !== (user?.full_name ?? '');
-    const tzChanged = timezone !== (user?.timezone ?? 'UTC');
-    const usernameChanged = usernameInput !== (user?.username ?? '');
-    const bioChanged = bio !== (user?.bio ?? '');
-    const taglineChanged = tagline !== (user?.tagline ?? '');
-    setIsDirty(
-      nameChanged || tzChanged || usernameChanged || bioChanged || taglineChanged,
-    );
-  }, [displayName, timezone, usernameInput, bio, tagline, user]);
+  const isDirty =
+    displayName !== (user?.full_name ?? '') ||
+    timezone !== (user?.timezone ?? 'UTC') ||
+    usernameInput !== (user?.username ?? '') ||
+    bio !== (user?.bio ?? '') ||
+    tagline !== (user?.tagline ?? '');
 
   const initials = (user?.full_name ?? user?.email ?? '?')
     .split(' ')
@@ -85,58 +138,11 @@ export default function ProfileSettingsPage() {
       bio: bio || undefined,
       tagline: tagline || undefined,
     });
-    setIsDirty(false);
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) uploadAvatar.mutate(file);
-  }
-
-  function UsernameIndicator() {
-    if (!usernameDirty || usernameInput.length < 3) return null;
-    if (usernameInput === user?.username) {
-      return (
-        <span className="flex items-center gap-1 font-label text-[10px] text-emerald-400">
-          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-          Your current username
-        </span>
-      );
-    }
-    if (availabilityQuery.isLoading) {
-      return (
-        <Loader2
-          className="h-[14px] w-[14px] animate-spin text-outline"
-          aria-hidden="true"
-        />
-      );
-    }
-    // Explicit error branch — previously this fell through to the
-    // "Already taken" return below, which told the user their username
-    // was unavailable when the actual problem was a failed request.
-    // That's not just unhelpful, it's actively wrong information.
-    if (availabilityQuery.isError) {
-      return (
-        <span className="flex items-center gap-1 font-label text-[10px] text-amber-400">
-          <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-          Couldn&apos;t check availability
-        </span>
-      );
-    }
-    if (availabilityQuery.data?.available) {
-      return (
-        <span className="flex items-center gap-1 font-label text-[10px] text-emerald-400">
-          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-          Available
-        </span>
-      );
-    }
-    return (
-      <span className="flex items-center gap-1 font-label text-[10px] text-error">
-        <XCircle className="h-3 w-3" aria-hidden="true" />
-        Already taken
-      </span>
-    );
   }
 
   return (
@@ -159,7 +165,14 @@ export default function ProfileSettingsPage() {
             placeholder="your-username"
             className="flex-1 border-b border-outline-variant bg-transparent py-2 text-sm text-on-surface transition-colors focus:border-primary focus:outline-none"
           />
-          <UsernameIndicator />
+          <UsernameIndicator
+            usernameDirty={usernameDirty}
+            usernameInput={usernameInput}
+            currentUsername={user?.username}
+            isLoading={availabilityQuery.isLoading}
+            isError={availabilityQuery.isError}
+            isAvailable={availabilityQuery.data?.available}
+          />
         </div>
         <p className="mt-1 font-label text-[10px] text-outline">
           soarup.app/u/{usernameInput || 'your-username'}

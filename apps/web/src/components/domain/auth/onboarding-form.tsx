@@ -403,16 +403,18 @@ function StepTwo({ onComplete, accessToken, pendingInviteCode }: StepTwoProps) {
   const [workspaceName, setWorkspaceName] = React.useState('');
   const [slug, setSlug] = React.useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = React.useState(false);
+  const [prevWorkspaceName, setPrevWorkspaceName] = React.useState(workspaceName);
   // Pre-fill invite code from localStorage if present
   const [inviteCode, setInviteCode] = React.useState(pendingInviteCode ?? '');
   const [errors, setErrors] = React.useState<StepTwoErrors>({});
   const [isLoading, setIsLoading] = React.useState(false);
 
-  React.useEffect(() => {
+  if (workspaceName !== prevWorkspaceName) {
+    setPrevWorkspaceName(workspaceName);
     if (!slugManuallyEdited) {
       setSlug(toSlug(workspaceName));
     }
-  }, [workspaceName, slugManuallyEdited]);
+  }
 
   function handleSlugChange(value: string) {
     const sanitized = value
@@ -613,12 +615,9 @@ export function OnboardingForm() {
   const [step1Error, setStep1Error] = React.useState<string | null>(null);
 
   // Read pending invite code from localStorage on mount
-  const [pendingInviteCode, setPendingInviteCode] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    const stored = localStorage.getItem(PENDING_INVITE_KEY);
-    if (stored) setPendingInviteCode(stored);
-  }, []);
+  const [pendingInviteCode] = React.useState<string | null>(() =>
+    typeof window === 'undefined' ? null : localStorage.getItem(PENDING_INVITE_KEY),
+  );
 
   const accessToken = tokens?.access_token ?? '';
   const initialDisplayName = user?.full_name ?? '';

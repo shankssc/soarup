@@ -3,6 +3,7 @@
 
 import * as React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { Heatmap } from '@/components/ui/heatmap';
 import { Toast } from '@/components/ui/toast';
@@ -13,13 +14,10 @@ interface Props {
 
 export function PublicProfileClient({ username }: Props) {
   const { data: profile, isLoading, isError } = usePublicProfile(username);
-  const [showEmptyToast, setShowEmptyToast] = React.useState(false);
+  const [dismissed, setDismissed] = React.useState(false);
 
-  React.useEffect(() => {
-    if (profile && profile.streak.total_submissions === 0) {
-      setShowEmptyToast(true);
-    }
-  }, [profile]);
+  const showEmptyToast =
+    !dismissed && !!profile && profile.streak.total_submissions === 0;
 
   if (isLoading) {
     return <PublicProfileSkeleton />;
@@ -33,9 +31,9 @@ export function PublicProfileClient({ username }: Props) {
           <p className="font-body text-sm text-on-surface-variant">
             This profile doesn`t exist or hasn`t been made public yet.
           </p>
-          <a href="/" className="font-label text-xs text-primary hover:underline">
+          <Link href="/" className="font-label text-xs text-primary hover:underline">
             Go to SoarUp →
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -85,12 +83,12 @@ export function PublicProfileClient({ username }: Props) {
 
           {/* Built with SoarUp badge — own line on mobile (flex-col parent),
               pushed to the right of the row on sm+ (flex-row parent). */}
-          <a
+          <Link
             href="/"
             className="flex-shrink-0 self-start font-label text-[10px] uppercase tracking-[0.15em] text-outline transition-colors hover:text-primary sm:ml-auto"
           >
             Built with SoarUp
-          </a>
+          </Link>
         </div>
 
         {/* Stats row */}
@@ -154,7 +152,7 @@ export function PublicProfileClient({ username }: Props) {
       {showEmptyToast && (
         <Toast
           message="No activity yet — updates will appear here once submitted"
-          onDismiss={() => setShowEmptyToast(false)}
+          onDismiss={() => setDismissed(true)}
         />
       )}
     </div>

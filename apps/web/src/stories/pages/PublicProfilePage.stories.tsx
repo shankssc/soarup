@@ -5,6 +5,7 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 // ─── Decorators ───────────────────────────────────────────────────────────────
 
@@ -128,12 +129,12 @@ function PublicProfileView({
           )}
         </div>
 
-        <a
+        <Link
           href="/"
           className="flex-shrink-0 font-label text-[10px] uppercase tracking-[0.15em] text-outline transition-colors hover:text-primary"
         >
           Built with SoarUp
-        </a>
+        </Link>
       </div>
 
       {/* Stats row */}
@@ -197,9 +198,9 @@ function NotFoundView() {
         <p className="font-body text-sm text-on-surface-variant">
           This profile doesn`t exist or hasn`t been made public yet.
         </p>
-        <a href="/" className="font-label text-xs text-primary hover:underline">
+        <Link href="/" className="font-label text-xs text-primary hover:underline">
           Go to SoarUp →
-        </a>
+        </Link>
       </div>
     </div>
   );

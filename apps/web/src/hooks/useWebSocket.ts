@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { updateKeys } from '@/hooks/useUpdates';
 import { dispatch } from '@/lib/websocket/registry';
 import { useWebSocketStore } from '@/stores/websocket-store';
+import React from 'react';
 
 const WS_BASE = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8000/api/v1/ws';
 
@@ -77,6 +78,8 @@ export function useWebSocket({
   useEffect(() => {
     lastEventIdRef.current = lastEventId;
   }, [lastEventId]);
+
+  const connectRef = React.useRef<() => void>(() => {});
 
   const connect = useCallback(() => {
     if (!workspaceId || !accessToken || !enabled) return;
@@ -147,7 +150,7 @@ export function useWebSocket({
       incrementReconnectAttempts();
 
       reconnectTimeoutRef.current = setTimeout(() => {
-        connect();
+        connectRef.current();
       }, delay);
     };
 
@@ -159,6 +162,10 @@ export function useWebSocket({
     // above for why reconnectAttempts/lastEventId are deliberately excluded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, accessToken, enabled]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     connect();

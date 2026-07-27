@@ -36,8 +36,12 @@ export function ThemeProvider({ children, forcedTheme }: ThemeProviderProps) {
   const [theme, setThemeState] = React.useState<Theme>(forcedTheme ?? 'dark');
   const [mounted, setMounted] = React.useState(false);
 
-  // On mount: if forcedTheme is set, use it directly.
-  // Otherwise read localStorage, fall back to system preference.
+  // This effect intentionally sets state directly — it reads browser-only
+  // APIs (localStorage, matchMedia) that don't exist during SSR. This is
+  // the sanctioned "synchronize with an external system" use of an effect
+  // the lint rule's own docs describe, not a case where we could compute
+  // this during render instead.
+  /* eslint-disable react-hooks/set-state-in-effect */
   React.useEffect(() => {
     if (forcedTheme) {
       setThemeState(forcedTheme);
@@ -54,6 +58,7 @@ export function ThemeProvider({ children, forcedTheme }: ThemeProviderProps) {
     }
     setMounted(true);
   }, [forcedTheme]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Apply theme class to <html> whenever theme changes
   // When forcedTheme is active, still apply the class — the html element

@@ -14,6 +14,7 @@
 // block this page from rendering.
 
 import * as React from 'react';
+import Link from 'next/link';
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2 } from 'lucide-react';
@@ -71,12 +72,12 @@ function UnsubscribeSuccessContent() {
         part of are unaffected. You can turn digest emails back on anytime from that
         workspace&apos;s settings.
       </p>
-      <a
+      <Link
         href="/"
         className="font-label text-[13px] text-primary underline-offset-2 hover:underline"
       >
         Go to SoarUp
-      </a>
+      </Link>
     </>
   );
 }
