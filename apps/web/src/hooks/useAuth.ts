@@ -343,10 +343,10 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 export function useAuth() {
   const store = useAuthStore();
 
+  const now = Date.now(); // eslint-disable-line react-hooks/purity -- expiry check is inherently time-dependent; no meaningful pure equivalent, and state+interval adds real complexity for zero behavioral benefit
+
   const isAuthenticated =
-    store.user !== null &&
-    store.tokens !== null &&
-    store.tokens.expires_at > Date.now();
+    store.user !== null && store.tokens !== null && store.tokens.expires_at > now;
 
   const needsOnboarding = isAuthenticated && store.user?.is_onboarded === false;
 

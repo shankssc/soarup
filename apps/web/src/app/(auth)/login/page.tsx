@@ -7,8 +7,6 @@ import { LoginForm } from '@/components/domain/auth/login-form';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
-export const runtime = 'edge';
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 //
 // Server Component — no auth check needed here (handled by middleware).

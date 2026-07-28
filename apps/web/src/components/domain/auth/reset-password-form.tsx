@@ -66,38 +66,30 @@ async function resetPassword(
   }
 }
 
+// Module-level, alongside your other pure helpers
+function extractRecoveryToken(searchParams: URLSearchParams): string | null {
+  const fromQuery = searchParams.get('access_token');
+  if (fromQuery) return fromQuery;
+  if (typeof window === 'undefined') return null;
+  const hashParams = new URLSearchParams(window.location.hash.substring(1));
+  return hashParams.get('access_token');
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [recoveryToken, setRecoveryToken] = React.useState<string | null>(null);
-  const [tokenError, setTokenError] = React.useState<string | null>(null);
+  const [recoveryToken] = React.useState<string | null>(() =>
+    extractRecoveryToken(searchParams),
+  );
+  const tokenError = recoveryToken
+    ? null
+    : 'Invalid or missing recovery token. Please request a new reset link.';
   const [isLoading, setIsLoading] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState(false);
-
-  // Extract recovery token from URL on mount.
-  // Supabase delivers it either in the query string or the URL hash.
-  // Token lives in React state only — never written to localStorage.
-  React.useEffect(() => {
-    const fromQuery = searchParams.get('access_token');
-
-    // Hash params (#access_token=xxx) — Supabase default for some flows
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const fromHash = hashParams.get('access_token');
-
-    const token = fromQuery ?? fromHash;
-
-    if (token) {
-      setRecoveryToken(token);
-    } else {
-      setTokenError(
-        'Invalid or missing recovery token. Please request a new reset link.',
-      );
-    }
-  }, [searchParams]);
 
   const {
     register,

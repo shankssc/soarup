@@ -9,17 +9,24 @@ export function PageTransition() {
   const searchParams = useSearchParams();
   const [isTransitioning, setIsTransitioning] = React.useState(false);
 
-  React.useEffect(() => {
+  const currentKey = `${pathname}?${searchParams}`;
+  const [prevKey, setPrevKey] = React.useState(currentKey);
+
+  if (currentKey !== prevKey) {
+    setPrevKey(currentKey);
     setIsTransitioning(true);
+  }
+
+  React.useEffect(() => {
+    if (!isTransitioning) return;
     const timer = setTimeout(() => setIsTransitioning(false), 400);
     return () => clearTimeout(timer);
-  }, [pathname, searchParams]);
+  }, [isTransitioning]);
 
   if (!isTransitioning) return null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[9999]">
-      {/* Top loading bar */}
       <div className="absolute left-0 top-0 h-[2px] w-full overflow-hidden">
         <div className="h-full animate-[page-load_0.4s_ease-out_forwards] bg-primary" />
       </div>

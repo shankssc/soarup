@@ -9,24 +9,12 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { OnboardingForm } from '@/components/domain/auth/onboarding-form';
 import { useAuth } from '@/hooks/useAuth';
-import { useAuthStore } from '@/hooks/useAuth';
+import { useHydrated } from '@/hooks/useHydrated';
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { isAuthenticated, needsOnboarding, isLoading } = useAuth();
-  const [hydrated, setHydrated] = React.useState(false);
-
-  // Wait for Zustand persist to rehydrate from localStorage
-  React.useEffect(() => {
-    const unsub = useAuthStore.persist.onFinishHydration(() => {
-      setHydrated(true);
-    });
-    // If already hydrated (fast path)
-    if (useAuthStore.persist.hasHydrated()) {
-      setHydrated(true);
-    }
-    return unsub;
-  }, []);
+  const hydrated = useHydrated();
 
   React.useEffect(() => {
     if (!hydrated || isLoading) return;

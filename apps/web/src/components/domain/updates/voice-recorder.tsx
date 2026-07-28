@@ -49,17 +49,24 @@ function formatDuration(seconds: number): string {
 function WaveformBars() {
   return (
     <div className="flex h-8 items-center gap-0.5" aria-hidden="true">
-      {Array.from({ length: 12 }).map((_, i) => (
-        <div
-          key={i}
-          className="w-1 rounded-sm bg-primary"
-          style={{
-            height: `${20 + Math.random() * 60}%`,
-            animation: `pulse ${0.6 + (i % 4) * 0.15}s ease-in-out infinite alternate`,
-            animationDelay: `${(i * 0.08).toFixed(2)}s`,
-          }}
-        />
-      ))}
+      {Array.from({ length: 12 }).map((_, i) => {
+        // Decorative waveform bars — randomized height per bar is the
+        // intended visual effect (CSS animation, not real audio data,
+        // per the component's own comment above).
+        // eslint-disable-next-line react-hooks/purity
+        const randomHeight = Math.random();
+        return (
+          <div
+            key={i}
+            className="w-1 rounded-sm bg-primary"
+            style={{
+              height: `${20 + randomHeight * 60}%`,
+              animation: `pulse ${0.6 + (i % 4) * 0.15}s ease-in-out infinite alternate`,
+              animationDelay: `${(i * 0.08).toFixed(2)}s`,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

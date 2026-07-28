@@ -100,6 +100,7 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
         // gap is wider). A full navigation re-reads cookies fresh from the
         // browser on the actual request, side-stepping the race entirely
         // instead of papering over it with a fixed delay.
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = '/onboarding';
       }
     } catch {

@@ -40,8 +40,17 @@ export default function DigestSettingsPage() {
   const [isDirty, setIsDirty] = React.useState(false);
   const [previewHtml, setPreviewHtml] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (!workspace) return;
+  // Tracks which workspace we last synced `values` from. Comparing during
+  // render (not in an effect) lets us reset `values` the moment `workspace`
+  // changes, without an extra render/effect round-trip. Deliberately keyed
+  // on workspace.id only, not the whole `workspace` object — a background
+  // refetch that returns the same workspace shouldn't stomp local edits.
+  const [syncedWorkspaceId, setSyncedWorkspaceId] = React.useState<string | undefined>(
+    workspace?.id,
+  );
+
+  if (workspace && workspace.id !== syncedWorkspaceId) {
+    setSyncedWorkspaceId(workspace.id);
     setValues({
       digest_enabled: workspace.digest_enabled ?? false,
       digest_send_time: workspace.digest_send_time ?? '09:00',
@@ -49,8 +58,7 @@ export default function DigestSettingsPage() {
       digest_days: workspace.digest_days ?? '1,2,3,4,5',
     });
     setIsDirty(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspace?.id]);
+  }
 
   React.useEffect(() => {
     function handleVisibilityChange() {

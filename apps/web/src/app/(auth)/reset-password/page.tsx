@@ -3,8 +3,6 @@ export const dynamic = 'force-dynamic';
 import { Suspense } from 'react';
 import { ResetPasswordForm } from '@/components/domain/auth/reset-password-form';
 
-export const runtime = 'edge';
-
 // Suspense boundary is required because ResetPasswordForm uses
 // useSearchParams() — Next.js requires this for static rendering compatibility.
 function ResetPasswordContent() {

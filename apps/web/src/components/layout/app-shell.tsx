@@ -1,10 +1,11 @@
 // apps/web/src/components/layout/app-shell.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { useAuth, useAuthStore } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
+import { useHydrated } from '@/hooks/useHydrated';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
 import { useWorkspace } from '@/hooks/useWorkspace';
@@ -23,18 +24,7 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const { isAuthenticated, needsOnboarding, isLoading: authLoading } = useAuth();
   const { data: workspace, isLoading: workspaceLoading } = useWorkspace();
-  const [hydrated, setHydrated] = useState(false);
-
-  // ── Zustand hydration guard ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const unsub = useAuthStore.persist.onFinishHydration(() => {
-      setHydrated(true);
-    });
-    if (useAuthStore.persist.hasHydrated()) {
-      setHydrated(true);
-    }
-    return unsub;
-  }, []);
+  const hydrated = useHydrated();
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   useEffect(() => {

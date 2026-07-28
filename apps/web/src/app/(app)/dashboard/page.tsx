@@ -6,9 +6,10 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useHydrated } from '@/hooks/useHydrated';
 import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
-import { useAuth, useAuthStore } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import {
   useUpdates,
@@ -25,7 +26,7 @@ import { DashboardSkeleton } from '@/components/domain/dashboard/dashboard-skele
 export default function DashboardPage() {
   const router = useRouter();
   const { user, tokens, isAuthenticated, needsOnboarding, isLoading } = useAuth();
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = useHydrated();
 
   // ── Onboarding / auth guard ──────────────────────────────────────────────
   // Mirrors the guard in (auth)/onboarding/page.tsx. Middleware only checks
@@ -35,15 +36,6 @@ export default function DashboardPage() {
   // who signed up but never finished onboarding can navigate straight to
   // /dashboard and land on a broken/incomplete view instead of being routed
   // back to finish setup.
-  React.useEffect(() => {
-    const unsub = useAuthStore.persist.onFinishHydration(() => {
-      setHydrated(true);
-    });
-    if (useAuthStore.persist.hasHydrated()) {
-      setHydrated(true);
-    }
-    return unsub;
-  }, []);
 
   React.useEffect(() => {
     if (!hydrated || isLoading) return;

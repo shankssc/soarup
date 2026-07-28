@@ -1,11 +1,11 @@
 # apps/web/Dockerfile - Next.js frontend (local dev focus)
-# For production Cloudflare Pages deploy, we use @cloudflare/next-on-pages
+# For production Cloudflare deploy, we use @opennextjs/cloudflare
 
-FROM node:24-alpine
+FROM node:24.15-alpine
 
 WORKDIR /app
 
-RUN npm install -g npm@11.6.2
+RUN npm install -g npm@12.0.1
 
 # Copy package files
 COPY package.json package-lock.json* .npmrc* ./

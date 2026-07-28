@@ -3,8 +3,6 @@
 import * as React from 'react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
-export const runtime = 'edge';
-
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div

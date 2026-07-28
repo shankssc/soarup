@@ -9,6 +9,7 @@
 // "wrong signature" from "malformed" from "expired key" by probing.
 
 import { AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
@@ -38,12 +39,12 @@ export default function UnsubscribeInvalidPage() {
         If you&apos;re trying to stop digest emails from a workspace, sign in and turn
         them off from that workspace&apos;s settings instead.
       </p>
-      <a
+      <Link
         href="/"
         className="font-label text-[13px] text-primary underline-offset-2 hover:underline"
       >
         Go to SoarUp
-      </a>
+      </Link>
     </PageShell>
   );
 }

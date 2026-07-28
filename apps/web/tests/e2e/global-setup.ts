@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { chromium } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
