@@ -97,5 +97,8 @@
     "vitest": "^3.2.4",
     "vitest-axe": "^0.1.0",
     "webpack": "^5.108.4"
+  },
+  "overrides": {
+    "sharp": "^0.35.3"
   }
 }
