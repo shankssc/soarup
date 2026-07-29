@@ -120,3 +120,8 @@ supabase/studio/dist/
 
 # --- Sentry files
 .env.sentry-build-plugin
+
+
+# --- OpenNext / Wrangler build output ---
+.open-next/
+.wrangler/
