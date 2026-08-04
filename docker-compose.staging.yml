@@ -36,6 +36,8 @@ services:
     depends_on:
       - api
     command: celery -A app.workers.celery_app worker --loglevel=info
+    healthcheck:
+      disable: true
 
   # === Celery Beat (scheduled tasks) ===
   beat:
@@ -47,3 +49,5 @@ services:
     env_file:
       - .env
     command: celery -A app.workers.celery_app beat --loglevel=info
+    healthcheck:
+      disable: true
