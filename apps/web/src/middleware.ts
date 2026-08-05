@@ -12,6 +12,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 // /invite/* — invite acceptance, requires no auth to view
 // /api/v1/invites/* — invite details endpoint, no auth required
 // /u/* — public profile pages, requires no auth to view
+// /callback — Supabase auth callback landing page, requires no prior auth
 // /api/v1/profiles/* — public profile API, no auth required
 // /api/v1/auth/check-username — username availability, no auth required
 const PROTECTED_ROUTES = [
@@ -23,7 +24,13 @@ const PROTECTED_ROUTES = [
 ];
 
 // Routes that should redirect to dashboard if already authenticated
-const AUTH_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password', '/signup/check-email'];
+const AUTH_ROUTES = [
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/signup/check-email',
+];
 
 function isProtectedRoute(pathname: string): boolean {
   return PROTECTED_ROUTES.some((route) => pathname.startsWith(route));

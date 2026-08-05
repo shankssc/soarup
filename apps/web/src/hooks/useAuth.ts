@@ -46,6 +46,7 @@ export interface AuthActions {
   logout: () => Promise<void>;
   clearError: () => void;
   setUser: (user: UserProfile) => void;
+  hydrateSession: (accessToken: string, refreshToken: string) => Promise<void>;
 }
 
 // ─── API client helpers ───────────────────────────────────────────────────────
@@ -147,6 +148,8 @@ interface SignupResponse {
   email?: string;
   message?: string;
 }
+
+type SessionResponse = LoginResponse;
 
 // ─── Supabase session sync ────────────────────────────────────────────────────
 // After FastAPI returns tokens, we sync them into the Supabase JS client so
@@ -308,6 +311,37 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         }
       },
 
+      hydrateSession: async (accessToken, refreshToken) => {
+        set({ isLoading: true, error: null });
+        try {
+          const data = await apiPost<SessionResponse>('/auth/session', {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          // No syncSupabaseSession() call here — the Supabase cookie is already
+          // set (that's how we arrived with a session to hydrate from), unlike
+          // login()/signup() where the backend is the first party to see tokens.
+
+          set({
+            user: data.user,
+            tokens: {
+              access_token: data.access_token,
+              refresh_token: data.refresh_token ?? refreshToken,
+              expires_at: Date.now() + data.expires_in * 1000,
+            },
+            isLoading: false,
+            error: null,
+          });
+        } catch (err) {
+          set({
+            isLoading: false,
+            error: err instanceof Error ? err.message : friendlyError('internal_error'),
+          });
+          throw err;
+        }
+      },
+
       logout: async () => {
         const { tokens } = get();
         set({ isLoading: true });
@@ -339,6 +373,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       setUser: (user) => set({ user }),
     }),
+
     {
       name: 'soarup-auth',
       // Only persist user + tokens, not loading/error state
@@ -380,5 +415,6 @@ export function useAuth() {
     logout: store.logout,
     clearError: store.clearError,
     setUser: store.setUser,
+    hydrateSession: store.hydrateSession,
   };
 }

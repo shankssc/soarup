@@ -12,7 +12,7 @@ export default function CheckEmailPage() {
 
   return (
     <div className="space-y-8 text-center">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+      <div className="bg-primary/10 mx-auto flex h-16 w-16 items-center justify-center rounded-full">
         <MailCheck className="h-8 w-8 text-primary" aria-hidden="true" />
       </div>
 
@@ -27,13 +27,23 @@ export default function CheckEmailPage() {
 
       <p className="text-on-surface-variant">
         {email ? (
-          <>We sent a confirmation link to <span className="font-medium text-on-surface">{email}</span>. Click it to activate your account.</>
+          <>
+            We sent a confirmation link to{' '}
+            <span className="font-medium text-on-surface">{email}</span>. Click it to
+            activate your account.
+          </>
         ) : (
           'We sent you a confirmation link. Click it to activate your account.'
         )}
       </p>
 
-      <Button type="button" variant="secondary" size="lg" className="w-full" onClick={() => router.push('/login')}>
+      <Button
+        type="button"
+        variant="secondary"
+        size="lg"
+        className="w-full"
+        onClick={() => router.push('/login')}
+      >
         Back to sign in
       </Button>
     </div>

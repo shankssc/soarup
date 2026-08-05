@@ -79,20 +79,24 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
   }
 
   async function onSubmit(values: SignupFormValues) {
-  try {
-    const result = await signup(values.email, values.password, values.full_name || undefined);
-    if (onSuccess) {
-      onSuccess();
-    } else if (result === 'confirmation_required') {
-      router.push(`/signup/check-email?email=${encodeURIComponent(values.email)}`);
-    } else {
-      // eslint-disable-next-line react-hooks/immutability
-      window.location.href = '/onboarding';
+    try {
+      const result = await signup(
+        values.email,
+        values.password,
+        values.full_name || undefined,
+      );
+      if (onSuccess) {
+        onSuccess();
+      } else if (result === 'confirmation_required') {
+        router.push(`/signup/check-email?email=${encodeURIComponent(values.email)}`);
+      } else {
+        // eslint-disable-next-line react-hooks/immutability
+        window.location.href = '/onboarding';
+      }
+    } catch {
+      // Error already set in useAuth store
     }
-  } catch {
-    // Error already set in useAuth store
   }
-}
 
   const isSubmitting = isLoading || oauthLoading;
 
