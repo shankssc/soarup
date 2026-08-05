@@ -25,6 +25,7 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     ResetPasswordRequest,
     ResetPasswordResponse,
+    SessionExchangeRequest,
     SignupRequest,
     SignupResponse,
 )
@@ -274,6 +275,32 @@ async def reset_password(
         return handle_auth_error(e, api_version=api_version)
     except Exception as e:
         logger.exception("reset_password_error", error=str(e))
+        return handle_auth_error(
+            AuthError("internal_error", "An unexpected error occurred"),
+            api_version=api_version,
+        )
+
+
+@router.post(
+    "/session",
+    response_model=LoginResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Exchange a Supabase-issued session for an app session",
+)
+async def exchange_session(
+    api_version: ApiVersionDep,
+    request: SessionExchangeRequest,
+    service: AuthService = Depends(get_auth_service),
+) -> Response:
+    try:
+        logger.info("session_exchange_attempt")
+        result = await service.session_from_supabase(request.access_token, request.refresh_token)
+        return create_success_response(result, api_version=api_version)
+    except AuthError as e:
+        logger.warning("session_exchange_failed", error_code=e.error_code)
+        return handle_auth_error(e, api_version=api_version)
+    except Exception as e:
+        logger.exception("session_exchange_error", error=str(e))
         return handle_auth_error(
             AuthError("internal_error", "An unexpected error occurred"),
             api_version=api_version,

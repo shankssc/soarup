@@ -1,10 +1,12 @@
 # apps/api/app/services/auth_service.py
 # Async business logic layer for authentication
 
+import time
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+import jwt as pyjwt
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +18,21 @@ from app.utils.circuit_breaker import CircuitBreakerError
 logger = structlog.get_logger(__name__)
 
 OAUTH2_BEARER_TOKEN_TYPE: str = "bearer"
+
+
+def _expires_in_from_token(access_token: str) -> int:
+    """Best-effort read of a token's remaining lifetime, for client-side
+    expiry bookkeeping. Does not verify the signature — this token was
+    already validated via Supabase's /auth/v1/user endpoint by the caller.
+    """
+    try:
+        payload = pyjwt.decode(access_token, options={"verify_signature": False})
+        exp = payload.get("exp")
+        if exp:
+            return max(int(exp - time.time()), 60)
+    except Exception:  # Noqa: S110
+        pass
+    return 3600
 
 
 class AuthError(Exception):
@@ -444,6 +461,59 @@ class AuthService:
         except Exception as e:
             logger.exception("password_reset_completion_error", error=str(e))
             raise AuthError(error_code="password_update_failed", message="Could not update password. Please try again.") from e
+
+    async def session_from_supabase(self, access_token: str, refresh_token: str) -> LoginResponse:
+        """
+        Establish an app session from a Supabase-issued token pair.
+
+        Used after any flow where Supabase sets its own session directly
+        (email confirmation, OAuth) rather than going through login()/signup().
+        Ensures those paths still produce a profile row and the same
+        LoginResponse shape the rest of the app expects.
+        """
+        try:
+            auth_repo = await self._get_auth_repo()
+            profile_repo = self._get_profile_repo()
+
+            supabase_user = await auth_repo.get_user_by_token(access_token)
+            if not supabase_user:
+                raise AuthError(error_code="invalid_token", message="Session is invalid or expired")
+
+            profile = await profile_repo.get_by_user_id(supabase_user["id"])
+            if not profile:
+                # First time this user's session is being established app-side —
+                # e.g. OAuth signup, which never goes through AuthService.signup().
+                try:
+                    await profile_repo.create(
+                        user_id=supabase_user["id"],
+                        email=supabase_user["email"],
+                        full_name=supabase_user.get("user_metadata", {}).get("full_name"),
+                    )
+                    profile = await profile_repo.get_by_user_id(supabase_user["id"])
+                except Exception as profile_error:
+                    logger.warning(
+                        "session_profile_creation_failed",
+                        user_id=supabase_user["id"],
+                        error=str(profile_error),
+                    )
+
+            user_response = self._map_user_to_response(supabase_user, profile)
+
+            logger.info("session_exchange_success", user_id=supabase_user["id"])
+
+            return LoginResponse(
+                access_token=access_token,
+                token_type=OAUTH2_BEARER_TOKEN_TYPE,
+                expires_in=_expires_in_from_token(access_token),
+                refresh_token=refresh_token,
+                user=user_response,
+            )
+
+        except AuthError:
+            raise
+        except Exception as e:
+            logger.exception("session_exchange_error", error=str(e))
+            raise AuthError(error_code="invalid_token", message="Could not establish session") from e
 
     def _map_user_to_response(self, supabase_user: dict[str, Any], profile: Any | None) -> UserResponse:
         """

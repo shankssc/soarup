@@ -44,6 +44,20 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., description="Refresh token from previous login")
 
 
+class SessionExchangeRequest(BaseModel):
+    """Request schema for POST /auth/session.
+
+    Used by the frontend callback route to hand a Supabase-issued session
+    (from email confirmation or OAuth) to the backend, so it can be
+    validated and mapped into the same LoginResponse shape /login and
+    /signup already produce — keeping one source of truth for "how the
+    app enters an authenticated state."
+    """
+
+    access_token: str = Field(..., description="Supabase access token from the client session")
+    refresh_token: str = Field(..., description="Supabase refresh token from the client session")
+
+
 # === Responses ===
 
 
