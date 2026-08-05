@@ -79,34 +79,20 @@ export function SignupForm({ onSuccess, className }: SignupFormProps) {
   }
 
   async function onSubmit(values: SignupFormValues) {
-    try {
-      // confirm_password is not sent to the API — only email, password, full_name
-      await signup(values.email, values.password, values.full_name || undefined);
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        // Always go to onboarding after signup — even if ?next= is set.
-        // The pending invite code is in localStorage and onboarding will
-        // pre-fill it. Redirecting to the invite page before onboarding
-        // completes causes OnboardedDep to reject the accept call.
-        //
-        // Uses a hard navigation (not router.push) deliberately: signup()
-        // awaits syncSupabaseSession(), but the underlying Supabase cookie
-        // write can trail slightly behind that await resolving (it's driven
-        // by an onAuthStateChange listener, not guaranteed synchronous).
-        // router.push is a soft client-side nav — middleware would read
-        // whatever cookie state exists at that instant, which was racy
-        // enough to intermittently fail (most visible on WebKit, where the
-        // gap is wider). A full navigation re-reads cookies fresh from the
-        // browser on the actual request, side-stepping the race entirely
-        // instead of papering over it with a fixed delay.
-        // eslint-disable-next-line react-hooks/immutability
-        window.location.href = '/onboarding';
-      }
-    } catch {
-      // Error already set in useAuth store
+  try {
+    const result = await signup(values.email, values.password, values.full_name || undefined);
+    if (onSuccess) {
+      onSuccess();
+    } else if (result === 'confirmation_required') {
+      router.push(`/signup/check-email?email=${encodeURIComponent(values.email)}`);
+    } else {
+      // eslint-disable-next-line react-hooks/immutability
+      window.location.href = '/onboarding';
     }
+  } catch {
+    // Error already set in useAuth store
   }
+}
 
   const isSubmitting = isLoading || oauthLoading;
 

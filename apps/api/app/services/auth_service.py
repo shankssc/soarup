@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.auth_repo import AuthRepository
 from app.repositories.profile_repo import ProfileRepository
-from app.schemas.auth import ForgotPasswordRequest, ForgotPasswordResponse, LoginRequest, LoginResponse, ResetPasswordResponse, SignupRequest, UserResponse
+from app.schemas.auth import ForgotPasswordRequest, ForgotPasswordResponse, LoginRequest, LoginResponse, ResetPasswordResponse, SignupRequest, SignupResponse, UserResponse
 from app.utils.circuit_breaker import CircuitBreakerError
 
 logger = structlog.get_logger(__name__)
@@ -134,7 +134,7 @@ class AuthService:
                 message="Invalid email or password",
             ) from e
 
-    async def signup(self, request: SignupRequest) -> LoginResponse:
+    async def signup(self, request: SignupRequest) -> SignupResponse:
         """
         Register new user and return authenticated session.
 
@@ -160,12 +160,10 @@ class AuthService:
 
             if not supabase_user:
                 logger.warning("signup_failed", email=request.email, reason="no_user_returned")
-                raise AuthError(
-                    error_code="registration_failed",
-                    message="Could not create account",
-                )
+                raise AuthError(error_code="registration_failed", message="Could not create account")
 
-            # Create profile in PostgreSQL (idempotent: will fail if exists)
+            # supabase_user exists (and has id/email) even when confirmation is
+            # pending, so profile creation runs regardless of session state.
             try:
                 await profile_repo.create(
                     user_id=supabase_user["id"],
@@ -173,12 +171,18 @@ class AuthService:
                     full_name=request.full_name,
                 )
             except Exception as profile_error:
-                # Profile creation failed, but user exists in Supabase
-                # Log and continue — profile can be created on next login
                 logger.warning(
                     "signup_profile_creation_failed",
                     user_id=supabase_user["id"],
                     error=str(profile_error),
+                )
+
+            if not session.get("access_token"):
+                logger.info("signup_confirmation_required", user_id=supabase_user["id"])
+                return SignupResponse(
+                    status="confirmation_required",
+                    email=supabase_user.get("email", request.email),
+                    message="Check your email to confirm your account before signing in.",
                 )
 
             profile = await profile_repo.get_by_user_id(supabase_user["id"])
@@ -186,7 +190,8 @@ class AuthService:
 
             logger.info("signup_success", user_id=supabase_user["id"])
 
-            return LoginResponse(
+            return SignupResponse(
+                status="authenticated",
                 access_token=session.get("access_token", ""),
                 token_type=OAUTH2_BEARER_TOKEN_TYPE,
                 expires_in=session.get("expires_in", 3600),
@@ -207,16 +212,9 @@ class AuthService:
             error_msg = str(e).lower()
             if "already registered" in error_msg or "duplicate" in error_msg or "user already exists" in error_msg:
                 logger.warning("signup_failed", email=request.email, reason="user_exists")
-                raise AuthError(
-                    error_code="user_already_exists",
-                    message="An account with this email already exists",
-                ) from e
-
+                raise AuthError(error_code="user_already_exists", message="An account with this email already exists") from e
             logger.exception("signup_error", email=request.email, error=str(e))
-            raise AuthError(
-                error_code="registration_failed",
-                message="Could not create account",
-            ) from e
+            raise AuthError(error_code="registration_failed", message="Could not create account") from e
 
     async def get_current_user(self, access_token: str) -> UserResponse | None:
         """

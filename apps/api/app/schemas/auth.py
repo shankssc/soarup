@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -101,6 +101,25 @@ class LoginResponse(BaseModel):
     expires_in: int = Field(default=3600, description="Token expiration in seconds")
     refresh_token: str | None = Field(None, description="Refresh token for token renewal")
     user: UserResponse = Field(..., description="Authenticated user profile")
+
+
+class SignupResponse(BaseModel):
+    """Response schema for POST /auth/signup — discriminated on `status`.
+
+    Supabase Cloud (with "Confirm email" enabled) returns a user but no
+    session until the confirmation link is clicked, unlike local dev.
+    The frontend branches on `status` rather than inferring intent from
+    missing tokens.
+    """
+
+    status: Literal["authenticated", "confirmation_required"]
+    access_token: str | None = Field(None, description="Present only when status='authenticated'")
+    token_type: str = Field(default="bearer")
+    expires_in: int | None = Field(None, description="Present only when status='authenticated'")
+    refresh_token: str | None = Field(None, description="Present only when status='authenticated'")
+    user: UserResponse | None = Field(None, description="Present only when status='authenticated'")
+    email: EmailStr | None = Field(None, description="Present only when status='confirmation_required'")
+    message: str | None = Field(None, description="Present only when status='confirmation_required'")
 
 
 class ErrorResponse(BaseModel):
