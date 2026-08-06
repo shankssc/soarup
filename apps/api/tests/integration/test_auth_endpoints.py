@@ -17,7 +17,7 @@ from app.services.auth_service import AuthError
 from app.services.profile_service import ProfileError
 
 # Re-use response builders from integration conftest
-from tests.conftest import login_response, profile_response
+from tests.conftest import login_response, profile_response, signup_response
 
 USER_ID = "user-abc"
 EMAIL = "test@example.com"
@@ -149,7 +149,7 @@ class TestSignup:
     @pytest.mark.asyncio
     async def test_signup_success_returns_201(self, client_with_mocks):
         client, auth_svc, _ = client_with_mocks
-        auth_svc.signup.return_value = login_response()
+        auth_svc.signup.return_value = signup_response()
 
         response = await client.post(
             "/api/v1/auth/signup",
@@ -161,7 +161,7 @@ class TestSignup:
     @pytest.mark.asyncio
     async def test_signup_returns_login_response_shape(self, client_with_mocks):
         client, auth_svc, _ = client_with_mocks
-        auth_svc.signup.return_value = login_response()
+        auth_svc.signup.return_value = signup_response()
 
         response = await client.post(
             "/api/v1/auth/signup",
@@ -169,9 +169,29 @@ class TestSignup:
         )
 
         body = response.json()
+        assert body["status"] == "authenticated"
         assert "access_token" in body
         assert "user" in body
         assert body["user"]["email"] == EMAIL
+
+    @pytest.mark.asyncio
+    async def test_signup_confirmation_required_returns_202(self, client_with_mocks):
+        """When Supabase withholds a session (email confirmation enabled),
+        the router returns 202 with status='confirmation_required' instead
+        of a 201 with blank tokens."""
+        client, auth_svc, _ = client_with_mocks
+        auth_svc.signup.return_value = signup_response(status="confirmation_required")
+
+        response = await client.post(
+            "/api/v1/auth/signup",
+            json={"email": EMAIL, "password": "Password1"},  # pragma: allowlist secret
+        )
+
+        assert response.status_code == 202
+        body = response.json()
+        assert body["status"] == "confirmation_required"
+        assert body["email"] == EMAIL
+        assert body.get("access_token") is None
 
     @pytest.mark.asyncio
     async def test_signup_user_already_exists_returns_409(self, client_with_mocks):
@@ -204,7 +224,7 @@ class TestSignup:
     @pytest.mark.asyncio
     async def test_signup_with_full_name(self, client_with_mocks):
         client, auth_svc, _ = client_with_mocks
-        auth_svc.signup.return_value = login_response()
+        auth_svc.signup.return_value = signup_response()
 
         await client.post(
             "/api/v1/auth/signup",

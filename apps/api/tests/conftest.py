@@ -304,6 +304,57 @@ def _login_response_dict(
     )
 
 
+def _signup_response_dict(
+    user_id: str = "user-abc",
+    email: str = "test@example.com",
+    is_onboarded: bool = False,
+    status: str = "authenticated",
+) -> Any:
+    """
+    SignupResponse-shaped mock for signup tests.
+
+    status="authenticated" (default) — mirrors local dev / Supabase
+    projects with email confirmation disabled: session comes back
+    immediately, same fields as LoginResponse.
+
+    status="confirmation_required" — mirrors hosted Supabase with email
+    confirmation enabled: no session yet, only email + message populated.
+    """
+    from datetime import UTC, datetime
+
+    from app.schemas.auth import SignupResponse, UserResponse
+
+    if status == "confirmation_required":
+        return SignupResponse(
+            status="confirmation_required",
+            email=email,
+            message="Check your email to confirm your account before signing in.",
+        )
+
+    user = UserResponse(
+        id=user_id,
+        email=email,
+        full_name="Test User",
+        avatar_url=None,
+        email_verified=True,
+        is_onboarded=is_onboarded,
+        created_at=datetime.now(UTC).isoformat(),
+        username=None,
+        bio=None,
+        tagline=None,
+        profile_public=False,
+    )
+
+    return SignupResponse(
+        status="authenticated",
+        access_token="access-token",  # Noqa: S106
+        token_type="bearer",  # Noqa: S106
+        expires_in=3600,
+        refresh_token="refresh-token",  # Noqa: S106
+        user=user,
+    )
+
+
 def _profile_response(
     user_id: str = "user-abc",
     email: str = "test@example.com",
@@ -496,3 +547,4 @@ async def digest_repo(db_session):
 # Expose helpers for use in test files
 login_response = _login_response_dict
 profile_response = _profile_response
+signup_response = _signup_response_dict

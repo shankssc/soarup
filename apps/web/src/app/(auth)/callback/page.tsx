@@ -45,7 +45,8 @@ export default function AuthCallbackPage() {
         // sidesteps any race between the store update and a client-side nav
         // reading stale state.
         const { user } = useAuthStore.getState();
-        window.location.href = user?.is_onboarded === false ? '/onboarding' : '/dashboard';
+        window.location.href =
+          user?.is_onboarded === false ? '/onboarding' : '/dashboard';
       } catch {
         if (!cancelled) setError('Could not sign you in. Please try logging in.');
       }
