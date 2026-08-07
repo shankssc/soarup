@@ -1,11 +1,13 @@
 'use client';
 
+// apps/web/src/app/(auth)/signup/check-email/page.tsx
+
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MailCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function CheckEmailPage() {
+function CheckEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
@@ -47,5 +49,13 @@ export default function CheckEmailPage() {
         Back to sign in
       </Button>
     </div>
+  );
+}
+
+export default function CheckEmailPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <CheckEmailContent />
+    </React.Suspense>
   );
 }
