@@ -16,7 +16,7 @@ import pytest
 from app.services.auth_service import AuthError
 from app.services.profile_service import ProfileError
 
-# Re-use response builders from integration conftest
+# Re-use response builders from integration conftest.py
 from tests.conftest import login_response, profile_response, signup_response
 
 USER_ID = "user-abc"
@@ -35,7 +35,8 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL, "password": "password123"},  # pragma: allowlist secret
+            json={"email": EMAIL,
+                  "password": "password123"},  # pragma: allowlist secret
         )
 
         assert response.status_code == 200
@@ -47,7 +48,8 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL, "password": "password123"},  # pragma: allowlist secret
+            json={"email": EMAIL,
+                  "password": "password123"},  # pragma: allowlist secret
         )
 
         body = response.json()
@@ -62,7 +64,8 @@ class TestLogin:
 
         await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL, "password": "mypassword"},  # pragma: allowlist secret
+            json={"email": EMAIL,
+                  "password": "mypassword"},  # pragma: allowlist secret
         )
 
         auth_svc.login.assert_awaited_once()
@@ -80,7 +83,8 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL, "password": "wrongpassword"},  # pragma: allowlist secret
+            json={"email": EMAIL,
+                  "password": "wrongpassword"},  # pragma: allowlist secret
         )
 
         assert response.status_code == 401
@@ -96,7 +100,8 @@ class TestLogin:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={"email": EMAIL, "password": "Password123"},  # pragma: allowlist secret
+            json={"email": EMAIL,
+                  "password": "Password123"},  # pragma: allowlist secret
         )
 
         assert response.status_code == 503
@@ -180,7 +185,8 @@ class TestSignup:
         the router returns 202 with status='confirmation_required' instead
         of a 201 with blank tokens."""
         client, auth_svc, _ = client_with_mocks
-        auth_svc.signup.return_value = signup_response(status="confirmation_required")
+        auth_svc.signup.return_value = signup_response(
+            status="confirmation_required")
 
         response = await client.post(
             "/api/v1/auth/signup",
@@ -441,7 +447,8 @@ class TestForgotPassword:
     async def test_forgot_password_service_error_still_returns_200(self, client_with_mocks):
         """Even on service exception, router returns 200 — never leaks error state."""
         client, auth_svc, _ = client_with_mocks
-        auth_svc.request_password_reset.side_effect = Exception("supabase down")
+        auth_svc.request_password_reset.side_effect = Exception(
+            "supabase down")
 
         response = await client.post(
             "/api/v1/auth/forgot-password",
