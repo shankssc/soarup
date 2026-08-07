@@ -28,6 +28,28 @@ export default defineConfig({
         "src/test/**",
         "src/types/**",
         "src/lib/supabase/**",
+
+        // Config files — declarative, not logic
+        "*.config.{ts,mjs,js}",
+        "*.config.d.ts",
+        "next-env.d.ts",
+        ".storybook/**",
+
+        // Next.js App Router route files — covered by Playwright E2E
+        // (see web/tests/e2e/), not unit tests. Includes page/layout/
+        // loading/error boundaries at every route segment.
+        "src/app/**/page.tsx",
+        "src/app/**/layout.tsx",
+        "src/app/**/loading.tsx",
+        "src/app/**/global-error.tsx",
+        "src/middleware.ts",
+
+        // App shell / providers — composition wiring, not business logic
+        "src/components/layout/**",
+        "src/components/providers/**",
+
+        // E2E-only test infrastructure, not app source
+        "tests/e2e/**",
       ],
       thresholds: {
         statements: 50,
