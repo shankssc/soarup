@@ -69,6 +69,7 @@ beforeEach(() => {
     logout: vi.fn(),
     clearError: vi.fn(),
     setUser: vi.fn(),
+    hydrateSession: vi.fn(),
   });
 });
 
@@ -126,6 +127,7 @@ describe('useSlackSettings', () => {
       logout: vi.fn(),
       clearError: vi.fn(),
       setUser: vi.fn(),
+      hydrateSession: vi.fn(),
     });
 
     const { result } = renderHook(() => useSlackSettings(WORKSPACE_ID), {

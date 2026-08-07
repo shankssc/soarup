@@ -80,6 +80,7 @@ class AuthRepository:
                 "password": password,
                 "options": {
                     "data": {"full_name": full_name} if full_name else {},
+                    "email_redirect_to": f"{settings.app_base_url}/callback",
                 },
             }
         )

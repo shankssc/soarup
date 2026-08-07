@@ -38,10 +38,15 @@ export interface AuthState {
 
 export interface AuthActions {
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, fullName?: string) => Promise<void>;
+  signup: (
+    email: string,
+    password: string,
+    fullName?: string,
+  ) => Promise<'authenticated' | 'confirmation_required'>;
   logout: () => Promise<void>;
   clearError: () => void;
   setUser: (user: UserProfile) => void;
+  hydrateSession: (accessToken: string, refreshToken: string) => Promise<void>;
 }
 
 // ─── API client helpers ───────────────────────────────────────────────────────
@@ -132,6 +137,19 @@ interface LoginResponse {
   expires_in: number; // seconds
   user: UserProfile;
 }
+
+interface SignupResponse {
+  status: 'authenticated' | 'confirmation_required';
+  access_token?: string;
+  token_type?: string;
+  expires_in?: number;
+  refresh_token?: string | null;
+  user?: UserProfile;
+  email?: string;
+  message?: string;
+}
+
+type SessionResponse = LoginResponse;
 
 // ─── Supabase session sync ────────────────────────────────────────────────────
 // After FastAPI returns tokens, we sync them into the Supabase JS client so
@@ -256,26 +274,60 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       signup: async (email, password, fullName) => {
         set({ isLoading: true, error: null });
         try {
-          const data = await apiPost<LoginResponse>('/auth/signup', {
+          const data = await apiPost<SignupResponse>('/auth/signup', {
             email,
             password,
             ...(fullName ? { full_name: fullName } : {}),
           });
 
-          const refresh_token = data.refresh_token;
-
-          if (!refresh_token) {
-            throw new Error('Refresh token was not sent by the server');
+          if (data.status === 'confirmation_required') {
+            set({ isLoading: false, error: null });
+            return 'confirmation_required';
           }
 
-          // Sync tokens into Supabase JS client so server-side cookie is set.
-          await syncSupabaseSession(data.access_token, data.refresh_token ?? '');
+          if (!data.access_token || !data.refresh_token || !data.user) {
+            throw new Error('Server returned an incomplete session.');
+          }
+
+          await syncSupabaseSession(data.access_token, data.refresh_token);
 
           set({
             user: data.user,
             tokens: {
               access_token: data.access_token,
-              refresh_token: refresh_token,
+              refresh_token: data.refresh_token,
+              expires_at: Date.now() + (data.expires_in ?? 3600) * 1000,
+            },
+            isLoading: false,
+            error: null,
+          });
+          return 'authenticated';
+        } catch (err) {
+          set({
+            isLoading: false,
+            error: err instanceof Error ? err.message : friendlyError('internal_error'),
+          });
+          throw err;
+        }
+      },
+
+      hydrateSession: async (accessToken, refreshToken) => {
+        set({ isLoading: true, error: null });
+        try {
+          const data = await apiPost<SessionResponse>('/auth/session', {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          // No syncSupabaseSession() call here — the Supabase cookie is already
+          // set (that's how we arrived with a session to hydrate from), unlike
+          // login()/signup() where the backend is the first party to see tokens.
+
+          set({
+            user: data.user,
+            tokens: {
+              access_token: data.access_token,
+              refresh_token: data.refresh_token ?? refreshToken,
               expires_at: Date.now() + data.expires_in * 1000,
             },
             isLoading: false,
@@ -321,6 +373,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       setUser: (user) => set({ user }),
     }),
+
     {
       name: 'soarup-auth',
       // Only persist user + tokens, not loading/error state
@@ -362,5 +415,6 @@ export function useAuth() {
     logout: store.logout,
     clearError: store.clearError,
     setUser: store.setUser,
+    hydrateSession: store.hydrateSession,
   };
 }

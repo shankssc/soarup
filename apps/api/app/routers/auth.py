@@ -25,7 +25,9 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     ResetPasswordRequest,
     ResetPasswordResponse,
+    SessionExchangeRequest,
     SignupRequest,
+    SignupResponse,
 )
 from app.schemas.profile import ProfileResponse, UpdateProfileRequest, UploadResponse
 from app.services.auth_service import AuthError, AuthService
@@ -80,7 +82,7 @@ async def login(
 
 @router.post(
     "/signup",
-    response_model=LoginResponse,
+    response_model=SignupResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register new user",
 )
@@ -92,16 +94,14 @@ async def signup(
     try:
         logger.info("signup_attempt", email=request.email, api_version=api_version.version)
         result = await service.signup(request)
-        return create_success_response(result, status_code=status.HTTP_201_CREATED, api_version=api_version)
+        status_code = status.HTTP_202_ACCEPTED if result.status == "confirmation_required" else status.HTTP_201_CREATED
+        return create_success_response(result, status_code=status_code, api_version=api_version)
     except AuthError as e:
         logger.warning("signup_failed", email=request.email, error_code=e.error_code)
         return handle_auth_error(e, api_version=api_version)
     except Exception as e:
         logger.exception("signup_error", email=request.email, error=str(e))
-        return handle_auth_error(
-            AuthError("internal_error", "An unexpected error occurred"),
-            api_version=api_version,
-        )
+        return handle_auth_error(AuthError("internal_error", "An unexpected error occurred"), api_version=api_version)
 
 
 @router.post(
@@ -275,6 +275,32 @@ async def reset_password(
         return handle_auth_error(e, api_version=api_version)
     except Exception as e:
         logger.exception("reset_password_error", error=str(e))
+        return handle_auth_error(
+            AuthError("internal_error", "An unexpected error occurred"),
+            api_version=api_version,
+        )
+
+
+@router.post(
+    "/session",
+    response_model=LoginResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Exchange a Supabase-issued session for an app session",
+)
+async def exchange_session(
+    api_version: ApiVersionDep,
+    request: SessionExchangeRequest,
+    service: AuthService = Depends(get_auth_service),
+) -> Response:
+    try:
+        logger.info("session_exchange_attempt")
+        result = await service.session_from_supabase(request.access_token, request.refresh_token)
+        return create_success_response(result, api_version=api_version)
+    except AuthError as e:
+        logger.warning("session_exchange_failed", error_code=e.error_code)
+        return handle_auth_error(e, api_version=api_version)
+    except Exception as e:
+        logger.exception("session_exchange_error", error=str(e))
         return handle_auth_error(
             AuthError("internal_error", "An unexpected error occurred"),
             api_version=api_version,
