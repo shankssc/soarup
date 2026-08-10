@@ -23,27 +23,12 @@ export default function AuthCallbackPage() {
 
   React.useEffect(() => {
     let cancelled = false;
+    const supabase = createClient();
 
-    async function run() {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (cancelled) return;
-
-      if (!session) {
-        setError('This link is invalid or has expired.');
-        return;
-      }
-
+    async function completeSession(accessToken: string, refreshToken: string) {
       try {
-        await hydrateSession(session.access_token, session.refresh_token);
+        await hydrateSession(accessToken, refreshToken);
         if (cancelled) return;
-
-        // Hard navigation, same rationale as login-form.tsx / signup-form.tsx:
-        // sidesteps any race between the store update and a client-side nav
-        // reading stale state.
         const { user } = useAuthStore.getState();
         window.location.href =
           user?.is_onboarded === false ? '/onboarding' : '/dashboard';
@@ -52,9 +37,33 @@ export default function AuthCallbackPage() {
       }
     }
 
-    run();
+    // Case 1: session is already available (rare, but cheap to check first)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && !cancelled) {
+        completeSession(session.access_token, session.refresh_token);
+      }
+    });
+
+    // Case 2: Supabase is still parsing the URL fragment — wait for the
+    // SIGNED_IN event it fires once detectSessionInUrl finishes, rather
+    // than racing it with an immediate getSession() call.
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event === 'SIGNED_IN' && session) {
+        completeSession(session.access_token, session.refresh_token);
+      }
+    });
+
+    // Fallback: if nothing resolves within a few seconds, the link really
+    // is invalid/expired — show the error instead of spinning forever.
+    const timeout = setTimeout(() => {
+      if (!cancelled) setError('This link is invalid or has expired.');
+    }, 5000);
+
     return () => {
       cancelled = true;
+      listener.subscription.unsubscribe();
+      clearTimeout(timeout);
     };
   }, [hydrateSession]);
 
