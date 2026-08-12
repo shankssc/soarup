@@ -1,20 +1,33 @@
 'use client';
 
 // apps/web/src/app/(auth)/callback/page.tsx
-// Landing target for any flow where Supabase sets its own session
-// directly (email confirmation today; OAuth once real providers are
-// wired up). detectSessionInUrl (on by default in createBrowserClient)
-// has already exchanged whatever's in the URL by the time this mounts —
-// getSession() just reads the result. We then hand those tokens to the
-// backend via hydrateSession() so the app's Zustand store — the actual
-// source of truth for client-side auth state — gets populated the same
-// way it would after a normal login()/signup() call.
+// Landing target for any flow where Supabase issues a session directly
+// via URL (email confirmation today; OAuth once real providers are
+// wired up).
+//
+// IMPORTANT: this project's confirmation links use the implicit flow —
+// tokens arrive in the URL hash fragment (#access_token=...&refresh_
+// token=...), not the PKCE `?code=` query-param style. createBrowserClient
+// here is configured with bare defaults, and in practice detectSessionInUrl
+// was not picking up these hash-fragment tokens (confirmed via DevTools:
+// zero Supabase network calls, no onAuthStateChange event ever fired,
+// getSession() found nothing). So we parse the hash ourselves and call
+// setSession() explicitly rather than relying on SDK auto-detection.
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth, useAuthStore } from '@/hooks/useAuth';
+
+function parseHashParams(hash: string): Record<string, string> {
+  const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+  const result: Record<string, string> = {};
+  params.forEach((value, key) => {
+    result[key] = value;
+  });
+  return result;
+}
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -23,12 +36,39 @@ export default function AuthCallbackPage() {
 
   React.useEffect(() => {
     let cancelled = false;
-    const supabase = createClient();
 
-    async function completeSession(accessToken: string, refreshToken: string) {
+    async function run() {
+      const hashParams = parseHashParams(window.location.hash);
+      const accessToken = hashParams['access_token'];
+      const refreshToken = hashParams['refresh_token'];
+      const hashError = hashParams['error_description'];
+
+      // Strip tokens out of the visible URL immediately regardless of
+      // outcome — they shouldn't linger in browser history either way.
+      window.history.replaceState(null, '', window.location.pathname);
+
+      if (hashError) {
+        if (!cancelled) setError(decodeURIComponent(hashError));
+        return;
+      }
+
+      if (!accessToken || !refreshToken) {
+        if (!cancelled) setError('This link is invalid or has expired.');
+        return;
+      }
+
       try {
+        const supabase = createClient();
+        // Sets Supabase's own cookie session too, so createServerSupabaseClient()
+        // in Server Components / middleware reads consistently afterward.
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
         await hydrateSession(accessToken, refreshToken);
         if (cancelled) return;
+
         const { user } = useAuthStore.getState();
         window.location.href =
           user?.is_onboarded === false ? '/onboarding' : '/dashboard';
@@ -37,33 +77,9 @@ export default function AuthCallbackPage() {
       }
     }
 
-    // Case 1: session is already available (rare, but cheap to check first)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && !cancelled) {
-        completeSession(session.access_token, session.refresh_token);
-      }
-    });
-
-    // Case 2: Supabase is still parsing the URL fragment — wait for the
-    // SIGNED_IN event it fires once detectSessionInUrl finishes, rather
-    // than racing it with an immediate getSession() call.
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (cancelled) return;
-      if (event === 'SIGNED_IN' && session) {
-        completeSession(session.access_token, session.refresh_token);
-      }
-    });
-
-    // Fallback: if nothing resolves within a few seconds, the link really
-    // is invalid/expired — show the error instead of spinning forever.
-    const timeout = setTimeout(() => {
-      if (!cancelled) setError('This link is invalid or has expired.');
-    }, 5000);
-
+    run();
     return () => {
       cancelled = true;
-      listener.subscription.unsubscribe();
-      clearTimeout(timeout);
     };
   }, [hydrateSession]);
 
