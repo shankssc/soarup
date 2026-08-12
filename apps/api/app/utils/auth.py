@@ -109,12 +109,23 @@ async def validate_supabase_jwt(
 
             if verify_iss:
                 # With issuer verification
+                # Supabase's JWT `iss` claim includes the auth API version suffix
+                # (e.g. "https://<project>.supabase.co/auth/v1"), while
+                # settings.supabase_url is deliberately kept as the bare project URL
+                # elsewhere (JWKS URI construction, REST calls) — see
+                # app/lib/supabase.py and AuthRepository.update_password_with_recovery_token.
+                # If Supabase ever ships /auth/v2, tokens will start failing issuer
+                # verification here with InvalidIssuerError until this literal is
+                # updated to match. Not derived from settings because the other
+                # call sites append their own path segments and would double up
+                # (e.g. /auth/v1/auth/v1/...) if the version were baked into the
+                # base URL instead.
                 payload = jwt.decode(
                     token,
                     signing_key.key,
                     algorithms=[alg],
                     audience=getattr(settings, "supabase_jwt_aud", "authenticated"),
-                    issuer=str(settings.supabase_url),  # ← Explicit argument
+                    issuer=f"{settings.supabase_url}/auth/v1",
                     options={
                         "verify_exp": True,
                         "verify_aud": True,

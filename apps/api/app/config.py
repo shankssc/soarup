@@ -55,7 +55,17 @@ class Settings(BaseSettings):
     # === Supabase Auth ===
     supabase_url: str = Field(
         default="http://localhost:54321",
-        description="Supabase project URL",
+        description=(
+            "Supabase project URL — bare origin only, no /auth/v1 or other "
+            "API path suffixes. Several call sites append their own path "
+            "segments onto this (JWKS URI in utils/auth.py, REST calls in "
+            "AuthRepository, the async client factory in lib/supabase.py) "
+            "so appending a suffix here would double up on all of them. "
+            "The JWT issuer check in validate_supabase_jwt hardcodes the "
+            "/auth/v1 suffix separately for this reason — if Supabase ships "
+            "a v2 auth API, that literal needs updating alongside any other "
+            "hardcoded /auth/v1 references."
+        ),
     )
     # Sensitive: require from .env, no default
     supabase_jwt_secret: SecretStr | None = None
