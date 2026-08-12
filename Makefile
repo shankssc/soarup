@@ -38,6 +38,13 @@ help:
 	@echo ""
 	@echo "🪵 Logs:"
 	@echo "  make logs service=api  - Tail logs for a specific service"
+	@echo "🌐 Staging:"
+	@echo "  make staging-deploy         - git pull + rebuild on the VM"
+	@echo "  make staging-restart service=api - Force-recreate one service"
+	@echo "  make staging-down           - Stop staging containers (keeps volumes)"
+	@echo "  make staging-down-volumes   - Stop + wipe staging volumes (destructive)"
+	@echo "  make staging-logs service=api - Tail logs for a staging service"
+	@echo "  make staging-ps             - List staging container status"
 
 # --- Setup ---
 setup:
@@ -134,3 +141,29 @@ shell-api:
 
 shell-web:
 	docker compose exec web sh
+
+
+# --- Staging (VM-hosted, via SSH) ---
+staging-logs:
+	ssh -i ~/.ssh/soarup_hetzner soarup@178.104.21.1 \
+	  "cd ~/soarup && docker compose -f docker-compose.staging.yml logs -f $(service)"
+
+staging-ps:
+	ssh -i ~/.ssh/soarup_hetzner soarup@178.104.21.1 \
+	  "cd ~/soarup && docker compose -f docker-compose.staging.yml ps"
+
+staging-deploy:
+	ssh -i ~/.ssh/soarup_hetzner soarup@178.104.21.1 \
+	  "cd ~/soarup && git pull && docker compose -f docker-compose.staging.yml up -d --build"
+
+staging-restart:
+	ssh -i ~/.ssh/soarup_hetzner soarup@178.104.21.1 \
+	  "cd ~/soarup && docker compose -f docker-compose.staging.yml up -d --force-recreate $(service)"
+
+staging-down:
+	ssh -i ~/.ssh/soarup_hetzner soarup@178.104.21.1 \
+	  "cd ~/soarup && docker compose -f docker-compose.staging.yml down"
+
+staging-down-volumes:
+	ssh -i ~/.ssh/soarup_hetzner soarup@178.104.21.1 \
+	  "cd ~/soarup && docker compose -f docker-compose.staging.yml down -v"
