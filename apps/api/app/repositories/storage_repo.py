@@ -149,11 +149,26 @@ class StorageRepository:
 
         Note: Not needed for public avatars (which use public-read ACL).
         Useful for documents, private uploads, etc.
+
+        Presigned URLs are fetched directly by the browser, so the endpoint
+        used to SIGN them must be both browser-reachable and capable of
+        verifying S3 signatures.
+
+        Locally, Minio serves the full S3 API on both its internal (minio:9000)
+        and host-mapped (localhost:9000) addresses — public_endpoint_url is the
+        browser-reachable one, so we use it.
+
+        On R2, public_endpoint_url (pub-*.r2.dev) is a separate, signature-unaware
+        public-read service — signing against it produces a URL R2 rejects with 401.
+        endpoint_url (the real R2 S3 API domain) is the one that supports signing, and
+        unlike Minio's internal address, it's also directly browser-reachable, so it works for both.
         """
+        signing_endpoint = self.public_endpoint_url if "localhost" in self.public_endpoint_url else self.endpoint_url
+
         try:
             async with self.session.client(
                 "s3",
-                endpoint_url=self.public_endpoint_url,
+                endpoint_url=signing_endpoint,
                 aws_access_key_id=self.access_key,
                 aws_secret_access_key=self.secret_key,
                 region_name=self.region_name,
@@ -181,11 +196,22 @@ class StorageRepository:
         Generate a pre-signed PUT URL for direct browser-to-storage upload.
         Audio data bypasses the FastAPI server entirely — no token needed in the URL.
         URL expires in 15 minutes (900 seconds).
+
+        Locally, Minio serves the full S3 API on both its internal (minio:9000)
+        and host-mapped (localhost:9000) addresses — public_endpoint_url is the
+        browser-reachable one, so we use it.
+
+        On R2, public_endpoint_url (pub-*.r2.dev) is a separate, signature-unaware
+        public-read service — signing against it produces a URL R2 rejects with 401.
+        endpoint_url (the real R2 S3 API domain) is the one that supports signing, and
+        unlike Minio's internal address, it's also directly browser-reachable, so it works for both.
         """
+        signing_endpoint = self.public_endpoint_url if "localhost" in self.public_endpoint_url else self.endpoint_url
+
         try:
             async with self.session.client(
                 "s3",
-                endpoint_url=self.public_endpoint_url,
+                endpoint_url=signing_endpoint,
                 aws_access_key_id=self.access_key,
                 aws_secret_access_key=self.secret_key,
                 region_name=self.region_name,
