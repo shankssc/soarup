@@ -84,8 +84,12 @@ class StorageRepository:
                     },
                 )
 
-                # Construct public URL, Minio for local dev and cloudflare R2 for production
-                file_url = f"{self.public_endpoint_url}/{self.bucket_name}/{file_key}" if "localhost" in self.public_endpoint_url else f"https://{self.bucket_name}.r2.cloudflarestorage.com/{file_key}"
+                # Construct public URL. Local dev's Minio serves objects at
+                # {endpoint}/{bucket}/{key}; R2's public bucket domain (r2_public_endpoint_url,
+                # a per-bucket pub-*.r2.dev subdomain) already implies the bucket, so the
+                # key alone completes the path — no bucket name in either the hostname
+                # or the URL path for R2.
+                file_url = f"{self.public_endpoint_url}/{self.bucket_name}/{file_key}" if "localhost" in self.public_endpoint_url else f"{self.public_endpoint_url}/{file_key}"
 
                 logger.info(
                     "file_uploaded",
