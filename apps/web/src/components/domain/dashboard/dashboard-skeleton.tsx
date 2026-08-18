@@ -1,4 +1,5 @@
 // apps/web/src/components/domain/dashboard/dashboard-skeleton.tsx
+// Dashboard skeleton loader component
 
 export function DashboardSkeleton() {
   return (
