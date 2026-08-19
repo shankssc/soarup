@@ -1,9 +1,11 @@
-# SoarUp Staging Deployment — Handoff Document
+# SoarUp Staging — Handoff Document (v2)
 
-**Date:** August 2026
-**Purpose:** Full record of the staging deployment build-out, current
-state, known active issues, and scaling considerations — for picking
-up debugging/smoke-testing in a fresh chat.
+**Date:** August 18, 2026
+**Supersedes:** SOARUP_STAGING_DEPLOYMENT_HANDOFF.md (August 2026, v1)
+**Purpose:** Full record of staging's current state after a multi-session
+debugging pass that took the environment from "deployed but broken auth"
+to "fully functional end-to-end, including email delivery." Intended as
+context for building a comprehensive README and architecture diagrams.
 
 ---
 
@@ -13,192 +15,256 @@ up debugging/smoke-testing in a fresh chat.
 ┌─────────────────────┐         ┌──────────────────────────┐
 │  Frontend (Next.js)  │────────▶│  Backend (FastAPI)        │
 │  Cloudflare Workers   │  HTTPS  │  Hetzner VM (Docker)      │
-│  (OpenNext adapter)   │         │  soarupapi.dpdns.org      │
-└─────────────────────┘         │  via Caddy reverse proxy  │
-                                  └──────────────────────────┘
-                                            │
+│  app.soarupapi.dpdns.org       │  soarupapi.dpdns.org      │
+│  (custom domain,      │         │  via Caddy reverse proxy  │
+│   was *.workers.dev)  │         └──────────────────────────┘
+└─────────────────────┘                    │
                     ┌───────────────────────┼───────────────────────┐
                     ▼                       ▼                       ▼
             ┌───────────────┐      ┌───────────────┐      ┌───────────────┐
-            │ Supabase       │      │ Upstash Redis  │      │ Cloudflare R2  │
-            │ (Postgres+Auth)│      │ (Celery broker │      │ (audio files)  │
-            │ Session Pooler │      │  + rate limit) │      │                │
+            │ Supabase       │      │ Redis          │      │ Cloudflare R2  │
+            │ (Postgres+Auth)│      │ SELF-HOSTED    │      │ (avatars,      │
+            │ Session Pooler │      │ (was Upstash)  │      │  audio)        │
             └───────────────┘      └───────────────┘      └───────────────┘
+                                            │
+                            ┌───────────────┴───────────────┐
+                            ▼                                ▼
+                    Celery broker/backend            Rate limiting +
+                    (worker, beat)                    WS event streams
 ```
 
 **Backend containers (on Hetzner VM, via `docker-compose.staging.yml`):**
+
 - `api` — FastAPI, port 8000, proxied by Caddy
 - `worker` — Celery worker (audio transcription, Claude summarization)
-- `beat` — Celery beat (scheduled digest sends)
+- `beat` — Celery beat (scheduled digest sends, every 5 min)
+- `redis` — **NEW this session.** Self-hosted `redis:7-alpine`, replacing
+  Upstash. Named volume `redis-data` for persistence. No published host
+  port — internal to the compose network only.
+
+**Domains in play:**
+
+- `app.soarupapi.dpdns.org` — frontend, Cloudflare Worker custom domain
+  (replaces the old `soarup-staging.suyashhbk.workers.dev` — that URL
+  still resolves and was kept as a fallback, but is no longer the
+  canonical entry point)
+- `soarupapi.dpdns.org` — backend API, unchanged
+- `mail.soarupapi.dpdns.org` — **NEW this session.** Dedicated sending
+  subdomain, verified with Resend (DKIM/SPF/DMARC records live in
+  Cloudflare DNS). Used for all transactional email (invites, digests).
 
 ---
 
-## 2. What's Fully Provisioned & Verified Working
+## 2. Fully Provisioned & Verified Working
 
-| Service | Status | Notes |
-|---|---|---|
-| Cloudflare Workers (frontend) | ✅ Live | Next.js 16 + OpenNext adapter, `*.workers.dev` URL |
-| Cloudflare Workers Paid plan | ✅ Active | $5/mo — needed for bundle size headroom |
-| Sentry (2 projects) | ✅ Live | `python-fastapi` + `javascript-nextjs`, env-scoped alerts, source maps uploading |
-| Supabase (staging project) | ✅ Live | Postgres + Auth, migrations applied via Alembic |
-| Upstash Redis (staging) | ✅ Live | TCP/`rediss://` connection, confirmed working for Celery + rate limiting |
-| Cloudflare R2 (staging bucket) | ✅ Live | Presigned PUT/GET flow, CORS configured |
-| Anthropic API (staging key) | ✅ Configured | Spend limit + notification set |
-| Hetzner VM (`soarup-staging`) | ✅ Live | Ubuntu 26.04, Docker, non-root `soarup` user, ufw firewall |
-| Domain (`soarupapi.dpdns.org`) | ✅ Live | Free DigitalPlat domain, DNS via Cloudflare (DNS-only, not proxied) |
-| Caddy reverse proxy | ✅ Live | Automatic HTTPS via Let's Encrypt, confirmed working |
-| Backend health check | ✅ Passing | `{"status":"ok","database":"ok","redis":"ok","worker":"ok"}` at `/api/v1/health` |
-| Alembic migrations | ✅ Applied | Run via `docker compose run --rm api alembic upgrade head` |
-
----
-
-## 3. Known Active Issues (pick up here in next session)
-
-### Issue 1: Signup returns empty `access_token`/`refresh_token`
-**Likely cause:** Supabase Cloud project has "Confirm email" enabled by
-default (unlike local Supabase CLI dev setup, which likely has it
-disabled). `sign_up()` won't return a real session until the email is
-confirmed.
-**Where to check:** Supabase Dashboard → Authentication → Providers →
-Email → "Confirm email" toggle.
-**Decision needed:** Either (a) disable email confirmation for staging
-to match local dev behavior, or (b) keep it enabled and fix the
-frontend flow to correctly handle the "check your email" state instead
-of expecting immediate tokens — **(b) is more production-realistic and
-probably the right long-term call**, but changes the onboarding UX
-flow that currently assumes immediate redirect.
-
-### Issue 2: Email confirmation link redirects to `localhost:3000`
-**Cause confirmed:** Supabase's Site URL is still set to its default
-(`http://localhost:3000`), used to construct confirmation email links.
-**Fix:** Supabase Dashboard → Authentication → URL Configuration:
-- Update **Site URL** to the real Cloudflare Worker URL
-- Add that same URL to the **Redirect URLs** allowlist (Supabase
-  rejects redirects to non-allowlisted URLs)
-
-### Outstanding from earlier in session (not yet actioned)
-- `APP_BASE_URL` in the VM's `.env` — confirm it points to the real
-  Cloudflare Worker URL (used for invite link construction), not a
-  placeholder
-- `STAGING_API_BASE_URL` / `STAGING_WS_URL` in GitHub Secrets — need
-  to be set to `https://soarupapi.dpdns.org/api/v1` and
-  `wss://soarupapi.dpdns.org/api/v1/ws`, then frontend redeployed to
-  pick them up
-- R2 CORS `AllowedOrigins` — confirm it includes the real Cloudflare
-  Worker URL (was a `localhost:3000` placeholder earlier in the
-  session; may or may not have been updated since)
-- Sentry environment-scoped alert rule — confirm `staging` now appears
-  as a selectable environment (only populates once real staging events
-  exist, which they now do)
+| Service                           | Status                        | Notes                                                                                                                                                       |
+| --------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloudflare Workers (frontend)     | ✅ Live                       | Next.js 16 + OpenNext, now on custom domain `app.soarupapi.dpdns.org`                                                                                       |
+| Custom domain for Worker          | ✅ Live                       | **NEW.** Fixes email-link/sending-domain mismatch that was causing Gmail bounces                                                                            |
+| Sentry (2 projects)               | ✅ Live                       | Unchanged                                                                                                                                                   |
+| Supabase (staging project)        | ✅ Live                       | Auth flow fully debugged this session (see §3)                                                                                                              |
+| Redis                             | ✅ Live — **self-hosted**     | **Changed this session.** Was Upstash (hit 500k/month command quota from Celery heartbeat/gossip traffic); now `redis:7-alpine` in the compose stack        |
+| Cloudflare R2 (staging bucket)    | ✅ Live                       | URL construction and presigned-URL signing both fixed this session (see §3)                                                                                 |
+| Anthropic API (staging key)       | ✅ Configured                 | Confirmed working via live digest + audio summarization tests                                                                                               |
+| Hetzner VM (`soarup-staging`)     | ✅ Live                       | Ubuntu 26.04, non-root `soarup` user                                                                                                                        |
+| Domain (`soarupapi.dpdns.org`)    | ✅ Live                       | DNS fully managed in Cloudflare (confirmed "DNS Setup: Full")                                                                                               |
+| Resend (transactional email)      | ✅ Live — **domain verified** | **NEW this session.** `mail.soarupapi.dpdns.org` verified (DKIM/SPF/DMARC). Both invite and digest emails confirmed delivering.                             |
+| Caddy reverse proxy               | ✅ Live                       | Unchanged                                                                                                                                                   |
+| Backend health check              | ✅ Passing                    | `/api/v1/health`                                                                                                                                            |
+| Alembic migrations                | ✅ Applied                    | Still run manually via SSH — see §4 open items                                                                                                              |
+| **Full auth flow**                | ✅ **Working end-to-end**     | **NEW.** Signup → email confirmation → callback → session hydration → onboarding → login, all confirmed working. See §3 for the bug chain that got it here. |
+| **Avatar upload + render**        | ✅ Working                    | **NEW.** Both upload and public-URL rendering confirmed                                                                                                     |
+| **Voice update pipeline**         | ✅ Working                    | **NEW.** Presigned upload → R2 storage → Whisper transcription → Claude summarization → live WebSocket status update, confirmed end-to-end in worker logs   |
+| **Live WebSocket status updates** | ✅ Working                    | **NEW.** Was silently broken while Redis (Upstash) was over quota; resolved by the Redis self-host migration                                                |
+| **Digest pipeline**               | ✅ Working                    | **NEW.** Scheduled send confirmed via Resend dashboard — Celery beat tick → Claude summarization → DigestItem creation → email delivery, all confirmed      |
+| **Workspace invite flow**         | ✅ Working                    | **NEW.** Confirmed with two external (non-owner) email addresses post-domain-migration, including one Gmail address that previously bounced                 |
 
 ---
 
-## 4. Deferred / Not Yet Provisioned
+## 3. Bugs Found & Fixed This Session
 
-- **Production environment** — entirely deferred until real user
-  demand exists (Supabase prod project, Anthropic prod key, R2 prod
-  bucket, `main` branch fast-forward, production Hetzner/Cloudflare
-  resources)
-- **`migrate-db-staging.yml` GitHub Actions workflow** — scoped and
-  designed (migration + deploy as sequential jobs) but not yet created;
-  migrations are currently run manually via SSH
-- **Resend domain verification** (Open Question #4 from original spec)
-  — untouched
-- **E2E test suite re-run** — deliberately deferred until upcoming
-  OAuth work, per earlier decision
-- **Flower (Celery monitoring dashboard)** — deliberately excluded
-  from the VM for now (would need its own auth/HTTPS exposure)
+A lot of small, independent bugs compounded to make auth/storage/email
+look broken as a whole. Documenting the actual root causes here since
+several are non-obvious and worth understanding for anyone extending
+this code, not just for historical record.
+
+### Auth chain
+
+1. **`APP_BASE_URL` had a stray `/login` suffix** on the VM's `.env`,
+   turning every `email_redirect_to` into `/login/callback` (a route
+   that doesn't exist) instead of `/callback`.
+2. **`/callback` page relied on Supabase SDK auto-detection
+   (`detectSessionInUrl`) for hash-fragment tokens** (`#access_token=...`),
+   but the browser client's default flow configuration wasn't picking
+   these up — zero Supabase network calls ever fired, confirmed via
+   DevTools. Fixed by manually parsing `window.location.hash` and
+   calling `supabase.auth.setSession()` explicitly rather than relying
+   on SDK auto-detection.
+3. **JWT issuer verification hardcoded a bare `settings.supabase_url`**
+   in `validate_supabase_jwt` (`utils/auth.py`), but Supabase's actual
+   `iss` claim includes an `/auth/v1` suffix the setting doesn't carry
+   (deliberately, since other call sites append their own suffixes).
+   Fixed by appending `/auth/v1` at the one call site that needed it,
+   with comments added at both that call site and on the `supabase_url`
+   field itself warning about a hypothetical future `/auth/v2`.
+4. **Signup silently returned blank tokens** when Supabase's hosted
+   "Confirm email" setting withheld a session (unlike local dev, where
+   it's off by default) — the old code didn't distinguish this from a
+   real failure. Fixed with a discriminated `SignupResponse` schema
+   (`status: "authenticated" | "confirmation_required"`) and a
+   dedicated `/signup/check-email` frontend page.
+5. **A new `/auth/session` backend endpoint** and `/callback` frontend
+   route were built specifically to handle any flow where Supabase
+   issues a session directly (client-side) rather than through the
+   FastAPI-mediated login/signup — covers email confirmation today,
+   and will cover OAuth once real providers are wired up (currently
+   placeholder buttons only).
+
+### Storage (R2)
+
+6. **Avatar public URLs were built via a hardcoded broken hostname
+   template** (`f"https://{bucket}.r2.cloudflarestorage.com/{key}"`)
+   instead of the correctly-configured `R2_PUBLIC_ENDPOINT_URL`
+   (`pub-*.r2.dev`) — dead code left over from before that env var
+   existed. Caused `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`.
+7. **`R2_ENDPOINT_URL` had the bucket name appended to it** in the
+   VM's `.env` (should be scheme+host only), causing every upload to
+   land at a doubled-nested key path (`soarup-staging/avatars/...`
+   instead of `avatars/...`).
+8. **Presigned PUT/GET URLs were signed against the public `r2.dev`
+   domain**, which doesn't implement S3 signature verification —
+   produced valid-looking but rejected (`401`) URLs. Fixed with a
+   `signing_endpoint` conditional: `public_endpoint_url` locally
+   (where both Minio doorways serve the full S3 API), `endpoint_url`
+   on R2 (where only the real API domain does).
+9. **R2's "Public Development URL" toggle was never enabled** on the
+   bucket itself — a separate requirement from having a correctly-shaped
+   URL or a CORS policy.
+
+### Infrastructure
+
+10. **Upstash Redis hit its 500k/month command quota**, driven by
+    Celery's broker/backend heartbeat, mingle, and gossip traffic
+    (not application logic — `beat`'s 5-minute tick alone is far too
+    low-volume to explain it). Fixed by self-hosting Redis in the
+    compose stack. Tracked as accepted staging-only debt (no
+    backup/replication yet — see §4).
+11. **Cloudflare's Supabase Vector container was crash-looping**,
+    caused by a Windows port-exclusion conflict (`54322` fell inside a
+    `winnat`-reserved range) rather than anything in the project
+    config. Fixed by restarting the `winnat` service; separately,
+    `[analytics] enabled = false` was set in `supabase/config.toml` to
+    stop Vector from running at all going forward.
+12. **GitHub Actions silently stopped triggering** due to a stacked
+    combination of: a `$0` account-level spending budget with
+    "Stop usage: Yes" (trips on any gross usage, regardless of
+    included-minutes coverage) plus, separately, a genuine multi-hour
+    GitHub platform-wide Actions incident on Aug 6. Both had to be
+    ruled out independently.
+13. **`actions/checkout@v4`** was flagged for Node 20 deprecation across
+    all jobs in `pr-checks.yml`; bumped to `@v5`.
+
+### Email deliverability
+
+14. **Supabase's shared SMTP caps auth emails at 2/hour** — a hosted-project
+    default, not a local-dev-only setting. No code fix; tracked as an
+    open item to configure custom SMTP (see §4).
+15. **Invite/digest email links pointed at a different domain
+    (`*.workers.dev`) than the sending domain (`mail.soarupapi.dpdns.org`)**,
+    triggering Gmail's "likely unsolicited mail" spam block. Fixed by
+    giving the Cloudflare Worker a custom domain
+    (`app.soarupapi.dpdns.org`) under the same root as the sending
+    domain, and updating `APP_BASE_URL` to match. Confirmed working:
+    a subsequent invite to a Gmail address that had previously bounced
+    delivered successfully.
 
 ---
 
-## 5. Scaling Considerations Identified This Session
+## 4. Known Open Issues (tracked, not yet actioned)
 
-Worth treating as a checklist to revisit as real usage grows, not
-urgent today:
+- **Configure custom SMTP for Supabase Auth** (Resend, via the now-verified
+  `mail.soarupapi.dpdns.org` domain) — removes the 2 email/hour cap on
+  confirmation/reset emails specifically (separate from the invite/digest
+  path, which already uses Resend directly and isn't affected by this cap).
+- **Digest settings appear to reset after a successful digest send** —
+  root cause unconfirmed (frontend cache vs. real backend reset vs.
+  display artifact). Confirmed the digest _pipeline_ itself works
+  correctly regardless.
+- **Non-root Celery worker/beat containers** — currently run as root
+  inside their containers, flagged by Celery's own `SecurityWarning`.
+- **`HF_TOKEN` unset** — Whisper model downloads from Hugging Face are
+  unauthenticated, subject to lower anonymous rate limits.
+- **No Redis backup/replication strategy** — acceptable for
+  single-user staging today; revisit before any production traffic.
+- **`migrate-db-staging.yml` GitHub Actions workflow** — still not
+  created; migrations run manually via SSH.
+- **Password reset flow** — not smoke-tested this session, given how
+  many adjacent auth bugs were found, worth a dedicated pass before
+  assuming it's clean.
+- **Slack integration** — not tested this session (feature-flagged,
+  `SLACK_INTEGRATION_ENABLED`).
+- **RBAC role behavior** (owner vs. admin vs. member) — not
+  specifically smoke-tested this session beyond default owner access.
+- **Onboarding redirect flicker** — after completing onboarding, briefly
+  redirects to `/dashboard` then bounces back to `/onboarding` before
+  settling. Backend data confirmed correct (verified via second
+  browser session) — purely a client-side state/timing display bug.
+- **Remaining GitHub Actions on old Node runtime** — only
+  `actions/checkout` was confirmed and fixed; `codecov-action`,
+  `docker/build-push-action`, `codeql-action`, `dependency-review-action`
+  weren't individually audited.
+- **`.env.example` missing `RESEND_FROM_EMAIL`** — the setting exists
+  and matters in practice now; the template file doesn't document it.
 
-1. **Celery architecture requires always-on compute.** This was the
-   root reason Cloudflare Workers/Containers couldn't host the
-   backend — `beat` and `worker` need continuous processes, which is
-   fundamentally incompatible with scale-to-zero platforms. This
-   constrains future hosting choices as long as the current
-   worker/beat architecture stands.
+---
 
-2. **Single VM, no redundancy.** `api`, `worker`, and `beat` all share
-   one small Hetzner VM with no failover. A VM-level failure takes
-   down the entire backend simultaneously. No horizontal scaling story
-   exists yet — if traffic grows, vertical resizing (bigger VM) is the
-   only lever until a proper multi-instance architecture is built.
+## 5. Scaling Considerations (updated from v1)
 
-3. **Resource contention risk on the shared VM.** Audio transcription
-   (`faster-whisper`) is CPU-intensive; if it runs concurrently with
-   API request handling on the same small VM, API latency could
-   degrade under real load. Worth monitoring once real usage exists.
+Most of v1's scaling notes still hold. Updates specific to this session:
 
-4. **Free-tier ceilings across every external service.** Supabase
-   (pauses after inactivity, 2-active-project cap), Upstash (command
-   volume caps), R2 (10GB storage, operation caps), Anthropic (hard
-   spend limit) — none of these are infinite. Real growth means
-   revisiting each service's tier, not just the compute layer.
-
-5. **Shared Redis instance, multiple responsibilities.** The same
-   Upstash instance serves as the Celery broker, WebSocket pub/sub,
-   and rate-limiting cache. Growth in any one of these could hit
-   Upstash's command-volume limits faster than expected since they're
-   not isolated.
-
-6. **Known Slack digest ceiling.** Flagged earlier in the milestone
-   spec as a known tradeoff, not fixed: block-count limits mean
-   workspaces with ~43+ same-day submitters could hit formatting
-   limits in the digest.
-
-7. **Cloudflare Worker bundle size is a recurring constraint.** Getting
-   under the 3 MiB gzip limit required the Workers Paid plan
-   specifically for headroom. Every future frontend dependency added
-   is a small risk of bumping against this again — worth periodically
-   checking bundle size as the app grows, not just at deploy time.
-
-8. **Sentry + Turbopack limitation is not fully in your control.**
-   Production builds are forced onto webpack because Sentry's SDK
-   doesn't yet support Turbopack production builds. This is an
-   upstream SDK limitation — revisit if/when Sentry ships full support,
-   but nothing to do about it today.
-
-9. **No edge caching in front of the API itself.** Only frontend
-   static assets get Cloudflare's proxy/CDN benefit; API traffic goes
-   DNS-only, direct to the Hetzner origin. The origin VM absorbs 100%
-   of API request load directly — no caching layer buffering it.
-
-10. **Environment-parity gaps are still being discovered.** The email
-    confirmation issue (Section 3) is itself an example: local dev's
-    relaxed Supabase CLI defaults don't match hosted Supabase's
-    defaults. More such gaps may surface as more flows get tested
-    against staging for the first time — worth treating each one as
-    informative, not alarming, when found.
+1. **Redis is now self-hosted, not managed.** This trades away Upstash's
+   automatic backups/replication for freedom from the command-volume
+   quota. Given the VM already has "no redundancy" and "resource
+   contention risk" flagged in v1, adding Redis as a fourth resident
+   process is a real (if currently small) additional load — worth
+   watching memory usage as traffic grows, not just CPU.
+2. **Email domain reputation needs organic warm-up time**, independent
+   of the custom-domain fix. The domain-mismatch fix removes one
+   structural red flag permanently, but Gmail-specific trust is earned
+   through sustained legitimate sending history, not configuration.
+3. Everything else from v1 (Celery's always-on compute requirement,
+   single-VM no-redundancy, free-tier ceilings on the _other_ services,
+   Cloudflare Worker bundle size, Sentry/Turbopack limitation, no edge
+   caching in front of the API) is unchanged and still accurate.
 
 ---
 
 ## 6. Reference Material
 
-- **VM Operations Cheat Sheet** — separate document
-  (`soarup-staging-vm-cheatsheet.md`), covers SSH access, Docker
-  Compose commands, firewall, logs, redeploy workflow
+- **Frontend URL:** `https://app.soarupapi.dpdns.org` (custom domain,
+  canonical going forward)
+- **Backend API URL:** `https://soarupapi.dpdns.org/api/v1`
+- **Email sending domain:** `mail.soarupapi.dpdns.org` (Resend, verified)
 - **VM IP:** `178.104.21.1`
 - **VM SSH user:** `soarup` (key: `~/.ssh/soarup_hetzner` locally)
 - **Repo path on VM:** `~/soarup`
 - **Deploy branch:** `develop` (both frontend and backend)
-- **Backend deploy command:** `git pull && docker compose -f
-  docker-compose.staging.yml up -d --build`
+- **Backend deploy:** `make staging-deploy` (git pull + rebuild + restart
+  all containers) or `make staging-restart service=<name>` (env-only
+  changes, no rebuild — faster but does NOT pick up code changes)
+- **Staging Makefile targets added this session:** `staging-logs`,
+  `staging-ps`, `staging-deploy`, `staging-restart`, `staging-down`,
+  `staging-down-volumes`
 
 ---
 
-## 7. Suggested Next Session Structure
+## 7. Suggested Next Steps
 
-1. Fix Supabase URL Configuration (Site URL + Redirect URLs) — quick win
-2. Decide on email confirmation policy for staging (disable vs. fix
-   frontend flow) and implement
-3. Complete the outstanding GitHub Secrets / R2 CORS / `APP_BASE_URL`
-   checklist from Section 3
-4. Full smoke test: signup → onboarding → dashboard → text update →
-   voice update → invite flow → digest settings, end-to-end against
-   real staging infrastructure
-5. Address any new bugs surfaced during smoke testing as they come up
+1. Configure Supabase custom SMTP via Resend (closes the last
+   known auth-adjacent friction point)
+2. Smoke-test password reset and RBAC role boundaries
+3. Address the digest-settings-persistence bug (needs investigation,
+   not yet a confirmed root cause)
+4. Non-root Celery containers + `HF_TOKEN` (both quick, low-risk fixes)
+5. Build `migrate-db-staging.yml` to remove the manual SSH migration step
+6. Revisit Redis backup strategy before any real user traffic

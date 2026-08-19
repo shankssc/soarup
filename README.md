@@ -1,37 +1,128 @@
 # 🚀 SoarUp
 
-> Async standup platform for indie developers and small remote teams.
+> Async standup platform for indie developers and small remote teams —
+> submit a text or voice update, get an AI summary, and stay in sync
+> without the meeting.
 
-[![🚀 SoarUp CI](https://github.com/shankssc/soarup/actions/workflows/pr-checks.yml/badge.svg?branch=develop)](https://github.com/shankssc/soarup/actions/workflows/pr-checks.yml)
-[![Codecov](https://codecov.io/gh/shankssc/soarup/branch/develop/graph/badge.svg?token=YOUR_TOKEN)](https://codecov.io/gh/shankssc/soarup)
+[![CI](https://github.com/shankssc/soarup/actions/workflows/pr-checks.yml/badge.svg?branch=develop)](https://github.com/shankssc/soarup/actions/workflows/pr-checks.yml)
+[![Codecov](https://codecov.io/gh/shankssc/soarup/branch/develop/graph/badge.svg)](https://codecov.io/gh/shankssc/soarup)
 [![CodeQL](https://github.com/shankssc/soarup/actions/workflows/codeql.yml/badge.svg)](https://github.com/shankssc/soarup/security/code-scanning)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-**SoarUp** helps you stay in sync without the meeting. Submit a 30-second voice note or text update, get an AI-powered summary, and receive a clean digest when it works for your timezone.
+[🔗 Live staging demo](https://app.soarupapi.dpdns.org)
 
-## ✨ Core Features
+---
 
-- 🎙️ **Voice or text updates** – Record in under 60 seconds
-- 🤖 **AI summarisation** – Whisper + Claude for accurate, concise digests
-- 📬 **Flexible delivery** – Email, Slack, or in-app at your preferred time
-- 🔐 **Privacy-first** – Row-level security, pre-signed uploads, no data sharing
-- 🆓 **Generous free tier** – Built for solo devs and small teams
+## What is SoarUp?
+
+Standups eat a fixed 15 minutes out of every distributed team's day,
+regardless of how much there is to actually say. SoarUp replaces the
+meeting with an async loop: submit a short text or voice update on your
+own time, an AI pipeline transcribes and summarizes it, and your team
+gets a clean digest delivered on a schedule that fits their timezone —
+by email, Slack, or both.
+
+Built solo, end-to-end, across nine feature milestones plus a dedicated
+pre-deployment hardening pass — from an empty repo to a fully working
+staging environment with real auth, real AI processing, real scheduled
+email delivery, and real-time updates over WebSockets.
+
+## ✨ Features
+
+**Core loop**
+
+- 🎙️ Voice or text daily standup updates, one per person per workspace per day
+- 🤖 AI transcription (Whisper) + summarization (Claude, with automatic
+  Haiku → Sonnet fallback on retry)
+- ⚡ Real-time status updates in the UI via WebSockets + Redis Streams
+  (not plain pub/sub — durable, replayable on reconnect)
+
+**Teams**
+
+- 👥 Multi-member workspaces with role-based access control
+  (owner / admin / member)
+- ✉️ Email invite flow with expiring, single-use invite links
+- 📬 Scheduled team digests — Claude-generated team-level summary,
+  delivered by email and optionally to Slack, on a per-workspace
+  schedule and timezone
+- 💬 Slack integration — encrypted-at-rest webhook, rich Block Kit
+  digest + update notifications, test-send preview
+
+**Insight**
+
+- 📊 History & analytics — personal and team GitHub-style contribution
+  heatmaps, current/best streaks (aware of each workspace's configured
+  digest days, not just calendar days), team participation rates
+- 🌐 Public, shareable "build in public" profile pages
+  (`/u/:username`) with OpenGraph link previews
+
+**Trust & operations**
+
+- 🔐 Encrypted-at-rest credentials (Fernet), signed HMAC unsubscribe
+  tokens (CAN-SPAM/GDPR compliant, per-workspace preference), GCRA
+  rate limiting on mutation endpoints
+- 🧭 Full observability — Sentry on both frontend and backend, with
+  PII collection explicitly disabled
+- ✅ Automated end-to-end test coverage (Playwright) across the core
+  signup → submit → digest → invite flows
+
+## 🏗️ Architecture
+
+Backend: FastAPI + Celery (worker + beat) running in Docker on a
+self-managed VM behind Caddy. Frontend: Next.js on Cloudflare Workers.
+Auth and Postgres on Supabase, object storage on Cloudflare R2, cache /
+task queue / event streaming on Redis, transactional email via Resend.
+
+```mermaid
+flowchart LR
+    U((User)) --> FE[Next.js<br/>Cloudflare Workers]
+    FE -- HTTPS --> API[FastAPI<br/>Docker · VM]
+    API --> DB[(Supabase<br/>Postgres + Auth)]
+    API --> R[(Redis<br/>queue · streams · rate limits)]
+    API --> S3[(Cloudflare R2<br/>audio · avatars)]
+    W[Celery Worker] --> R
+    W --> DB
+    W --> AI[Anthropic Claude<br/>+ Whisper]
+    B[Celery Beat<br/>scheduler] --> R
+    W --> MAIL[Resend]
+    W --> SLACK[Slack Webhooks]
+    API -.errors.-> SEN[Sentry]
+    FE -.errors.-> SEN
+```
+
+Full breakdown — every component, the real-time event pipeline, the
+digest scheduling pipeline, and the data model — lives in
+**[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)**.
+
+## 🧰 Tech Stack
+
+| Layer                   | Choice                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| Frontend                | Next.js (App Router) · TypeScript · Tailwind · React Query · Zustand         |
+| Backend                 | FastAPI · Python 3.12 · SQLAlchemy (async) · Alembic                         |
+| Background jobs         | Celery (worker + beat)                                                       |
+| Database & Auth         | Supabase (Postgres + GoTrue)                                                 |
+| Cache / queue / streams | Redis                                                                        |
+| Object storage          | Cloudflare R2                                                                |
+| AI                      | Anthropic Claude (summarization) · faster-whisper (transcription)            |
+| Email                   | Resend                                                                       |
+| Chat integration        | Slack (Block Kit, incoming webhooks)                                         |
+| Observability           | Sentry                                                                       |
+| CI                      | GitHub Actions (lint, type-check, pytest, vitest, CodeQL, Codecov)           |
+| Hosting                 | Cloudflare Workers (frontend) · self-managed VM via Docker + Caddy (backend) |
 
 ## 📚 Documentation
 
-All architecture, specs, and decisions live in [`/specs/Scaffolding`](./specs/Scaffolding/):
+| Doc                                              | Description                                                                                        |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | System topology, real-time event pipeline, digest scheduling pipeline, data model — all diagrammed |
 
-| Spec                                                                     | Description                                    |
-| ------------------------------------------------------------------------ | ---------------------------------------------- |
-| [00 — Product Vision](./specs/Scaffolding/00-product-vision.md)          | Why this exists, who it's for, success metrics |
-| [01 — Architecture](./specs/Scaffolding/01-architecture.md)              | System overview, tech stack, request lifecycle |
-| [02 — Data Models](./specs/Scaffolding/02-data-models.md)                | Supabase Postgres schema, RLS policies         |
-| [03 — API Contracts](./specs/Scaffolding/03-api-contracts.md)            | REST + WebSocket endpoint specifications       |
-| [04 — Frontend Spec](./specs/Scaffolding/04-frontend-spec.md)            | Next.js 14 App Router, TypeScript, Tailwind    |
-| [05 — Backend Spec](./specs/Scaffolding/05-backend-spec.md)              | FastAPI, Celery, async processing pipeline     |
-| [06 — Auth & Multi-tenancy](./specs/Scaffolding/06-auth-multitenancy.md) | Supabase Auth, workspace roles, RLS            |
-| [07 — Quality & Testing](./specs/Scaffolding/07-quality-testing.md)      | Linting, testing, security, coverage gates     |
-| [08 — Infra & CI/CD](./specs/Scaffolding/08-infra-cicd.md)               | Docker, GitHub Actions, deploy pipelines       |
-| [09 — Feature Roadmap](./specs/Scaffolding/09-feature-roadmap.md)        | Milestones, acceptance criteria, sequencing    |
+> **Note on `specs/Scaffolding/`:** this folder contains the original
+> pre-build planning documents written before development started.
+> They're kept for historical context but no longer reflect the
+> shipped system in several places (framework versions, the pub/sub →
+> Redis Streams migration, features added after initial scoping).
+> `docs/ARCHITECTURE.md` is the current source of truth.
 
 ## 🛠️ Getting Started
 
@@ -41,7 +132,7 @@ All architecture, specs, and decisions live in [`/specs/Scaffolding`](./specs/Sc
 - Python 3.12 (for local backend dev)
 - Node.js 20+ (for local frontend dev)
 - `make` (optional but recommended)
-- [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started) v1.x (`brew install supabase/tap/supabase` or see link)
+- [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started)
 
 ### Quick Start
 
@@ -65,134 +156,135 @@ make dev
 # → Backend API: http://localhost:8000
 # → API Docs: http://localhost:8000/docs
 # → Flower (Celery monitor): http://localhost:5555
+```
 
-# Run tests
-make test          # Full suite in CI env
-make test-api      # Backend only
-make test-web      # Frontend only
+### Common commands
 
-# Run linters
-make lint          # Both apps
-make lint-api      # Backend only
-make lint-web      # Frontend only
+```bash
+# Tests
+make test          # Full suite (API + web)
+make test-api       # Backend only
+make test-web       # Frontend only
+make test-cov       # Backend with HTML coverage report → htmlcov/
 
-# Database migrations
+# Linting
+make lint           # Both apps
+make lint-api
+make lint-web
+
+# Database
 make migrate                     # Run pending migrations
-make migration name='add_field'  # Create new migration
+make migration name='add_field'  # Create a new migration
 
 # Shells
-make shell-api    # Python shell in API container
-make shell-db     # psql shell in database
-make shell-web    # Shell in web container
+make shell-api      # Python shell in API container
+make shell-db        # psql shell
+make shell-web       # Shell in web container
 
 # Logs
-make logs service=api   # Tail API logs
-make logs service=web   # Tail web logs
+make logs service=api
+make logs service=web
 
 # Cleanup
-make clean       # Remove containers, volumes, artifacts
+make clean          # Remove containers, volumes, artifacts
 ```
+
+## 🧪 Running Tests
+
+Tests require two services running locally before invoking pytest:
+
+**1. Supabase local stack** (Postgres + GoTrue auth):
+
+```bash
+supabase start
+```
+
+Postgres on `54322`, Auth on `54321`. Persists across sessions until
+`supabase stop`.
+
+**2. Isolated test Redis:**
+
+```bash
+docker compose -f docker-compose.test.yml up -d
+```
+
+Runs on `6380`, separate from dev Redis on `6379`.
+
+**One-time test database setup:**
+
+```bash
+psql postgresql://postgres:postgres@localhost:54322/postgres \
+  -c "CREATE DATABASE soarup_test;"
+
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/soarup_test \
+  alembic upgrade head
+# or: make migrate-test
+```
+
+**CI vs local:**
+
+| Concern    | Local                       | CI                             |
+| ---------- | --------------------------- | ------------------------------ |
+| Postgres   | Supabase CLI (port `54322`) | `supabase/setup-cli` action    |
+| Redis      | `docker-compose.test.yml`   | `redis` service container      |
+| JWT secret | Supabase CLI default        | Injected via `env:`            |
+| Migrations | Run manually once           | Run as a CI step before pytest |
+
+- `ENVIRONMENT=local` skips strict JWT issuer validation so local tests
+  don't need to match Supabase's exact `iss` claim.
+- Each test runs inside a nested transaction (SAVEPOINT) that is always
+  rolled back — no test data persists between runs.
+- Playwright E2E specs live under `apps/web/tests/e2e/` and cover
+  signup → onboarding, text update submission, invite flow, and voice
+  update submission end-to-end.
 
 ## 🧭 Project Structure
 
 ```
 soarup/
 ├── apps/
-│ ├── api/ # FastAPI backend (Python 3.12)
-│ │ ├── app/ # Application code
-│ │ ├── tests/ # Pytest suite
-│ │ └── ...
-│ └── web/ # Next.js 14 frontend (App Router)
-│ ├── src/app/ # App Router pages
-│ ├── src/components/
-│ └── ...
-├── specs/ # All spec documents (source of truth)
-├── .github/workflows/# CI/CD pipelines
-├── docker-compose.yml# Local dev environment
-├── Makefile # Developer convenience commands
-└── README.md # You are here
+│   ├── api/                 # FastAPI backend (Python 3.12)
+│   │   ├── app/              # Application code (routers, services, repos, models, workers)
+│   │   └── tests/             # Pytest suite (unit + integration)
+│   └── web/                  # Next.js frontend (App Router)
+│       ├── src/app/            # Routes
+│       ├── src/components/     # UI + domain components
+│       └── tests/e2e/          # Playwright end-to-end specs
+├── docs/                     # Current architecture documentation
+├── specs/Scaffolding/        # Historical pre-build planning docs (see note above)
+├── .github/workflows/         # CI/CD pipelines
+├── docker-compose.yml         # Local dev environment
+├── docker-compose.test.yml    # Isolated test services
+├── Makefile                   # Developer convenience commands
+└── README.md
 ```
+
+## 🚦 Project Status
+
+Nine feature milestones complete (auth & onboarding through public
+profiles), plus a dedicated pre-deployment hardening pass (observability,
+security, rate limiting, E2E completion). Currently deployed to a live
+staging environment. Open work is tracked entirely as labeled,
+milestoned [GitHub Issues](https://github.com/shankssc/soarup/issues) —
+`tech-debt`, `bug`, `ux-polish`, `security`, `testing`, `post-m9`.
+
+### Why staging, not production?
+
+This is a solo, self-funded project — infrastructure choices here are
+a budget decision, not a knowledge gap. I picked a single Hetzner VM
+running Celery + Redis + Postgres over Railway, managed queues, or
+Kubernetes because it's the right cost-to-value tradeoff for a
+pre-revenue solo build, not because I haven't used the fancier stuff.
+Production is the next milestone once there's a reason — revenue,
+users, or funding — to justify the added cost and operational overhead.
 
 ## 🤝 Contributing
 
-1. Create a feature branch from <kbd>develop</kbd>
+1. Branch from `develop`
+2. Follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat: add voice recording`)
+3. Ensure `make lint && make test` passes
+4. Open a PR against `develop` — CI must be green before merge
 
-2. Follow Conventional Commits: <kbd>feat: add voice recording</kbd>
+## 📄 License
 
-3. Ensure all checks pass: <kbd>make lint && make test</kbd>
-
-4. Open a PR against <kbd>develop</kbd>
-
-## 🧪 Running Tests
-
-### Prerequisites
-
-Tests require two services running locally before you invoke pytest:
-
-1. **Supabase local stack** (provides Postgres + GoTrue auth):
-
-```bash
-   supabase start
-```
-
-This spins up Postgres on port **54322** and the Auth server on **54321**.
-Run it once; it persists across terminal sessions until you call `supabase stop`.
-
-2. **Test Redis container**:
-
-```bash
-   docker compose -f docker-compose.test.yml up -d
-```
-
-This starts an isolated Redis instance on port **6380** (separate from dev Redis on 6379).
-
-### One-Time Test Database Setup
-
-The test suite uses a dedicated `soarup_test` database inside the Supabase local
-Postgres instance. Create it once after your first `supabase start`:
-
-```bash
-psql postgresql://postgres:postgres@localhost:54322/postgres \
-  -c "CREATE DATABASE soarup_test;"
-```
-
-Then apply migrations to it:
-
-```bash
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/soarup_test \
-  alembic upgrade head
-```
-
-Or via Make:
-
-```bash
-make migrate-test
-```
-
-### Running the Suite
-
-```bash
-make test          # Full suite (API + web)
-make test-api      # Backend (pytest) only
-make test-web      # Frontend (Vitest) only
-make test-cov      # Backend with HTML coverage report → htmlcov/
-```
-
-### CI vs Local
-
-| Concern    | Local                           | CI (GitHub Actions)          |
-| ---------- | ------------------------------- | ---------------------------- |
-| Postgres   | Supabase CLI local (port 54322) | `supabase/setup-cli` action  |
-| Redis      | docker-compose.test.yml         | `redis` service container    |
-| JWT secret | Supabase CLI default            | Secret injected via `env:`   |
-| Migrations | Run manually once               | Run as CI step before pytest |
-
-### Notes
-
-- `ENVIRONMENT=local` is set automatically by the test config — this skips JWT
-  issuer validation so tests don't need to match Supabase's exact `iss` claim.
-- The Supabase CLI default JWT secret is:
-  `super-secret-jwt-token-with-at-least-32-characters-long`
-  This is intentional for local dev. Never use it in staging or production.
-- Each test runs in a nested transaction (SAVEPOINT) that is always rolled back —
-  no test data persists between runs.
+MIT — see [`LICENSE`](./LICENSE) for the full text.
