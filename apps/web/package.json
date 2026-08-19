@@ -112,7 +112,8 @@
     },
     "minimatch@3.1.5": {
       "brace-expansion": "1.1.18"
-    }
+    },
+    "fast-uri": "3.1.5"
   },
   "allowScripts": {
     "@sentry/cli@2.58.6": true,
