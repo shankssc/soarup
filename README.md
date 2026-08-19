@@ -9,9 +9,7 @@
 [![CodeQL](https://github.com/shankssc/soarup/actions/workflows/codeql.yml/badge.svg)](https://github.com/shankssc/soarup/security/code-scanning)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-[🔗 Live staging demo](https://app.soarupapi.dpdns.org)
-
----
+## [🔗 Live staging demo](https://app.soarupapi.dpdns.org)
 
 ## What is SoarUp?
 
@@ -77,17 +75,38 @@ task queue / event streaming on Redis, transactional email via Resend.
 flowchart LR
     U((User)) --> FE[Next.js<br/>Cloudflare Workers]
     FE -- HTTPS --> API[FastAPI<br/>Docker · VM]
-    API --> DB[(Supabase<br/>Postgres + Auth)]
-    API --> R[(Redis<br/>queue · streams · rate limits)]
-    API --> S3[(Cloudflare R2<br/>audio · avatars)]
-    W[Celery Worker] --> R
-    W --> DB
-    W --> AI[Anthropic Claude<br/>+ Whisper]
-    B[Celery Beat<br/>scheduler] --> R
-    W --> MAIL[Resend]
-    W --> SLACK[Slack Webhooks]
-    API -.errors.-> SEN[Sentry]
+
+    subgraph Observability
+        SEN[Sentry]
+    end
     FE -.errors.-> SEN
+    API -.errors.-> SEN
+
+    subgraph "Data & Storage"
+        DB[(Supabase<br/>Postgres + Auth)]
+        R[(Redis<br/>queue · streams · rate limits)]
+        S3[(Cloudflare R2<br/>audio · avatars)]
+    end
+    API --> DB
+    API --> R
+    API --> S3
+
+    subgraph "Background Jobs"
+        W[Celery Worker]
+        B[Celery Beat<br/>scheduler]
+    end
+    W --> R
+    W --> DB
+    B --> R
+
+    subgraph "External Services"
+        AI[Anthropic Claude<br/>+ Whisper]
+        MAIL[Resend]
+        SLACK[Slack Webhooks]
+    end
+    W --> AI
+    W --> MAIL
+    W --> SLACK
 ```
 
 Full breakdown — every component, the real-time event pipeline, the
