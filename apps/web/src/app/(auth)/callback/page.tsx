@@ -20,11 +20,18 @@ import { Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth, useAuthStore } from '@/hooks/useAuth';
 
-function parseHashParams(hash: string): Record<string, string> {
+/*
+Returns a Map rather than a plain object — CodeQL flags
+`result[key] = value` as a prototype-pollution sink whenever `key`
+comes from user-controlled input (here, the URL hash). A Map has no
+prototype chain to pollute, so this removes the sink pattern
+entirely rather than suppressing the warning.
+*/
+function parseHashParams(hash: string): Map<string, string> {
   const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
-  const result: Record<string, string> = {};
+  const result = new Map<string, string>();
   params.forEach((value, key) => {
-    result[key] = value;
+    result.set(key, value);
   });
   return result;
 }
@@ -39,9 +46,9 @@ export default function AuthCallbackPage() {
 
     async function run() {
       const hashParams = parseHashParams(window.location.hash);
-      const accessToken = hashParams['access_token'];
-      const refreshToken = hashParams['refresh_token'];
-      const hashError = hashParams['error_description'];
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const hashError = hashParams.get('error_description');
 
       // Strip tokens out of the visible URL immediately regardless of
       // outcome — they shouldn't linger in browser history either way.
