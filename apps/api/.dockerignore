@@ -1,0 +1,23 @@
+# Create .dockerignore to speed up builds
+@'
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.git/
+.gitignore
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+*.log
+.env
+.env.*
+!.env.example
+.secrets.baseline
+'@ | Out-File -FilePath .dockerignore -Encoding utf8 -NoNewline

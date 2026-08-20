@@ -1,0 +1,46 @@
+# .pre-commit-config.yaml - Root monorepo config (Windows-compatible)
+default_language_version:
+  python: default
+  node: 20.x
+
+repos:
+  # --- Backend: Python ---
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^apps/api/
+      - id: ruff-format
+        files: ^apps/api/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.0
+    hooks:
+      - id: mypy
+        name: mypy (backend)
+        entry: cmd /c "cd apps/api && mypy --config-file pyproject.toml --explicit-package-bases --namespace-packages -p app"
+        language: system
+        pass_filenames: false
+        files: ^apps/api/app/
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: \.secrets\.baseline$|\.http$|\.yml$|\.tsbuildinfo$|apps/web/tests/
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.secrets\.baseline$
+      - id: end-of-file-fixer
+        exclude: \.secrets\.baseline$
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: \.secrets\.baseline$
+      - id: check-merge-conflict
+      - id: debug-statements

@@ -1,0 +1,41 @@
+### 07 - Get Current User Profile
+# Requires valid access token
+GET {{$dotenv authBaseUrl}}/me
+Authorization: Bearer {{$dotenv accessToken}}
+
+###
+
+### 08 - Update Profile
+# Update timezone and notification preferences
+PATCH {{$dotenv authBaseUrl}}/profile
+Authorization: Bearer {{$dotenv accessToken}}
+Content-Type: application/json
+
+{
+  "timezone": "America/New_York",
+  "email_notifications": false
+}
+
+###
+
+### 09 - Upload Avatar
+# Select file when running (VS Code will prompt)
+POST {{$dotenv authBaseUrl}}/profile/avatar
+Authorization: Bearer {{$dotenv accessToken}}
+Content-Type: multipart/form-data
+
+###
+
+### 10 - Delete Avatar
+# Remove avatar from profile
+DELETE {{$dotenv authBaseUrl}}/profile/avatar
+Authorization: Bearer {{$dotenv accessToken}}
+
+###
+
+### 11 - Verify Logout (Should Fail After Logout)
+# Run this AFTER logout to confirm token is invalidated
+GET {{$dotenv authBaseUrl}}/me
+Authorization: Bearer {{$dotenv accessToken}}
+
+###

@@ -1,0 +1,13 @@
+### 01 - Health Check
+# Verify API is running and healthy
+GET {{$dotenv baseUrl}}/api/{{$dotenv apiVersion}}/health
+Content-Type: application/json
+
+###
+
+### 02 - Get API Versions
+# Check supported API versions
+GET {{$dotenv authBaseUrl}}/versions
+Content-Type: application/json
+
+###

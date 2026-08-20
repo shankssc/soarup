@@ -1,0 +1,43 @@
+### 03 - Signup (Create New User)
+# After running, copy access_token, refresh_token, and user.id to 00-environment.http
+# detect-secrets: ignore-next-line
+POST {{$dotenv authBaseUrl}}/signup
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "SecurePass123!",
+  "full_name": "Test User"
+}
+
+###
+
+### 04 - Login (Authenticate User)
+# detect-secrets: ignore-next-line
+POST {{$dotenv authBaseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "SecurePass123!"
+}
+
+###
+
+### 05 - Refresh Token
+# Use refreshToken from environment
+POST {{$dotenv authBaseUrl}}/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{$dotenv refreshToken}}"
+}
+
+###
+
+### 06 - Logout
+# Requires valid access token
+POST {{$dotenv authBaseUrl}}/logout
+Authorization: Bearer {{$dotenv accessToken}}
+
+###

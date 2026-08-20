@@ -1,0 +1,83 @@
+# docker-compose.staging.yml - Staging environment for SoarUp backend
+# Runs on the Hetzner VM. Postgres/Auth (Supabase) and R2 remain real
+# cloud resources. Redis is self-hosted in this stack (see redis service
+# below) — moved off Upstash's free tier after Celery's broker/backend
+# heartbeat + gossip traffic exceeded the 500k/month command quota during
+# active staging use. See git history on this file for context.
+# Usage: docker compose -f docker-compose.staging.yml up -d --build
+
+name: soarup-staging
+
+services:
+  # === Redis: Celery broker/backend + rate limiting + WS event streams ===
+  redis:
+    image: redis:7-alpine
+    container_name: soarup-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    # No published host port — only api/worker/beat (same compose
+    # network) ever talk to this, never the outside world.
+
+  # === Backend: FastAPI ===
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: soarup-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    command: uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # === Celery Worker ===
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: soarup-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      api:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app worker --loglevel=info
+    healthcheck:
+      disable: true
+
+  # === Celery Beat (scheduled tasks) ===
+  beat:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: soarup-beat
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    healthcheck:
+      disable: true
+
+volumes:
+  redis-data:

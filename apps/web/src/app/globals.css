@@ -1,0 +1,230 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ─── Light mode (default) ─────────────────────────────────────────────── */
+  :root {
+    --color-background: #ebfdfc;
+    --color-surface: #ebfdfc;
+    --color-surface-dim: #ccdedd;
+    --color-surface-bright: #ebfdfc;
+    --color-surface-lowest: #ffffff;
+    --color-surface-low: #e5f7f6;
+    --color-surface-high: #d0e6e5;
+    --color-surface-highest: #d4e6e5;
+    --color-container: #e2f2ed;
+    --color-container-low: #e5f7f6;
+    --color-container-high: #daeceb;
+    --color-container-highest: #d4e6e5;
+    --color-container-lowest: #ffffff;
+    --color-on-surface: #0e1e1e;
+    --color-on-surface-variant: #3d494c;
+    --color-on-background: #0e1e1e;
+    --color-primary: #00687a;
+    --color-primary-dim: #005564;
+    --color-primary-container: #06b6d4;
+    --color-on-primary: #ffffff;
+    --color-on-primary-container: #00424f;
+    --color-primary-inverse: #53ddfc;
+    --color-secondary: #a200ba;
+    --color-secondary-container: #ea57ff;
+    --color-on-secondary: #ffffff;
+    --color-on-secondary-container: #580066;
+    --color-tertiary: #006c49;
+    --color-tertiary-container: #1bbd85;
+    --color-on-tertiary: #ffffff;
+    --color-on-tertiary-container: #00452e;
+    --color-outline: #6d797d;
+    --color-outline-variant: #bcc9cd;
+    --color-error: #ba1a1a;
+    --color-error-container: #ffdad6;
+    --color-on-error: #ffffff;
+    --color-on-error-container: #93000a;
+    --color-inverse-surface: #233333;
+    --color-inverse-on-surface: #e2f4f3;
+    --color-inverse-primary: #4cd7f6;
+    --color-cyan: #00687a;
+    --color-magenta: #ec63ff;
+    --color-error: #ff716c;
+    --color-border-default: var(--color-outline-variant);
+    --color-text-primary: var(--color-on-surface);
+    --color-text-muted: var(--color-on-surface-variant);
+  }
+
+  /* ─── Dark mode ─────────────────────────────────────────────────────────── */
+  .dark {
+    --color-background: #0e0e10;
+    --color-surface: #0e0e10;
+    --color-surface-dim: #0e0e10;
+    --color-surface-bright: #2c2c2f;
+    --color-surface-lowest: #000000;
+    --color-surface-low: #131315;
+    --color-surface-high: #1f1f22;
+    --color-surface-highest: #262528;
+    --color-container: #19191c;
+    --color-container-low: #131315;
+    --color-container-high: #1f1f22;
+    --color-container-highest: #262528;
+    --color-container-lowest: #000000;
+    --color-on-surface: #f9f5f8;
+    --color-on-surface-variant: #adaaad;
+    --color-on-background: #f9f5f8;
+    --color-primary: #53ddfc;
+    --color-primary-dim: #40ceed;
+    --color-primary-container: #21bedc;
+    --color-on-primary: #004b58;
+    --color-on-primary-container: #00343e;
+    --color-primary-inverse: #00687b;
+    --color-secondary: #ec63ff;
+    --color-secondary-container: #a200ba;
+    --color-on-secondary: #3d0047;
+    --color-on-secondary-container: #fff5fa;
+    --color-tertiary: #e7ffc4;
+    --color-tertiary-container: #b1fe4d;
+    --color-on-tertiary: #406800;
+    --color-on-tertiary-container: #3a5f00;
+    --color-outline: #767577;
+    --color-outline-variant: #48474a;
+    --color-error: #ff716c;
+    --color-error-container: #9f0519;
+    --color-on-error: #490006;
+    --color-on-error-container: #ffa8a3;
+    --color-inverse-surface: #fcf8fb;
+    --color-inverse-on-surface: #565457;
+    --color-inverse-primary: #00687b;
+    --color-cyan: #53ddfc;
+    --color-magenta: #ec63ff;
+    --color-border-default: var(--color-outline-variant);
+    --color-text-primary: var(--color-on-surface);
+    --color-text-muted: var(--color-on-surface-variant);
+  }
+
+  /* ─── Base styles ────────────────────────────────────────────────────────── */
+
+  html {
+    scroll-behavior: smooth;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  *:focus {
+    outline: none;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
+  }
+
+  ::selection {
+    background-color: var(--color-secondary);
+    color: var(--color-on-secondary);
+  }
+
+  .asymmetric-btn {
+    border-top-left-radius: 1.5rem;
+    border-bottom-right-radius: 1.5rem;
+    border-top-right-radius: 0.5rem;
+    border-bottom-left-radius: 0.5rem;
+  }
+
+  .dot-grid {
+    background-image: radial-gradient(
+      circle,
+      var(--color-outline-variant) 1.5px,
+      transparent 1.5px
+    );
+    background-size: 24px 24px;
+  }
+
+  .glass-panel {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+@layer utilities {
+  /* ─── Card shadows ───────────────────────────────────────────────────────── */
+
+  /* Light mode — classic drop shadow */
+  .shadow-card {
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.08),
+      0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .shadow-card-hover {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Dark mode — cyan glow */
+  .dark .shadow-card {
+    box-shadow:
+      0 0 0 1px var(--color-outline-variant),
+      0 0 12px rgba(83, 221, 252, 0.07);
+  }
+  .dark .shadow-card-hover {
+    box-shadow:
+      0 0 0 1px var(--color-primary),
+      0 0 20px rgba(83, 221, 252, 0.18);
+  }
+
+  /* Modal elevation */
+  .shadow-modal {
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+  .dark .shadow-modal {
+    box-shadow:
+      0 0 0 1px var(--color-outline-variant),
+      0 8px 40px rgba(0, 0, 0, 0.6),
+      0 0 24px rgba(83, 221, 252, 0.1);
+  }
+
+  /* ─── Card transition helper ─────────────────────────────────────────────── */
+  .card-interactive {
+    transition:
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .card-interactive:hover {
+    @apply shadow-card-hover;
+  }
+
+  @keyframes page-load {
+    from {
+      width: 0%;
+      opacity: 1;
+    }
+    to {
+      width: 100%;
+      opacity: 0;
+    }
+  }
+
+  /* ─── Custom scrollbar ───────────────────────────────────────────────────── */
+  /* Applied to horizontally-scrollable containers (heatmaps, wide tables) so
+     they don't fall back to the raw OS scrollbar, which looks out of place
+     against the rest of the app's styling. */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-outline-variant) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-outline-variant);
+    border-radius: 999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-outline);
+  }
+}

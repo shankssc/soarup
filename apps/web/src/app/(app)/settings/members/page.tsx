@@ -1,0 +1,107 @@
+'use client';
+
+// apps/web/src/app/(app)/settings/members/page.tsx
+// Data wrapper for the members settings page.
+// Wires useWorkspaceMembers + useInviteMembers into MembersPanel.
+// All rendering logic lives in MembersPanel for Storybook testability.
+
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useWorkspace } from '@/hooks/useWorkspace';
+import {
+  useWorkspaceMembers,
+  useUpdateMemberRole,
+  useRemoveMember,
+} from '@/hooks/useWorkspaceMembers';
+import {
+  usePendingInvites,
+  useCreateInvite,
+  useRevokeInvite,
+} from '@/hooks/useInviteMembers';
+import { MembersPanel } from '@/components/domain/members/members-panel';
+
+export default function MembersSettingsPage() {
+  const { user } = useAuth();
+  const { data: workspace } = useWorkspace();
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const workspaceId = workspace?.id ?? '';
+
+  const { data: membersData, isLoading: isLoadingMembers } = useWorkspaceMembers(
+    workspace?.id,
+  );
+  const { data: invitesData, isLoading: isLoadingInvites } = usePendingInvites(
+    workspace?.id,
+  );
+
+  const createInviteMutation = useCreateInvite(workspaceId);
+  const revokeInviteMutation = useRevokeInvite(workspaceId);
+  const updateRoleMutation = useUpdateMemberRole(workspaceId);
+  const removeMemberMutation = useRemoveMember(workspaceId);
+
+  const members = membersData?.members ?? [];
+  const pendingInvites = invitesData?.invites ?? [];
+
+  // Derive the current user's role from the members list
+  const currentUserRole = members.find((m) => m.user_id === user?.id)?.role ?? 'member';
+
+  async function handleInvite(email: string) {
+    setInviteError(null);
+    try {
+      await createInviteMutation.mutateAsync(email);
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : 'Failed to send invite.');
+    }
+  }
+
+  async function handleRoleChange(userId: string, role: 'admin' | 'member') {
+    await updateRoleMutation.mutateAsync({ userId, role });
+  }
+
+  async function handleRemove(userId: string) {
+    await removeMemberMutation.mutateAsync(userId);
+  }
+
+  async function handleRevokeInvite(inviteId: string) {
+    await revokeInviteMutation.mutateAsync(inviteId);
+  }
+
+  if (!workspace) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2
+          className="h-8 w-8 animate-spin text-primary"
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-lg px-6 py-10">
+      {/* Matches Profile settings' header pattern. Also: this wrapper now
+          constrains width to max-w-lg — previously MembersPanel had no
+          width limit at all, so the invite input stretched to the full
+          content area while every other settings page held a narrow
+          column. See #15. */}
+      <h1 className="mb-8 font-serif text-3xl text-on-surface">Members</h1>
+
+      <MembersPanel
+        members={members}
+        pendingInvites={pendingInvites}
+        currentUserId={user?.id ?? ''}
+        currentUserRole={currentUserRole}
+        isLoadingMembers={isLoadingMembers}
+        isLoadingInvites={isLoadingInvites}
+        onInvite={handleInvite}
+        isInviting={createInviteMutation.isPending}
+        inviteError={inviteError}
+        onRoleChange={handleRoleChange}
+        onRemove={handleRemove}
+        onRevokeInvite={handleRevokeInvite}
+      />
+    </div>
+  );
+}
