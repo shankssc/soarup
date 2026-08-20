@@ -7,6 +7,18 @@ import storybookPlugin from 'eslint-plugin-storybook';
 import prettierConfig from 'eslint-config-prettier/flat';
 
 const config = [
+  {
+    ignores: [
+      'node_modules/**',
+      '.next/**',
+      '.open-next/**',
+      'out/**',
+      '.wrangler/**',
+      'storybook-static/**',
+      'coverage/**',
+      'next-env.d.ts',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...nextVitals,
