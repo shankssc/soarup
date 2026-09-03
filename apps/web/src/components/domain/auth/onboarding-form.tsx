@@ -642,6 +642,7 @@ export function OnboardingForm() {
         try {
           await acceptInvite(accessToken, pendingCode);
           localStorage.removeItem(PENDING_INVITE_KEY);
+          if (user) setUser({ ...user, full_name: fields.displayName, is_onboarded: true });
           router.replace('/dashboard');
         } catch {
           localStorage.removeItem(PENDING_INVITE_KEY);
