@@ -1,18 +1,24 @@
 'use client';
 
 // apps/web/src/app/(auth)/callback/page.tsx
-// Landing target for any flow where Supabase issues a session directly
-// via URL (email confirmation today; OAuth once real providers are
-// wired up).
+// Landing target for any flow where Supabase issues a session via URL.
 //
-// IMPORTANT: this project's confirmation links use the implicit flow —
-// tokens arrive in the URL hash fragment (#access_token=...&refresh_
-// token=...), not the PKCE `?code=` query-param style. createBrowserClient
-// here is configured with bare defaults, and in practice detectSessionInUrl
-// was not picking up these hash-fragment tokens (confirmed via DevTools:
-// zero Supabase network calls, no onAuthStateChange event ever fired,
-// getSession() found nothing). So we parse the hash ourselves and call
-// setSession() explicitly rather than relying on SDK auto-detection.
+// Handles two flows:
+//
+// 1. PKCE (OAuth — Google, GitHub)
+//    Supabase redirects to /callback?code=<code> after the provider
+//    grants access. We exchange the code for a session via
+//    supabase.auth.exchangeCodeForSession(code), which handles the
+//    PKCE verifier internally and returns tokens directly.
+//
+// 2. Implicit (email confirmation)
+//    Tokens arrive in the URL hash fragment (#access_token=...&refresh_token=...).
+//    createBrowserClient does not reliably auto-detect these (confirmed via
+//    DevTools: no Supabase network calls, no onAuthStateChange event, getSession()
+//    found nothing), so we parse the hash ourselves and call setSession() explicitly.
+//
+// In both cases, after obtaining a session we call hydrateSession() to populate
+// the Zustand store, then navigate based on is_onboarded.
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
@@ -45,13 +51,57 @@ export default function AuthCallbackPage() {
     let cancelled = false;
 
     async function run() {
+      // ── Check for OAuth/PKCE flow first (?code= in query params) ──────────
+      const searchParams = new URLSearchParams(window.location.search);
+      const code = searchParams.get('code');
+      const queryError = searchParams.get('error');
+      const queryErrorDescription = searchParams.get('error_description');
+
+      if (queryError) {
+        const message = queryErrorDescription
+          ? decodeURIComponent(queryErrorDescription)
+          : 'Authentication was cancelled or denied.';
+        if (!cancelled) setError(message);
+        return;
+      }
+
+      if (code) {
+        // PKCE path — exchange code for session
+        // Supabase handles the PKCE verifier internally and sets its own
+        // cookie session as a side effect of exchangeCodeForSession().
+        try {
+          const supabase = createClient();
+          const { data, error: exchangeError } =
+            await supabase.auth.exchangeCodeForSession(code);
+
+          // Strip ?code= from the URL immediately — it's single-use and
+          // shouldn't linger in browser history.
+          window.history.replaceState(null, '', window.location.pathname);
+
+          if (exchangeError || !data.session) {
+            if (!cancelled) setError('Could not complete sign in. Please try again.');
+            return;
+          }
+
+          const { access_token, refresh_token } = data.session;
+          await hydrateSession(access_token, refresh_token);
+          if (cancelled) return;
+
+          const { user } = useAuthStore.getState();
+          window.location.href =
+            user?.is_onboarded === false ? '/onboarding' : '/dashboard';
+        } catch {
+          if (!cancelled) setError('Could not sign you in. Please try logging in.');
+        }
+        return;
+      }
+
+      // ── Implicit flow (email confirmation) — existing path unchanged ───────
       const hashParams = parseHashParams(window.location.hash);
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
       const hashError = hashParams.get('error_description');
 
-      // Strip tokens out of the visible URL immediately regardless of
-      // outcome — they shouldn't linger in browser history either way.
       window.history.replaceState(null, '', window.location.pathname);
 
       if (hashError) {
@@ -66,8 +116,6 @@ export default function AuthCallbackPage() {
 
       try {
         const supabase = createClient();
-        // Sets Supabase's own cookie session too, so createServerSupabaseClient()
-        // in Server Components / middleware reads consistently afterward.
         await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
