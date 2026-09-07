@@ -487,7 +487,7 @@ class AuthService:
                     await profile_repo.create(
                         user_id=supabase_user["id"],
                         email=supabase_user["email"],
-                        full_name=supabase_user.get("user_metadata", {}).get("full_name"),
+                        full_name=(supabase_user.get("user_metadata", {}).get("full_name") or supabase_user.get("user_metadata", {}).get("name")),
                     )
                     profile = await profile_repo.get_by_user_id(supabase_user["id"])
                 except Exception as profile_error:
@@ -523,7 +523,7 @@ class AuthService:
         return UserResponse(
             id=supabase_user.get("id", ""),
             email=supabase_user.get("email", ""),
-            full_name=(profile.full_name if profile and profile.full_name else supabase_user.get("user_metadata", {}).get("full_name")),
+            full_name=(profile.full_name if profile and profile.full_name else (supabase_user.get("user_metadata", {}).get("full_name") or supabase_user.get("user_metadata", {}).get("name"))),
             avatar_url=profile.avatar_url if profile else None,
             timezone=profile.timezone if profile else "UTC",
             email_verified=supabase_user.get("email_confirmed_at") is not None,
