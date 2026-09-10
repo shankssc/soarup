@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -203,6 +204,7 @@ class WorkspaceMember(Base):
 
     email_notifications: Mapped[bool] = mapped_column(
         Boolean,
+        server_default=sa.text("true"),
         nullable=False,
         default=True,
         doc="Per-workspace digest email opt-in. Distinct from " "Profile.email_notifications (global) — this is the flag " "flipped by a workspace-scoped digest unsubscribe link.",
