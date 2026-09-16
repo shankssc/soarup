@@ -74,23 +74,37 @@ export default function AuthCallbackPage() {
           const { data, error: exchangeError } =
             await supabase.auth.exchangeCodeForSession(code);
 
+          // eslint-disable-next-line no-console
+          console.log('[oauth-debug] exchange result:', {
+            exchangeError,
+            hasSession: !!data?.session,
+          });
+
           // Strip ?code= from the URL immediately — it's single-use and
           // shouldn't linger in browser history.
           window.history.replaceState(null, '', window.location.pathname);
 
           if (exchangeError || !data.session) {
+            console.error('[oauth-debug] exchangeError:', exchangeError);
             if (!cancelled) setError('Could not complete sign in. Please try again.');
             return;
           }
 
           const { access_token, refresh_token } = data.session;
+          // eslint-disable-next-line no-console
+          console.log('[oauth-debug] calling hydrateSession');
+
           await hydrateSession(access_token, refresh_token);
+          // eslint-disable-next-line no-console
+          console.log('[oauth-debug] hydrateSession succeeded');
+
           if (cancelled) return;
 
           const { user } = useAuthStore.getState();
           window.location.href =
             user?.is_onboarded === false ? '/onboarding' : '/dashboard';
-        } catch {
+        } catch (err) {
+          console.error('[oauth-debug] caught in outer try/catch:', err);
           if (!cancelled) setError('Could not sign you in. Please try logging in.');
         }
         return;
