@@ -46,8 +46,12 @@ export default function AuthCallbackPage() {
   const router = useRouter();
   const { hydrateSession } = useAuth();
   const [error, setError] = React.useState<string | null>(null);
+  const hasRun = React.useRef(false);
 
   React.useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+
     let cancelled = false;
 
     async function run() {
@@ -85,26 +89,36 @@ export default function AuthCallbackPage() {
           window.history.replaceState(null, '', window.location.pathname);
 
           if (exchangeError || !data.session) {
-            console.error('[oauth-debug] exchangeError:', exchangeError);
+            // The exchange can fail here even after a *prior* successful exchange —
+            // e.g. a duplicate navigation to this same URL (observed with Chrome
+            // speculative prerendering) re-attempts the already-consumed code and
+            // verifier. Before treating this as a hard failure, check whether a
+            // valid session already exists from that earlier successful exchange.
+            const { data: existing } = await supabase.auth.getSession();
+            if (existing.session) {
+              const { access_token, refresh_token } = existing.session;
+              await hydrateSession(access_token, refresh_token);
+              if (cancelled) return;
+              const { user } = useAuthStore.getState();
+              window.location.href =
+                user?.is_onboarded === false ? '/onboarding' : '/dashboard';
+              return;
+            }
+
             if (!cancelled) setError('Could not complete sign in. Please try again.');
             return;
           }
 
           const { access_token, refresh_token } = data.session;
-          // eslint-disable-next-line no-console
-          console.log('[oauth-debug] calling hydrateSession');
 
           await hydrateSession(access_token, refresh_token);
-          // eslint-disable-next-line no-console
-          console.log('[oauth-debug] hydrateSession succeeded');
 
           if (cancelled) return;
 
           const { user } = useAuthStore.getState();
           window.location.href =
             user?.is_onboarded === false ? '/onboarding' : '/dashboard';
-        } catch (err) {
-          console.error('[oauth-debug] caught in outer try/catch:', err);
+        } catch {
           if (!cancelled) setError('Could not sign you in. Please try logging in.');
         }
         return;
