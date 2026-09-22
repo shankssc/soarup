@@ -29,6 +29,8 @@ email delivery, and real-time updates over WebSockets.
 
 **Core loop**
 
+- 🔑 Email/password or Google/GitHub OAuth sign-in — same onboarding
+  flow either way, including mid-onboarding workspace invite acceptance
 - 🎙️ Voice or text daily standup updates, one per person per workspace per day
 - 🤖 AI transcription (Whisper) + summarization (Claude, with automatic
   Haiku → Sonnet fallback on retry)
@@ -110,8 +112,8 @@ flowchart LR
 ```
 
 Full breakdown — every component, the real-time event pipeline, the
-digest scheduling pipeline, and the data model — lives in
-**[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)**.
+digest scheduling pipeline, the OAuth authentication flow, and the data
+model — lives in **[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)**.
 
 ## 🧰 Tech Stack
 
@@ -120,7 +122,7 @@ digest scheduling pipeline, and the data model — lives in
 | Frontend                | Next.js (App Router) · TypeScript · Tailwind · React Query · Zustand         |
 | Backend                 | FastAPI · Python 3.12 · SQLAlchemy (async) · Alembic                         |
 | Background jobs         | Celery (worker + beat)                                                       |
-| Database & Auth         | Supabase (Postgres + GoTrue)                                                 |
+| Database & Auth         | Supabase (Postgres + GoTrue — email/password + Google/GitHub OAuth)          |
 | Cache / queue / streams | Redis                                                                        |
 | Object storage          | Cloudflare R2                                                                |
 | AI                      | Anthropic Claude (summarization) · faster-whisper (transcription)            |
@@ -132,9 +134,10 @@ digest scheduling pipeline, and the data model — lives in
 
 ## 📚 Documentation
 
-| Doc                                              | Description                                                                                        |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | System topology, real-time event pipeline, digest scheduling pipeline, data model — all diagrammed |
+| Doc                                                                                                          | Description                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)                                                             | System topology, real-time event pipeline, digest scheduling pipeline, OAuth flow, data model — all diagrammed |
+| [`docs/scaling/oauth-milestone-scaling-challenges.md`](./docs/scaling/oauth-milestone-scaling-challenges.md) | Scaling considerations surfaced by the OAuth milestone, across API and web layers                              |
 
 > **Note on `specs/Scaffolding/`:** this folder contains the original
 > pre-build planning documents written before development started.
@@ -176,6 +179,11 @@ make dev
 # → API Docs: http://localhost:8000/docs
 # → Flower (Celery monitor): http://localhost:5555
 ```
+
+> **Note on OAuth locally:** Google/GitHub sign-in requires a real
+> Supabase project and a publicly reachable callback URL — it cannot be
+> exercised against the local Supabase CLI stack. Email/password auth
+> works fully locally; OAuth is tested on staging.
 
 ### Common commands
 
@@ -255,7 +263,9 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/soarup_test 
   rolled back — no test data persists between runs.
 - Playwright E2E specs live under `apps/web/tests/e2e/` and cover
   signup → onboarding, text update submission, invite flow, and voice
-  update submission end-to-end.
+  update submission end-to-end. OAuth sign-in is verified manually on
+  staging rather than in this suite, since it requires a real provider
+  consent screen (see note under Getting Started).
 
 ## 🧭 Project Structure
 
@@ -270,6 +280,7 @@ soarup/
 │       ├── src/components/     # UI + domain components
 │       └── tests/e2e/          # Playwright end-to-end specs
 ├── docs/                     # Current architecture documentation
+│   └── scaling/               # Scaling considerations by milestone
 ├── specs/Scaffolding/        # Historical pre-build planning docs (see note above)
 ├── .github/workflows/         # CI/CD pipelines
 ├── docker-compose.yml         # Local dev environment
@@ -281,8 +292,11 @@ soarup/
 ## 🚦 Project Status
 
 Nine feature milestones complete (auth & onboarding through public
-profiles), plus a dedicated pre-deployment hardening pass (observability,
-security, rate limiting, E2E completion). Currently deployed to a live
+profiles), a dedicated pre-deployment hardening pass (observability,
+security, rate limiting, E2E completion), and OAuth authentication
+(Google, GitHub) added on top of the original email/password flow —
+same onboarding, same profile model, verified end-to-end on staging for
+both new-user and returning-user paths. Currently deployed to a live
 staging environment. Open work is tracked entirely as labeled,
 milestoned [GitHub Issues](https://github.com/shankssc/soarup/issues) —
 `tech-debt`, `bug`, `ux-polish`, `security`, `testing`, `post-m9`.

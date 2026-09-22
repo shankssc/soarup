@@ -257,7 +257,58 @@ decrypted back to a usable URL).
 
 ---
 
-## 5. Data Model
+## 5. OAuth Authentication Flow (PKCE)
+
+Google and GitHub sign-in run alongside the original email/password
+flow — same `profiles` table, same onboarding step, same
+`LoginResponse` shape returned to the frontend. Supabase's GoTrue
+handles the actual provider handshake; the app's job is limited to
+completing the PKCE code exchange client-side and syncing the
+resulting session into the app's Zustand store and the app's own
+profile row.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Browser
+    participant P as Google / GitHub
+    participant SB as Supabase (GoTrue)
+    participant FE as Next.js /callback
+    participant API as FastAPI
+
+    U->>FE: Click "Continue with Google/GitHub"
+    FE->>SB: signInWithOAuth()<br/>(PKCE verifier stored in a cookie)
+    SB->>P: redirect to provider consent screen
+    P-->>U: consent screen
+    U->>P: grant access
+    P-->>SB: redirect with authorization code
+    SB-->>FE: redirect to /callback?code=...
+    FE->>SB: exchangeCodeForSession(code)<br/>(verifier read back from the cookie)
+    SB-->>FE: access_token + refresh_token + user
+    FE->>API: POST /auth/session
+    API->>API: get-or-create profile row<br/>(first OAuth login only)
+    API-->>FE: LoginResponse — same shape as password login
+    FE->>FE: hydrateSession() → Zustand store
+    FE-->>U: redirect to /onboarding or /dashboard
+```
+
+**One reliability fix worth calling out**, found during staging QA
+rather than part of the original design:
+
+- **A duplicate `/callback?code=...` navigation can consume the PKCE
+  code twice.** A second navigation to the same callback URL —
+  observed in practice with Chrome's speculative prerendering —
+  re-attempts an already-redeemed code, and GoTrue correctly rejects it
+  (`AuthPKCECodeVerifierMissingError` — the verifier cookie is deleted
+  after its first successful use). Rather than surface that as a hard
+  failure, the callback page checks for an already-established session
+  via `supabase.auth.getSession()` before giving up: if an earlier,
+  successful exchange already produced a session, the second call
+  falls back to it instead of showing the user a spurious error.
+
+---
+
+## 6. Data Model
 
 Core entities and their relationships. Field lists are illustrative, not
 exhaustive — see `apps/api/app/models/` for the full SQLAlchemy models.
@@ -341,11 +392,13 @@ erDiagram
 Notable constraints: one `Update` per `(workspace_id, user_id,
 update_date)` — enforced at the database level, not just in application
 logic. `username` is unique but nullable — most users never set one
-unless they opt into a public profile.
+unless they opt into a public profile. `Profile` rows are created in
+two ways: a provisional row on any first-time sign-in (password, OAuth,
+or invite), fully populated once onboarding completes.
 
 ---
 
-## 6. Security & Reliability Notes
+## 7. Security & Reliability Notes
 
 A few decisions worth documenting explicitly rather than leaving
 implicit in code:
@@ -365,6 +418,10 @@ implicit in code:
 - **JWT issuer validation** checks Supabase's actual `iss` claim
   (`{supabase_url}/auth/v1`), not just the bare project URL — a subtle
   mismatch that silently breaks auth if missed.
+- **OAuth `user_metadata` shape differs by provider** — Google exposes
+  the display name as `full_name`, GitHub exposes it as `name`. Profile
+  sync checks both, so a provider-specific quirk doesn't silently drop
+  the user's display name on first login.
 - **PII collection is explicitly disabled in Sentry** on both frontend
   and backend — error tracking without incidentally warehousing user
   data.
@@ -379,3 +436,7 @@ a security dimension, `post-m9` for backlog items scoped after the
 initial nine-milestone feature set. See the
 [issues page](https://github.com/shankssc/soarup/issues) for the current,
 authoritative list — it changes more often than this document should.
+
+Scaling considerations specific to the OAuth milestone are tracked
+separately in
+[`docs/scaling/oauth-milestone-scaling-challenges.md`](./scaling/oauth-milestone-scaling-challenges.md).
