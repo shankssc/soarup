@@ -5,6 +5,7 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
+import { createClient } from '@/lib/supabase/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,16 +15,6 @@ interface OAuthButtonsProps {
   /** Disable both buttons — used when the parent form is submitting */
   disabled?: boolean;
   className?: string;
-}
-
-// ─── OAuth redirect URLs ──────────────────────────────────────────────────────
-// These hit your FastAPI backend which handles the Supabase OAuth redirect.
-// The backend sets the session cookie and redirects back to /dashboard.
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1';
-
-function getOAuthUrl(provider: 'google' | 'github'): string {
-  return `${API_BASE}/auth/oauth/${provider}`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -37,11 +28,29 @@ export function OAuthButtons({
     'google' | 'github' | null
   >(null);
 
-  function handleOAuth(provider: 'google' | 'github') {
+  const [oauthError, setOauthError] = React.useState<string | null>(null);
+
+  async function handleOAuth(provider: 'google' | 'github') {
     setLoadingProvider(provider);
+    setOauthError(null);
     onLoadingChange?.(true);
-    // Full page redirect — Supabase OAuth flow handles the rest
-    window.location.href = getOAuthUrl(provider);
+
+    const supabase = createClient();
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/callback`,
+      },
+    });
+
+    if (error) {
+      setLoadingProvider(null);
+      onLoadingChange?.(false);
+      setOauthError('Could not connect to provider. Please try again.');
+    }
+    // On success, Supabase redirects the browser to the provider —
+    // no further action needed here
   }
 
   return (
@@ -69,6 +78,10 @@ export function OAuthButtons({
         {loadingProvider !== 'github' && <GitHubIcon />}
         Continue with GitHub
       </Button>
+
+      {oauthError && (
+        <p className="text-center font-label text-[12px] text-error">{oauthError}</p>
+      )}
     </div>
   );
 }

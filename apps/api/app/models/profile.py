@@ -4,6 +4,7 @@
 from datetime import datetime
 from typing import Any
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -41,7 +42,13 @@ class Profile(Base):
 
     email_notifications: Mapped[bool] = mapped_column(Boolean, default=True, doc="Whether user receives email notifications")
 
-    is_onboarded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, doc="Whether user has completed onboarding flow")
+    is_onboarded: Mapped[bool] = mapped_column(
+        Boolean,
+        # re-aligns with original migration intent
+        server_default=sa.text("false"),
+        nullable=False,
+        doc="Whether user has completed onboarding flow",
+    )
 
     # === Public Profile Fields ===
     username: Mapped[str | None] = mapped_column(
@@ -63,6 +70,7 @@ class Profile(Base):
     )
     profile_public: Mapped[bool] = mapped_column(
         Boolean,
+        server_default=sa.text("false"),
         default=False,
         nullable=False,
         doc="Whether this profile is publicly visible at /u/:username. " "Requires username to be set.",
