@@ -179,10 +179,11 @@ class AuthService:
                 logger.warning("signup_failed", email=request.email, reason="no_user_returned")
                 raise AuthError(error_code="registration_failed", message="Could not create account")
 
+            profile = None
             # supabase_user exists (and has id/email) even when confirmation is
             # pending, so profile creation runs regardless of session state.
             try:
-                await profile_repo.create(
+                profile = await profile_repo.create(
                     user_id=supabase_user["id"],
                     email=supabase_user["email"],
                     full_name=request.full_name,
@@ -202,7 +203,6 @@ class AuthService:
                     message="Check your email to confirm your account before signing in.",
                 )
 
-            profile = await profile_repo.get_by_user_id(supabase_user["id"])
             user_response = self._map_user_to_response(supabase_user, profile)
 
             logger.info("signup_success", user_id=supabase_user["id"])
@@ -484,12 +484,11 @@ class AuthService:
                 # First time this user's session is being established app-side —
                 # e.g. OAuth signup, which never goes through AuthService.signup().
                 try:
-                    await profile_repo.create(
+                    profile = await profile_repo.create(
                         user_id=supabase_user["id"],
                         email=supabase_user["email"],
                         full_name=(supabase_user.get("user_metadata", {}).get("full_name") or supabase_user.get("user_metadata", {}).get("name")),
                     )
-                    profile = await profile_repo.get_by_user_id(supabase_user["id"])
                 except Exception as profile_error:
                     logger.warning(
                         "session_profile_creation_failed",
