@@ -8,11 +8,14 @@ from urllib.parse import urlparse
 import httpx
 import jwt as pyjwt
 import structlog
+from fastapi import HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.auth_repo import AuthRepository
 from app.repositories.profile_repo import ProfileRepository
 from app.schemas.auth import ForgotPasswordRequest, ForgotPasswordResponse, LoginRequest, LoginResponse, ResetPasswordResponse, SignupRequest, SignupResponse, UserResponse
+from app.utils.auth import validate_supabase_jwt
 from app.utils.circuit_breaker import CircuitBreakerError
 
 logger = structlog.get_logger(__name__)
@@ -232,6 +235,8 @@ class AuthService:
                 raise AuthError(error_code="user_already_exists", message="An account with this email already exists") from e
             logger.exception("signup_error", email=request.email, error=str(e))
             raise AuthError(error_code="registration_failed", message="Could not create account") from e
+
+    # get_current_user needs to be removed as it's dead code
 
     async def get_current_user(self, access_token: str) -> UserResponse | None:
         """
@@ -470,24 +475,37 @@ class AuthService:
         (email confirmation, OAuth) rather than going through login()/signup().
         Ensures those paths still produce a profile row and the same
         LoginResponse shape the rest of the app expects.
+
+        Validates the access token locally (signature + claims) rather than
+        calling the Supabase Admin API, removing an external, rate-limited
+        dependency from the hot path of every OAuth/email-confirmation login.
         """
         try:
-            auth_repo = await self._get_auth_repo()
             profile_repo = self._get_profile_repo()
 
-            supabase_user = await auth_repo.get_user_by_token(access_token)
-            if not supabase_user:
-                raise AuthError(error_code="invalid_token", message="Session is invalid or expired")
+            try:
+                credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=access_token)
+                payload = await validate_supabase_jwt(credentials)
+            except HTTPException as e:
+                raise AuthError(error_code="invalid_token", message="Session is invalid or expired") from e
+
+            user_metadata = payload.get("user_metadata", {})
+            supabase_user = {
+                "id": payload.get("sub", ""),
+                "email": payload.get("email", ""),
+                "user_metadata": user_metadata,
+            }
 
             profile = await profile_repo.get_by_user_id(supabase_user["id"])
             if not profile:
                 # First time this user's session is being established app-side —
                 # e.g. OAuth signup, which never goes through AuthService.signup().
+
                 try:
                     profile = await profile_repo.create(
                         user_id=supabase_user["id"],
                         email=supabase_user["email"],
-                        full_name=(supabase_user.get("user_metadata", {}).get("full_name") or supabase_user.get("user_metadata", {}).get("name")),
+                        full_name=(user_metadata.get("full_name") or user_metadata.get("name")),
                     )
                 except Exception as profile_error:
                     logger.warning(
@@ -518,16 +536,27 @@ class AuthService:
         """
         Convert Supabase user + Profile to UserResponse schema.
         Merges data from both sources, preferring profile data when available.
+
+        supabase_user may come from two different shapes depending on caller:
+        - The Admin/session API's full user object (login/signup/refresh) —
+          has "id", "created_at", "email_confirmed_at" directly.
+        - A locally-validated JWT payload, reshaped by session_from_supabase()
+            — has none of those three; "id" falls back to the JWT's "sub" claim,
+            "created_at" falls back to the profile row, and "email_verified"
+            falls back to user_metadata (safe here specifically because this
+            app's signup flow never issues a token before email confirmation —
+            see #151).
         """
+        email_verified = supabase_user.get("email_confirmed_at") is not None if "email_confirmed_at" in supabase_user else bool(supabase_user.get("user_metadata", {}).get("email_verified"))
         return UserResponse(
-            id=supabase_user.get("id", ""),
+            id=supabase_user.get("id") or supabase_user.get("sub", ""),
             email=supabase_user.get("email", ""),
             full_name=(profile.full_name if profile and profile.full_name else (supabase_user.get("user_metadata", {}).get("full_name") or supabase_user.get("user_metadata", {}).get("name"))),
             avatar_url=profile.avatar_url if profile else None,
             timezone=profile.timezone if profile else "UTC",
-            email_verified=supabase_user.get("email_confirmed_at") is not None,
+            email_verified=email_verified,
             is_onboarded=profile.is_onboarded if profile else False,
-            created_at=supabase_user.get("created_at"),
+            created_at=supabase_user.get("created_at") or (profile.created_at if profile else None),
             username=profile.username if profile else None,
             bio=profile.bio if profile else None,
             tagline=profile.tagline if profile else None,
