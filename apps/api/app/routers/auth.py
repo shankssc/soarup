@@ -3,6 +3,7 @@
 
 from typing import Annotated, Any
 
+import sentry_sdk
 import structlog
 from fastapi import APIRouter, Depends, File, Request, UploadFile, status
 from fastapi.responses import Response
@@ -74,6 +75,7 @@ async def login(
         return handle_auth_error(e, api_version=api_version)
     except Exception as e:
         logger.exception("login_error", email=request.email, error=str(e))
+        sentry_sdk.capture_exception(e)
         return handle_auth_error(
             AuthError("internal_error", "An unexpected error occurred"),
             api_version=api_version,
@@ -101,6 +103,7 @@ async def signup(
         return handle_auth_error(e, api_version=api_version)
     except Exception as e:
         logger.exception("signup_error", email=request.email, error=str(e))
+        sentry_sdk.capture_exception(e)
         return handle_auth_error(AuthError("internal_error", "An unexpected error occurred"), api_version=api_version)
 
 
@@ -124,6 +127,7 @@ async def refresh_token(
         return handle_auth_error(e, api_version=api_version)
     except Exception as e:
         logger.exception("token_refresh_error", error=str(e))
+        sentry_sdk.capture_exception(e)
         return handle_auth_error(
             AuthError("internal_error", "An unexpected error occurred"),
             api_version=api_version,
@@ -157,6 +161,7 @@ async def logout(
         logger.info("logout_success")
     except Exception as e:
         logger.exception("logout_error", error=str(e))
+        sentry_sdk.capture_exception(e)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -178,6 +183,7 @@ async def forgot_password(
         return create_success_response(result, api_version=api_version)
     except Exception as e:
         logger.exception("forgot_password_error", email=request.email, error=str(e))
+        sentry_sdk.capture_exception(e)
         return create_success_response(
             ForgotPasswordResponse(
                 message="Password reset email sent if account exists",
@@ -275,6 +281,7 @@ async def reset_password(
         return handle_auth_error(e, api_version=api_version)
     except Exception as e:
         logger.exception("reset_password_error", error=str(e))
+        sentry_sdk.capture_exception(e)
         return handle_auth_error(
             AuthError("internal_error", "An unexpected error occurred"),
             api_version=api_version,
@@ -297,10 +304,15 @@ async def exchange_session(
         result = await service.session_from_supabase(request.access_token, request.refresh_token)
         return create_success_response(result, api_version=api_version)
     except AuthError as e:
+        # Expected failure category — invalid/expired/already-used token.
+        # Structured log is sufficient; not sent to Sentry.
         logger.warning("session_exchange_failed", error_code=e.error_code)
         return handle_auth_error(e, api_version=api_version)
     except Exception as e:
+        # Caught here, so Sentry's FastAPI integration never sees this —
+        # capture explicitly or a real outage/regression is invisible.
         logger.exception("session_exchange_error", error=str(e))
+        sentry_sdk.capture_exception(e)
         return handle_auth_error(
             AuthError("internal_error", "An unexpected error occurred"),
             api_version=api_version,
@@ -341,6 +353,7 @@ async def get_current_user(
 
     except Exception as e:
         logger.exception("get_profile_error", user_id=user_ctx["user_id"], error=str(e))
+        sentry_sdk.capture_exception(e)
         return create_error_response(
             error_code="internal_error",
             message="Failed to retrieve profile",
@@ -370,6 +383,7 @@ async def update_profile(
         return handle_profile_error(e, api_version=api_version)
     except Exception as e:
         logger.exception("profile_update_error", user_id=user_ctx["user_id"], error=str(e))
+        sentry_sdk.capture_exception(e)
         return handle_profile_error(
             ProfileError("internal_error", "An unexpected error occurred"),
             api_version=api_version,
@@ -398,6 +412,7 @@ async def upload_avatar(
         return handle_profile_error(e, api_version=api_version)
     except Exception as e:
         logger.exception("avatar_upload_error", user_id=user_ctx["user_id"], error=str(e))
+        sentry_sdk.capture_exception(e)
         return handle_profile_error(
             ProfileError("internal_error", "An unexpected error occurred"),
             api_version=api_version,
@@ -421,6 +436,7 @@ async def delete_avatar(
         logger.info("avatar_delete_success")
     except Exception as e:
         logger.exception("avatar_delete_error", user_id=user_ctx["user_id"], error=str(e))
+        sentry_sdk.capture_exception(e)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
