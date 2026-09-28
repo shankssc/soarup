@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { apiClient } from '@/lib/api/client';
+import { apiClient, ApiRequestError } from '@/lib/api/client';
 import { useAuth } from '@/hooks/useAuth';
 import { analyticsKeys } from '@/hooks/useAnalytics';
 
@@ -59,31 +59,72 @@ export function useUpdates(workspaceId: string | undefined, date?: string) {
 
 /*
 Creates a new update
+
+If the network drops after the server saved the update but before the 202
+arrives, the retry gets a 409 (update_already_exists). When the existing
+update has the same content we just tried to submit, that retry is really a
+success, so we return the existing row instead of surfacing an error.
+A 409 with different content is a genuine conflict and is rethrown.
 */
 export function useSubmitUpdate(workspaceId: string) {
   const { tokens } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: {
+    mutationFn: async (data: {
       content: string;
       update_date: string;
       mode?: string;
       audio_key?: string;
       audio_duration_seconds?: number;
-    }) =>
-      apiClient.post<UpdateResponse>(
-        `/workspaces/${workspaceId}/updates`,
-        { mode: 'text', ...data },
-        tokens?.access_token,
-      ),
+    }) => {
+      const path = `/workspaces/${workspaceId}/updates`;
+
+      try {
+        return await apiClient.post<UpdateResponse>(
+          path,
+          { mode: 'text', ...data },
+          tokens?.access_token,
+        );
+      } catch (error) {
+        if (
+          !(error instanceof ApiRequestError) ||
+          error.code !== 'update_already_exists'
+        ) {
+          throw error;
+        }
+
+        const existingId = error.details?.existing_id;
+        if (typeof existingId !== 'string') throw error;
+
+        try {
+          const list = await apiClient.get<UpdateListResponse>(
+            path,
+            tokens?.access_token,
+            { update_date: data.update_date },
+          );
+          const existing = list.updates.find((u) => u.id === existingId);
+          if (existing && existing.content.trim() === data.content.trim()) {
+            return existing;
+          }
+        } catch {
+          // Follow-up fetch failed; fall through and surface the original 409.
+        }
+
+        throw error;
+      }
+    },
     onSuccess: (newUpdate) => {
       queryClient.setQueryData<UpdateListResponse>(
         updateKeys.byDate(workspaceId, newUpdate.update_date),
-        (old) => ({
-          updates: [...(old?.updates ?? []), newUpdate],
-          total: (old?.total ?? 0) + 1,
-        }),
+        (old) => {
+          const current = old?.updates ?? [];
+          // The recovered-409 path can return an update that's already cached.
+          if (current.some((u) => u.id === newUpdate.id)) {
+            return { updates: current, total: old?.total ?? current.length };
+          }
+          return { updates: [...current, newUpdate], total: (old?.total ?? 0) + 1 };
+        },
       );
       queryClient.invalidateQueries({
         queryKey: analyticsKeys.personal(workspaceId),

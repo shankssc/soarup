@@ -12,19 +12,23 @@ import {
   updateKeys,
 } from '@/hooks/useUpdates';
 import { useAuthStore } from '@/hooks/useAuth';
-import { apiClient } from '@/lib/api/client';
+import { apiClient, ApiRequestError } from '@/lib/api/client';
 import { MOCK_TOKENS, MOCK_USER } from '../mocks/user';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-vi.mock('@/lib/api/client', () => ({
-  apiClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn(),
-  },
-}));
+vi.mock('@/lib/api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api/client')>();
+  return {
+    ...actual, // keeps the real ApiRequestError so instanceof checks work
+    apiClient: {
+      get: vi.fn(),
+      post: vi.fn(),
+      patch: vi.fn(),
+      delete: vi.fn(),
+    },
+  };
+});
 
 // Pin date-fns format so default date is deterministic
 vi.mock('date-fns', async (importOriginal) => {
@@ -184,6 +188,169 @@ describe('useSubmitUpdate', () => {
     expect(cached?.updates).toHaveLength(1);
     expect(cached?.updates[0]).toEqual(MOCK_UPDATE);
     expect(cached?.total).toBe(1);
+  });
+
+  // Helper: the 409 the API returns when an update already exists for the date
+  const conflictError = (existingId: unknown = MOCK_UPDATE.id) =>
+    new ApiRequestError(
+      'update_already_exists',
+      'An update already exists for this date',
+      409,
+      { existing_id: existingId },
+    );
+
+  it('does not fetch the existing update when the POST succeeds', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue(MOCK_UPDATE);
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useSubmitUpdate(WORKSPACE_ID), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        content: MOCK_UPDATE.content,
+        update_date: TODAY,
+      });
+    });
+
+    expect(apiClient.get).not.toHaveBeenCalled();
+  });
+
+  it('treats a 409 as success when the existing update has the same content', async () => {
+    vi.mocked(apiClient.post).mockRejectedValue(conflictError());
+    vi.mocked(apiClient.get).mockResolvedValue({ updates: [MOCK_UPDATE], total: 1 });
+    const { wrapper, queryClient } = createWrapper();
+    queryClient.setQueryData(updateKeys.byDate(WORKSPACE_ID, TODAY), {
+      updates: [],
+      total: 0,
+    });
+    const { result } = renderHook(() => useSubmitUpdate(WORKSPACE_ID), { wrapper });
+
+    let returned: unknown;
+    await act(async () => {
+      returned = await result.current.mutateAsync({
+        content: MOCK_UPDATE.content,
+        update_date: TODAY,
+      });
+    });
+
+    expect(returned).toEqual(MOCK_UPDATE);
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+    expect(apiClient.get).toHaveBeenCalledWith(
+      `/workspaces/${WORKSPACE_ID}/updates`,
+      'mock-access-token',
+      { update_date: TODAY },
+    );
+    const cached = queryClient.getQueryData<{ updates: unknown[]; total: number }>(
+      updateKeys.byDate(WORKSPACE_ID, TODAY),
+    );
+    expect(cached?.updates).toHaveLength(1);
+    expect(cached?.total).toBe(1);
+  });
+
+  it('ignores leading/trailing whitespace when comparing content', async () => {
+    vi.mocked(apiClient.post).mockRejectedValue(conflictError());
+    vi.mocked(apiClient.get).mockResolvedValue({ updates: [MOCK_UPDATE], total: 1 });
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useSubmitUpdate(WORKSPACE_ID), { wrapper });
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          content: `  ${MOCK_UPDATE.content}\n`,
+          update_date: TODAY,
+        }),
+      ).resolves.toEqual(MOCK_UPDATE);
+    });
+  });
+
+  it('does not duplicate the update when the recovered row is already cached', async () => {
+    vi.mocked(apiClient.post).mockRejectedValue(conflictError());
+    vi.mocked(apiClient.get).mockResolvedValue({ updates: [MOCK_UPDATE], total: 1 });
+    const { wrapper, queryClient } = createWrapper();
+    queryClient.setQueryData(updateKeys.byDate(WORKSPACE_ID, TODAY), {
+      updates: [MOCK_UPDATE],
+      total: 1,
+    });
+    const { result } = renderHook(() => useSubmitUpdate(WORKSPACE_ID), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        content: MOCK_UPDATE.content,
+        update_date: TODAY,
+      });
+    });
+
+    const cached = queryClient.getQueryData<{ updates: unknown[]; total: number }>(
+      updateKeys.byDate(WORKSPACE_ID, TODAY),
+    );
+    expect(cached?.updates).toHaveLength(1);
+    expect(cached?.total).toBe(1);
+  });
+
+  it('rethrows the 409 when the existing update has different content', async () => {
+    const error = conflictError();
+    vi.mocked(apiClient.post).mockRejectedValue(error);
+    vi.mocked(apiClient.get).mockResolvedValue({ updates: [MOCK_UPDATE], total: 1 });
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useSubmitUpdate(WORKSPACE_ID), { wrapper });
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          content: 'A different update',
+          update_date: TODAY,
+        }),
+      ).rejects.toBe(error);
+    });
+  });
+
+  it('rethrows the 409 when details.existing_id is missing', async () => {
+    const error = new ApiRequestError('update_already_exists', 'Exists', 409);
+    vi.mocked(apiClient.post).mockRejectedValue(error);
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useSubmitUpdate(WORKSPACE_ID), { wrapper });
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          content: MOCK_UPDATE.content,
+          update_date: TODAY,
+        }),
+      ).rejects.toBe(error);
+    });
+    expect(apiClient.get).not.toHaveBeenCalled();
+  });
+
+  it('rethrows the original 409 when the follow-up fetch fails', async () => {
+    const error = conflictError();
+    vi.mocked(apiClient.post).mockRejectedValue(error);
+    vi.mocked(apiClient.get).mockRejectedValue(
+      new ApiRequestError('network_error', 'Unable to connect.', 0),
+    );
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useSubmitUpdate(WORKSPACE_ID), { wrapper });
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          content: MOCK_UPDATE.content,
+          update_date: TODAY,
+        }),
+      ).rejects.toBe(error); // the 409, not the network error from the fetch
+    });
+  });
+
+  it('rethrows non-409 errors untouched', async () => {
+    const error = new ApiRequestError('network_error', 'Unable to connect.', 0);
+    vi.mocked(apiClient.post).mockRejectedValue(error);
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useSubmitUpdate(WORKSPACE_ID), { wrapper });
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({ content: 'My update', update_date: TODAY }),
+      ).rejects.toBe(error);
+    });
+    expect(apiClient.get).not.toHaveBeenCalled();
   });
 });
 
