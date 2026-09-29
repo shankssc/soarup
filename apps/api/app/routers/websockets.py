@@ -12,6 +12,7 @@
 #   REMOVE: from app.routers.websockets import broadcast
 #   REMOVE: await broadcast.connect() / await broadcast.disconnect() from lifespan
 
+import re
 from typing import Any
 
 import structlog
@@ -19,12 +20,16 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from redis.asyncio import Redis
 
 from app.config import settings
+from app.db.session import AsyncSessionLocal
 from app.lib.events import read_events
+from app.repositories.workspace_repo import WorkspaceRepository
 from app.utils.auth import validate_supabase_jwt_ws
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/ws", tags=["websocket"])
+
+_LAST_EVENT_ID_RE = re.compile(r"^(\$|0|\d+-\d+)$")
 
 
 def _get_redis() -> Redis | Any:
@@ -56,6 +61,8 @@ async def workspace_websocket(
         Browsers cannot send Authorization headers on WebSocket connections.
         Invalid/expired tokens close the connection with code 4001 —
         the frontend treats 4001 as non-retryable (no reconnect attempt).
+        A valid token for a workspace the user isn't a member of closes
+        with code 4003 — also non-retryable.
 
     Resumable reconnect:
         Clients track the last received event_id and pass it as
@@ -83,8 +90,35 @@ async def workspace_websocket(
         await websocket.close(code=4001, reason="Unauthorized")
         return
 
+    # Membership check happens after JWT validation but before accept() —
+    # however, closing a Starlette WebSocket pre-accept() surfaces to the
+    # browser as a 403/close code 1006, not our custom code, so the client
+    # can't distinguish "bad token" from "not a member" from "network blip".
+    # Accept first, then close(4003) — the frontend treats 4003 as
+    # non-retryable, same as 4001.
     await websocket.accept()
+
+    async with AsyncSessionLocal() as db:
+        member = await WorkspaceRepository.from_session(db).get_member(workspace_id, user_id)
+
+    if not member:
+        logger.warning("ws_non_member", workspace_id=workspace_id, user_id=user_id)
+        await websocket.close(code=4003, reason="Not a member of this workspace")
+        return
+
     logger.info("ws_connected", workspace_id=workspace_id, user_id=user_id)
+
+    # Sanitize last_event_id before it ever reaches XREAD — a malformed
+    # value currently makes read_events swallow the Redis error and return
+    # [] immediately, spinning the while-loop with no delay.
+    if not _LAST_EVENT_ID_RE.match(last_event_id):
+        logger.warning(
+            "ws_invalid_last_event_id",
+            workspace_id=workspace_id,
+            user_id=user_id,
+            last_event_id=last_event_id,
+        )
+        last_event_id = "$"
 
     redis: Redis = _get_redis()
     cursor = last_event_id

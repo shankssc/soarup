@@ -130,9 +130,12 @@ export function useWebSocket({
     };
 
     ws.onclose = (event) => {
-      // 4001 = unauthorized — token invalid or expired, do not reconnect.
+      // 4001 = unauthorized (bad/expired token), 4003 = not a workspace
+      // member. Neither is retryable — reconnecting won't fix either one,
+      // and retrying 4003 in a loop is exactly the failure mode this
+      // exists to avoid.
       // The user will need to re-authenticate.
-      if (event.code === 4001) {
+      if (event.code === 4001 || event.code === 4003) {
         setStatus('error');
         return;
       }
