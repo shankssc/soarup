@@ -4,7 +4,7 @@ import structlog
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 
-from app.api import ApiVersionDep, DBSessionDep, OnboardedDep, RedisDep, create_error_response, create_success_response, handle_update_error
+from app.api import ApiVersionDep, DBSessionDep, RedisDep, create_error_response, create_success_response, handle_update_error
 from app.api.dependencies import rate_limit
 from app.api.rbac import WorkspaceMemberDep
 from app.schemas.update import SubmitUpdateRequest, UpdateUpdateRequest
@@ -65,7 +65,7 @@ async def submit_update(
     workspace_id: str,
     request: SubmitUpdateRequest,
     api_version: ApiVersionDep,
-    user_ctx: OnboardedDep,
+    user_ctx: WorkspaceMemberDep,
     service: UpdateService = Depends(get_update_service),
 ) -> Response:
     """Submit a new standup update. Returns 409 if already submitted today."""
@@ -81,7 +81,7 @@ async def get_updates(
     workspace_id: str,
     update_date: str,
     api_version: ApiVersionDep,
-    user_ctx: OnboardedDep,
+    user_ctx: WorkspaceMemberDep,
     service: UpdateService = Depends(get_update_service),
 ) -> Response:
     """Fetch all updates for a workspace on a given date."""
@@ -111,7 +111,7 @@ async def edit_update(
     update_id: str,
     request: UpdateUpdateRequest,
     api_version: ApiVersionDep,
-    user_ctx: OnboardedDep,
+    user_ctx: WorkspaceMemberDep,
     service: UpdateService = Depends(get_update_service),
 ) -> Response:
     """Edit an existing update. Only the owner can edit."""
@@ -127,7 +127,7 @@ async def delete_update(
     workspace_id: str,
     update_id: str,
     api_version: ApiVersionDep,
-    user_ctx: OnboardedDep,
+    user_ctx: WorkspaceMemberDep,
     service: UpdateService = Depends(get_update_service),
 ) -> Response:
     """Soft-delete an update. Only the owner can delete."""
