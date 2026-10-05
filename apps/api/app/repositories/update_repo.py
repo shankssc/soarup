@@ -1,5 +1,7 @@
 # apps/api/app/repositories/update_repo.py
 
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -145,6 +147,36 @@ class UpdateRepository:
         await self.db.commit()
         await self.db.refresh(update)
         return update
+
+    async def get_stale_processing(self, older_than_minutes: int) -> list[Update]:
+        """
+        Return non-deleted updates still "processing" after older_than_minutes.
+
+        Used by the Celery beat reaper (tasks.reap_stale_processing_updates)
+        to catch the crash case a task's own try/except can't cover — a
+        worker killed mid-task (OOM, deploy, SIGKILL) never runs its except
+        branch, so the row's status is never written past "processing".
+
+        updated_at is the liveness signal: it's bumped by onupdate=func.now()
+        on every ORM write to the row, including the mid-pipeline
+        update_transcript() call for voice updates — so this measures time
+        since the row's last write, not strictly time since it entered
+        "processing". That's still a valid staleness signal; it just means
+        a voice update that got as far as storing its transcript before
+        crashing is measured from the transcript write, not from when
+        processing started.
+        """
+        cutoff = datetime.now(UTC) - timedelta(minutes=older_than_minutes)
+        result = await self.db.execute(
+            select(Update).where(
+                and_(
+                    Update.status == "processing",
+                    Update.updated_at < cutoff,
+                    Update.is_deleted == False,  # noqa: E712
+                )
+            )
+        )
+        return list(result.scalars().all())
 
     async def get_workspace_updates_paginated(
         self,
