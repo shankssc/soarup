@@ -12,7 +12,10 @@
 #   - supabase start running (Postgres on port 54322)
 #   - soarup_test DB exists with alembic upgrade head applied
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
+from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError
 
 from app.models.update import Update
@@ -370,3 +373,71 @@ class TestDuplicateConstraint:
 
         with pytest.raises(IntegrityError):
             await _create_update(db_session, seeded_workspace.id, test_user_id, TODAY)
+
+
+# ---------------------------------------------------------------------------
+# get_stale_processing()
+# ---------------------------------------------------------------------------
+
+
+class TestGetStaleProcessing:
+    @pytest.mark.asyncio
+    async def test_returns_update_stuck_past_threshold(self, update_repo, db_session, seeded_workspace, test_user_id):
+        update = await _create_update(db_session, seeded_workspace.id, test_user_id)
+        update.status = "processing"
+        await db_session.flush()
+
+        stale_cutoff = datetime.now(UTC) - timedelta(minutes=45)
+        await db_session.execute(sa_update(Update).where(Update.id == update.id).values(updated_at=stale_cutoff))
+        await db_session.flush()
+
+        results = await update_repo.get_stale_processing(30)
+
+        assert len(results) == 1
+        assert results[0].id == update.id
+
+    @pytest.mark.asyncio
+    async def test_excludes_updates_within_threshold(self, update_repo, db_session, seeded_workspace, test_user_id):
+        """Still 'processing' but updated_at was just bumped by onupdate — not stale yet."""
+        update = await _create_update(db_session, seeded_workspace.id, test_user_id)
+        update.status = "processing"
+        await db_session.flush()
+
+        results = await update_repo.get_stale_processing(30)
+
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_excludes_non_processing_status(self, update_repo, db_session, seeded_workspace, test_user_id):
+        update = await _create_update(db_session, seeded_workspace.id, test_user_id)
+        update.status = "processed"
+        await db_session.flush()
+
+        stale_cutoff = datetime.now(UTC) - timedelta(minutes=45)
+        await db_session.execute(sa_update(Update).where(Update.id == update.id).values(updated_at=stale_cutoff))
+        await db_session.flush()
+
+        results = await update_repo.get_stale_processing(30)
+
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_excludes_soft_deleted(self, update_repo, db_session, seeded_workspace, test_user_id):
+        update = await _create_update(db_session, seeded_workspace.id, test_user_id)
+        update.status = "processing"
+        update.is_deleted = True
+        await db_session.flush()
+
+        stale_cutoff = datetime.now(UTC) - timedelta(minutes=45)
+        await db_session.execute(sa_update(Update).where(Update.id == update.id).values(updated_at=stale_cutoff))
+        await db_session.flush()
+
+        results = await update_repo.get_stale_processing(30)
+
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_when_no_processing_rows(self, update_repo, seeded_workspace):
+        results = await update_repo.get_stale_processing(30)
+
+        assert results == []
