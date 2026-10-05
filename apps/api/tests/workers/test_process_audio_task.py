@@ -603,3 +603,186 @@ class TestMaxRetries:
         ):
             with pytest.raises(Exception, match="Timeout"):
                 await _process_audio_update_async(task, UPDATE_ID)
+
+
+# ---------------------------------------------------------------------------
+# Already processed — skip on entry (item 4)
+# ---------------------------------------------------------------------------
+
+
+class TestAlreadyProcessed:
+    @pytest.mark.asyncio
+    async def test_already_processed_returns_early(self):
+        """update.status == 'processed' → no status update, no events, no download."""
+        task = make_mock_task()
+        mock_factory, _ = _make_mock_session_factory()
+        mock_publish = AsyncMock()
+
+        update_processed = make_fake_update(status="processed")
+        mock_update_repo = _make_mock_update_repo(update=update_processed)
+
+        mock_session_cls, mock_s3_client = _make_mock_s3()
+
+        with (
+            patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
+            patch(_UPDATE_REPO) as mock_update_repo_cls,
+            patch(_WORKSPACE_REPO),
+            patch(_PROFILE_REPO),
+            patch(_AIOBOTO3_SESSION, mock_session_cls),
+            patch(_PUBLISH_EVENT, new=mock_publish),
+            patch("app.workers.tasks.logger"),
+        ):
+            mock_update_repo_cls.from_session.return_value = mock_update_repo
+            await _process_audio_update_async(task, UPDATE_ID)
+
+        mock_update_repo.update_status.assert_not_awaited()
+        mock_publish.assert_not_awaited()
+        mock_s3_client.download_fileobj.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Processing event — previously missing on the voice path (item 2 fix)
+# ---------------------------------------------------------------------------
+
+
+class TestProcessingEventPublished:
+    @pytest.mark.asyncio
+    async def test_processing_event_published_before_download(self):
+        """update.status_changed(processing) must now be published for
+        voice updates, same as the text path has always done."""
+        task = make_mock_task()
+        publish_calls = []
+
+        async def track_publish(redis, event_type, workspace_id, payload):
+            publish_calls.append((event_type, payload))
+
+        with (
+            mock_audio_pipeline(),
+            patch(_PUBLISH_EVENT, side_effect=track_publish),
+        ):
+            await _process_audio_update_async(task, UPDATE_ID)
+
+        processing_events = [p for t, p in publish_calls if t == "update.status_changed" and p.get("status") == "processing"]
+        assert len(processing_events) == 1
+        assert processing_events[0]["summary"] is None
+
+    @pytest.mark.asyncio
+    async def test_processing_event_published_before_transcription_started(self):
+        task = make_mock_task()
+        publish_calls = []
+
+        async def track_publish(redis, event_type, workspace_id, payload):
+            publish_calls.append(event_type)
+
+        with (
+            mock_audio_pipeline(),
+            patch(_PUBLISH_EVENT, side_effect=track_publish),
+        ):
+            await _process_audio_update_async(task, UPDATE_ID)
+
+        processing_idx = publish_calls.index("update.status_changed")  # first occurrence
+        started_idx = publish_calls.index("audio.transcription_started")
+        assert processing_idx < started_idx
+
+
+# ---------------------------------------------------------------------------
+# Failures outside the Claude call — previously uncaught (item 1 fix)
+# ---------------------------------------------------------------------------
+
+
+class TestFailuresBeforeTranscription:
+    @pytest.mark.asyncio
+    async def test_s3_download_failure_retried_on_non_final_attempt(self):
+        task = make_mock_task(retries=0, max_retries=3)
+        status_calls = []
+
+        async def track_status(u, status, summary=None):
+            status_calls.append(status)
+            return u
+
+        with mock_audio_pipeline() as mocks:
+            mocks["update_repo"].update_status = AsyncMock(side_effect=track_status)
+            mocks["s3"].download_fileobj.side_effect = RuntimeError("R2 unreachable")
+            with pytest.raises(RuntimeError, match="R2 unreachable"):
+                await _process_audio_update_async(task, UPDATE_ID)
+
+        # "processing" is written before the download — that's correct and
+        # expected. What must NOT happen on a non-final attempt is a
+        # "failed" write.
+        assert status_calls == ["processing"]
+
+    @pytest.mark.asyncio
+    async def test_s3_download_failure_sets_failed_on_final_attempt(self):
+        task = make_mock_task(retries=3, max_retries=3)
+        status_calls = []
+
+        async def track_status(u, status, summary=None):
+            status_calls.append(status)
+            return u
+
+        with mock_audio_pipeline() as mocks:
+            mocks["update_repo"].update_status = AsyncMock(side_effect=track_status)
+            mocks["s3"].download_fileobj.side_effect = RuntimeError("R2 unreachable")
+
+            # must not raise
+            await _process_audio_update_async(task, UPDATE_ID)
+
+        assert "failed" in status_calls
+
+
+class TestTranscodeFailureOnFinalAttempt:
+    @pytest.mark.asyncio
+    async def test_transcode_failure_sets_failed_on_final_attempt(self):
+        """Previously this always raised regardless of retry count — now
+        the final attempt must mark 'failed' instead."""
+        task = make_mock_task(retries=3, max_retries=3)
+        status_calls = []
+
+        async def track_status(u, status, summary=None):
+            status_calls.append(status)
+            return u
+
+        with (
+            mock_audio_pipeline() as mocks,
+            patch(_AUDIO_SEGMENT) as mock_audio_cls,
+        ):
+            mocks["update_repo"].update_status = AsyncMock(side_effect=track_status)
+            mock_audio_cls.from_file.side_effect = RuntimeError("Unsupported codec")
+
+            # must not raise
+            await _process_audio_update_async(task, UPDATE_ID)
+
+        assert "failed" in status_calls
+
+
+class TestTranscriptionFailureOnFinalAttempt:
+    @pytest.mark.asyncio
+    async def test_transcription_failure_sets_failed_on_final_attempt(self):
+        """Complements the existing TestTranscriptionFailure tests, which
+        only cover retries < max_retries (re-raise). This covers the
+        final-attempt branch — before the fix, transcription failures
+        always raised unconditionally regardless of retry count."""
+        task = make_mock_task(retries=3, max_retries=3)
+        status_calls = []
+        publish_payloads = []
+
+        async def track_status(u, status, summary=None):
+            status_calls.append(status)
+            return u
+
+        async def track_publish(redis, event_type, workspace_id, payload):
+            if event_type == "update.status_changed":
+                publish_payloads.append(payload)
+
+        with (
+            mock_audio_pipeline(transcription_raises=RuntimeError("GPU OOM")) as mocks,
+            patch(_PUBLISH_EVENT, side_effect=track_publish),
+        ):
+            mocks["update_repo"].update_status = AsyncMock(side_effect=track_status)
+
+            # must not raise now
+            await _process_audio_update_async(task, UPDATE_ID)
+
+        assert "failed" in status_calls
+        failed_payloads = [p for p in publish_payloads if p.get("status") == "failed"]
+        assert len(failed_payloads) == 1
