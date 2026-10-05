@@ -18,6 +18,14 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
+# Threshold for the stale-"processing" reaper (see reap_stale_processing_updates
+# below). Must exceed worst-case task duration including Celery's own retry
+# backoff (max_retries=3, retry_backoff_max=120s → up to ~3.5 min of backoff
+# alone, plus three attempts' own runtime — voice updates add a cold-model
+# transcribe on top). 30 minutes is a deliberately generous starting point;
+# tune down once real p99s are known.
+STALE_PROCESSING_THRESHOLD_MINUTES = 30
+
 
 class ProcessUpdateTask(Task):  # type: ignore[misc]
     """
@@ -163,34 +171,52 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
                 )
                 return
 
-            workspace = await workspace_repo.get_by_id(update.workspace_id)
-            profile = await profile_repo.get_by_user_id(update.user_id)
+            # 1b. Already processed — nothing left to do (item 4: skip rows
+            # already terminal on entry, e.g. a redelivered task landing
+            # after another worker already finished it).
+            if update.status == "processed":
+                logger.info(
+                    "process_update_skipped",
+                    update_id=update_id,
+                    reason="already_processed",
+                )
+                return
 
-            # 2. Set status → processing and notify connected clients
-            await update_repo.update_status(update, "processing")
-            await append_event(
-                redis,
-                "update.status_changed",
-                update.workspace_id,
-                {
-                    "update_id": update_id,
-                    "workspace_id": update.workspace_id,
-                    "update_date": update.update_date,
-                    "status": "processing",
-                    "summary": None,
-                },
-            )
-
-            # 3. Build prompt — use Sonnet on retries, Haiku on first attempt
-            use_fallback = task.request.retries > 0
-            prompt = build_summarisation_prompt(
-                content=update.content,
-                author_name=profile.full_name if profile is not None else "the user",
-                update_date=update.update_date,
-                custom_prompt=workspace.summarisation_prompt if workspace else None,
-            )
-
+            # Everything from here on is one pipeline: DB fetches, the
+            # processing transition, prompt build, and the Claude call.
+            # A single except below decides terminal-failure vs retry —
+            # previously only the Claude call itself was covered, so a
+            # failure anywhere else (DB fetch, status write, prompt build)
+            # propagated straight past Celery's retry bookkeeping and left
+            # the row stuck in "processing" forever once retries ran out.
             try:
+                workspace = await workspace_repo.get_by_id(update.workspace_id)
+                profile = await profile_repo.get_by_user_id(update.user_id)
+
+                # 2. Set status → processing and notify connected clients
+                await update_repo.update_status(update, "processing")
+                await append_event(
+                    redis,
+                    "update.status_changed",
+                    update.workspace_id,
+                    {
+                        "update_id": update_id,
+                        "workspace_id": update.workspace_id,
+                        "update_date": update.update_date,
+                        "status": "processing",
+                        "summary": None,
+                    },
+                )
+
+                # 3. Build prompt — use Sonnet on retries, Haiku on first attempt
+                use_fallback = task.request.retries > 0
+                prompt = build_summarisation_prompt(
+                    content=update.content,
+                    author_name=profile.full_name if profile is not None else "the user",
+                    update_date=update.update_date,
+                    custom_prompt=workspace.summarisation_prompt if workspace else None,
+                )
+
                 # 4. Call Claude
                 summary = await summarise(prompt, use_fallback=use_fallback)
 
@@ -232,7 +258,6 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
                             update_id=update_id,
                             error=str(slack_exc),
                         )
-
                 logger.info(
                     "process_update_complete",
                     update_id=update_id,
@@ -271,6 +296,7 @@ async def _process_update_async(task: ProcessUpdateTask, update_id: str) -> None
 
                 # Re-raise so Celery's autoretry_for picks it up
                 raise exc
+
     finally:
         await redis.aclose()
 
@@ -319,84 +345,80 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
                 )
                 return
 
-            workspace = await workspace_repo.get_by_id(update.workspace_id)
-            profile = await profile_repo.get_by_user_id(update.user_id)
-
-            # 2. Set status → processing
-            await update_repo.update_status(update, "processing")
-
-            # 3. Download audio from R2 via aioboto3
-            session = aioboto3.Session()
-            audio_buffer = io.BytesIO()
-            async with session.client(
-                "s3",
-                endpoint_url=settings.r2_endpoint_url,
-                aws_access_key_id=(settings.r2_access_key_id.get_secret_value() if settings.r2_access_key_id else ""),
-                aws_secret_access_key=(settings.r2_secret_access_key.get_secret_value() if settings.r2_secret_access_key else ""),
-                region_name="auto",
-            ) as s3:
-                await s3.download_fileobj(settings.r2_bucket_name, update.audio_key, audio_buffer)
-            audio_buffer.seek(0)
-
-            # 4. Transcode to WAV/16kHz mono via pydub + ffmpeg
-            # Normalises format differences between Chrome (WebM/Opus) and Safari (MP4/AAC)
-            wav_path: str | None = None
-            try:
-                audio = AudioSegment.from_file(audio_buffer)
-                audio = audio.set_frame_rate(16000).set_channels(1)
-
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                    audio.export(tmp.name, format="wav")
-                    wav_path = tmp.name
-            except Exception as e:
-                logger.error(
-                    "audio_transcode_failed",
-                    update_id=update_id,
-                    error=str(e),
-                )
-                raise
-
-            # 5. Publish transcription started
-            await append_event(
-                redis,
-                "audio.transcription_started",
-                update.workspace_id,
-                {
-                    "update_id": update_id,
-                    "workspace_id": update.workspace_id,
-                    "update_date": update.update_date,
-                },
-            )
-
-            # 6. Transcribe with faster-whisper
-            try:
-                model = get_whisper_model()
-                segments, info = model.transcribe(
-                    wav_path,
-                    language=None,  # auto-detect language
-                    beam_size=5,
-                    vad_filter=True,  # skip silence segments
-                    vad_parameters={"min_silence_duration_ms": 500},
-                )
-                transcript = " ".join(seg.text.strip() for seg in segments).strip()
-
+            # 1b. Already processed — nothing left to do (item 4).
+            if update.status == "processed":
                 logger.info(
-                    "transcription_complete",
+                    "process_audio_skipped",
                     update_id=update_id,
-                    duration=info.duration,
-                    language=info.language,
-                    language_probability=info.language_probability,
-                    transcript_length=len(transcript),
+                    reason="already_processed",
                 )
-            except Exception as e:
-                logger.error(
-                    "transcription_failed",
-                    update_id=update_id,
-                    error=str(e),
-                )
+                return
+
+            # Everything from here on — including the S3 download, ffmpeg
+            # transcode, and faster-whisper transcription, none of which
+            # were previously covered by any terminal-failure handling — is
+            # one pipeline. A single except below decides terminal-failure
+            # vs retry, same restructuring as _process_update_async.
+            # Known tradeoff: a retry after this point redoes transcription
+            # even if a transcript was already saved from a prior attempt.
+            # Wasteful but correct — skipping completed steps is a later
+            # optimisation.
+            try:
+                workspace = await workspace_repo.get_by_id(update.workspace_id)
+                profile = await profile_repo.get_by_user_id(update.user_id)
+
+                # 2. Set status → processing and notify connected clients
+                # (previously missing on the voice path — text path has
+                # always published this).
+                await update_repo.update_status(update, "processing")
                 await append_event(
                     redis,
-                    "audio.transcription_failed",
+                    "update.status_changed",
+                    update.workspace_id,
+                    {
+                        "update_id": update_id,
+                        "workspace_id": update.workspace_id,
+                        "update_date": update.update_date,
+                        "status": "processing",
+                        "summary": None,
+                    },
+                )
+
+                # 3. Download audio from R2 via aioboto3
+                session = aioboto3.Session()
+                audio_buffer = io.BytesIO()
+                async with session.client(
+                    "s3",
+                    endpoint_url=settings.r2_endpoint_url,
+                    aws_access_key_id=(settings.r2_access_key_id.get_secret_value() if settings.r2_access_key_id else ""),
+                    aws_secret_access_key=(settings.r2_secret_access_key.get_secret_value() if settings.r2_secret_access_key else ""),
+                    region_name="auto",
+                ) as s3:
+                    await s3.download_fileobj(settings.r2_bucket_name, update.audio_key, audio_buffer)
+                audio_buffer.seek(0)
+
+                # 4. Transcode to WAV/16kHz mono via pydub + ffmpeg
+                # Normalises format differences between Chrome (WebM/Opus) and Safari (MP4/AAC)
+                wav_path: str | None = None
+                try:
+                    audio = AudioSegment.from_file(audio_buffer)
+                    audio = audio.set_frame_rate(16000).set_channels(1)
+
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                        audio.export(tmp.name, format="wav")
+                        wav_path = tmp.name
+                except Exception as e:
+                    logger.error(
+                        "audio_transcode_failed",
+                        update_id=update_id,
+                        error=str(e),
+                    )
+                    raise
+
+                # 5. Publish transcription started
+                await append_event(
+                    redis,
+                    "audio.transcription_started",
                     update.workspace_id,
                     {
                         "update_id": update_id,
@@ -404,39 +426,75 @@ async def _process_audio_update_async(task: ProcessUpdateTask, update_id: str) -
                         "update_date": update.update_date,
                     },
                 )
-                raise
-            finally:
-                # Always clean up the temp WAV file
-                if wav_path:
-                    try:  # Noqa: SIM105
-                        os.unlink(wav_path)  # Noqa: PTH108
-                    except Exception:  # Noqa: S110
-                        pass
 
-            # 7. Store transcript, publish transcription complete
-            await update_repo.update_transcript(update, transcript)
-            await append_event(
-                redis,
-                "audio.transcription_complete",
-                update.workspace_id,
-                {
-                    "update_id": update_id,
-                    "workspace_id": update.workspace_id,
-                    "update_date": update.update_date,
-                    "transcript": transcript,
-                },
-            )
+                # 6. Transcribe with faster-whisper
+                try:
+                    model = get_whisper_model()
+                    segments, info = model.transcribe(
+                        wav_path,
+                        language=None,  # auto-detect language
+                        beam_size=5,
+                        vad_filter=True,  # skip silence segments
+                        vad_parameters={"min_silence_duration_ms": 500},
+                    )
+                    transcript = " ".join(seg.text.strip() for seg in segments).strip()
 
-            # 8. Summarise transcript with Claude (same pipeline as text updates)
-            use_fallback = task.request.retries > 0
-            prompt = build_summarisation_prompt(
-                content=transcript,
-                author_name=profile.full_name if profile else "the user",
-                update_date=update.update_date,
-                custom_prompt=workspace.summarisation_prompt if workspace else None,
-            )
+                    logger.info(
+                        "transcription_complete",
+                        update_id=update_id,
+                        duration=info.duration,
+                        language=info.language,
+                        language_probability=info.language_probability,
+                        transcript_length=len(transcript),
+                    )
+                except Exception as e:
+                    logger.error(
+                        "transcription_failed",
+                        update_id=update_id,
+                        error=str(e),
+                    )
+                    await append_event(
+                        redis,
+                        "audio.transcription_failed",
+                        update.workspace_id,
+                        {
+                            "update_id": update_id,
+                            "workspace_id": update.workspace_id,
+                            "update_date": update.update_date,
+                        },
+                    )
+                    raise
+                finally:
+                    # Always clean up the temp WAV file
+                    if wav_path:
+                        try:  # Noqa: SIM105
+                            os.unlink(wav_path)  # Noqa: PTH108
+                        except Exception:  # Noqa: S110
+                            pass
 
-            try:
+                # 7. Store transcript, publish transcription complete
+                await update_repo.update_transcript(update, transcript)
+                await append_event(
+                    redis,
+                    "audio.transcription_complete",
+                    update.workspace_id,
+                    {
+                        "update_id": update_id,
+                        "workspace_id": update.workspace_id,
+                        "update_date": update.update_date,
+                        "transcript": transcript,
+                    },
+                )
+
+                # 8. Summarise transcript with Claude (same pipeline as text updates)
+                use_fallback = task.request.retries > 0
+                prompt = build_summarisation_prompt(
+                    content=transcript,
+                    author_name=profile.full_name if profile else "the user",
+                    update_date=update.update_date,
+                    custom_prompt=workspace.summarisation_prompt if workspace else None,
+                )
+
                 summary = await summarise(prompt, use_fallback=use_fallback)
 
                 # 9. Store summary, set status → processed
@@ -893,3 +951,97 @@ async def _send_workspace_digest_async(
             status=final_status,
             recipient_count=len(to_emails),
         )
+
+
+# ---------------------------------------------------------------------------
+# Reaper task
+# ---------------------------------------------------------------------------
+
+
+@celery_app.task(  # type: ignore[misc]
+    bind=True,
+    base=ProcessUpdateTask,
+    name="app.workers.tasks.reap_stale_processing_updates",
+    max_retries=0,  # Polling task — no retries, next tick will re-check
+    acks_late=True,
+)
+def reap_stale_processing_updates(self: ProcessUpdateTask) -> None:
+    """
+    Celery beat task, run every 5 minutes.
+
+    Catches the crash case the try/except restructuring above can't cover:
+    a worker killed mid-task (OOM, deploy, SIGKILL) never runs its except
+    branch, so the row's status is never written past "processing" and the
+    Retry button (gated on status == "failed") never appears.
+
+    Marks any row still "processing" after STALE_PROCESSING_THRESHOLD_MINUTES
+    as "failed" and publishes the same update.status_changed event the
+    normal failure path uses, so connected clients see it the same way.
+
+    With acks_late=True, the broker may also redeliver a crashed task to
+    another worker — that redelivery can race this reaper. If it finishes
+    successfully AFTER the reaper has already marked the row "failed", its
+    own update_status("processed") call simply overwrites "failed" with
+    "processed". That's acceptable per the ticket: "processed" is strictly
+    better information, and it only arrives after "failed" in this race,
+    never instead of a correct "processed" elsewhere.
+    """
+    asyncio.run(_reap_stale_processing_updates_async(self))
+
+
+async def _reap_stale_processing_updates_async(task: ProcessUpdateTask) -> None:
+    """
+    Async implementation of the stale-processing reaper.
+    Imports deferred to function scope — same reasoning as the other task
+    async implementations (avoids circular imports at module load time).
+    """
+    from redis.asyncio import Redis
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.lib.events import append_event
+    from app.repositories.update_repo import UpdateRepository
+
+    async_session = async_sessionmaker(task.db_engine, expire_on_commit=False)
+    redis = Redis.from_url(settings.redis_url)
+
+    try:
+        async with async_session() as db:
+            update_repo = UpdateRepository.from_session(db)
+
+            stale_updates = await update_repo.get_stale_processing(STALE_PROCESSING_THRESHOLD_MINUTES)
+
+            logger.info(
+                "reap_stale_processing_tick",
+                stale_count=len(stale_updates),
+                threshold_minutes=STALE_PROCESSING_THRESHOLD_MINUTES,
+            )
+
+            for update in stale_updates:
+                try:
+                    await update_repo.update_status(update, "failed")
+                    await append_event(
+                        redis,
+                        "update.status_changed",
+                        update.workspace_id,
+                        {
+                            "update_id": update.id,
+                            "workspace_id": update.workspace_id,
+                            "update_date": update.update_date,
+                            "status": "failed",
+                            "summary": None,
+                        },
+                    )
+                    logger.warning(
+                        "reaped_stale_processing_update",
+                        update_id=update.id,
+                        workspace_id=update.workspace_id,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "reap_stale_processing_row_failed",
+                        update_id=update.id,
+                        error=str(e),
+                    )
+                    continue
+    finally:
+        await redis.aclose()

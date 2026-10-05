@@ -32,6 +32,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.check_and_send_digests",
         "schedule": crontab(minute="*/5"),
     },
+    "reap-stale-processing-updates": {
+        "task": "app.workers.tasks.reap_stale_processing_updates",
+        "schedule": crontab(minute="*/5"),
+    },
 }
 
 
