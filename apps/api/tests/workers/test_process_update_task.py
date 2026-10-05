@@ -146,8 +146,10 @@ class TestHappyPath:
             patch(_PUBLISH_EVENT, new=AsyncMock()),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=workspace)
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=profile)
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=workspace)
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=profile)
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -180,8 +182,10 @@ class TestHappyPath:
             patch(_PUBLISH_EVENT, new=AsyncMock()),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -209,8 +213,10 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -240,8 +246,10 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -274,8 +282,10 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -308,8 +318,10 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -320,7 +332,8 @@ class TestHappyPath:
     async def test_custom_workspace_prompt_passed_to_build_prompt(self):
         """workspace.summarisation_prompt is forwarded to build_summarisation_prompt."""
         update = make_fake_update()
-        workspace = make_fake_workspace(summarisation_prompt="Focus on blockers only.")
+        workspace = make_fake_workspace(
+            summarisation_prompt="Focus on blockers only.")
         task = make_mock_task()
         mock_factory, _ = _make_mock_session_factory()
         mock_build = MagicMock(return_value="built-prompt")
@@ -340,8 +353,10 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=workspace)
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=workspace)
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -373,8 +388,10 @@ class TestHappyPath:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=workspace)
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=workspace)
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -449,8 +466,10 @@ class TestMaxRetries:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
@@ -481,12 +500,15 @@ class TestMaxRetries:
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
 
             await _process_update_async(task, UPDATE_ID)
 
-        failed_payloads = [p for p in publish_calls if p.get("status") == "failed"]
+        failed_payloads = [
+            p for p in publish_calls if p.get("status") == "failed"]
         assert len(failed_payloads) == 1
 
     @pytest.mark.asyncio
@@ -505,13 +527,173 @@ class TestMaxRetries:
             patch(_UPDATE_REPO) as mock_update_repo_cls,
             patch(_WORKSPACE_REPO) as mock_workspace_repo_cls,
             patch(_PROFILE_REPO) as mock_profile_repo_cls,
-            patch(_SUMMARISE, new=AsyncMock(side_effect=Exception("transient"))),
+            patch(_SUMMARISE, new=AsyncMock(
+                side_effect=Exception("transient"))),
             patch(_PUBLISH_EVENT, new=AsyncMock()),
             patch("app.workers.tasks.logger"),
         ):
             mock_update_repo_cls.from_session.return_value = mock_update_repo
-            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(return_value=make_fake_workspace())
-            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(return_value=make_fake_profile())
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
 
             with pytest.raises(Exception, match="transient"):
                 await _process_update_async(task, UPDATE_ID)
+
+
+# ---------------------------------------------------------------------------
+# Already processed — skip on entry (item 4)
+# ---------------------------------------------------------------------------
+
+
+class TestAlreadyProcessed:
+    @pytest.mark.asyncio
+    async def test_already_processed_skips_entirely(self):
+        """status == 'processed' on fetch → no status write, no event, no Claude call."""
+        update = make_fake_update(status="processed")
+        task = make_mock_task()
+        mock_factory, _ = _make_mock_session_factory()
+        mock_publish = AsyncMock()
+        mock_summarise = AsyncMock()
+
+        mock_update_repo = MagicMock()
+        mock_update_repo.get_by_id = AsyncMock(return_value=update)
+        mock_update_repo.update_status = AsyncMock()
+
+        with (
+            patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
+            patch(_UPDATE_REPO) as mock_update_repo_cls,
+            patch(_WORKSPACE_REPO),
+            patch(_PROFILE_REPO),
+            patch(_SUMMARISE, new=mock_summarise),
+            patch(_PUBLISH_EVENT, new=mock_publish),
+            patch("app.workers.tasks.logger"),
+        ):
+            mock_update_repo_cls.from_session.return_value = mock_update_repo
+
+            await _process_update_async(task, UPDATE_ID)
+
+        mock_update_repo.update_status.assert_not_awaited()
+        mock_publish.assert_not_awaited()
+        mock_summarise.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Failures outside the Claude call — previously uncaught (item 1 fix)
+# ---------------------------------------------------------------------------
+
+
+class TestFailuresBeforeClaudeCall:
+    @pytest.mark.asyncio
+    async def test_workspace_fetch_failure_retried_on_non_final_attempt(self):
+        """workspace_repo.get_by_id raising must now be caught and re-raised
+        for Celery retry, not propagate unconditionally as before the fix."""
+        update = make_fake_update()
+        task = make_mock_task(retries=0, max_retries=3)
+        mock_factory, _ = _make_mock_session_factory()
+
+        mock_update_repo = MagicMock()
+        mock_update_repo.get_by_id = AsyncMock(return_value=update)
+        mock_update_repo.update_status = AsyncMock(side_effect=_noop_status)
+
+        with (
+            patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
+            patch(_UPDATE_REPO) as mock_update_repo_cls,
+            patch(_WORKSPACE_REPO) as mock_workspace_repo_cls,
+            patch(_PROFILE_REPO) as mock_profile_repo_cls,
+            patch(_SUMMARISE, new=AsyncMock()),
+            patch(_PUBLISH_EVENT, new=AsyncMock()),
+            patch("app.workers.tasks.logger"),
+        ):
+            mock_update_repo_cls.from_session.return_value = mock_update_repo
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                side_effect=RuntimeError("DB connection lost"))
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
+
+            with pytest.raises(RuntimeError, match="DB connection lost"):
+                await _process_update_async(task, UPDATE_ID)
+
+        # Not the final attempt — must not be marked failed, must re-raise instead
+        mock_update_repo.update_status.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_workspace_fetch_failure_sets_failed_on_final_attempt(self):
+        """Same failure, but on the last retry — must now mark the row
+        'failed' and publish the event instead of propagating forever."""
+        update = make_fake_update()
+        task = make_mock_task(retries=3, max_retries=3)
+        mock_factory, _ = _make_mock_session_factory()
+        status_calls = []
+        publish_payloads = []
+
+        async def track_status(u, status, summary=None):
+            status_calls.append(status)
+            return u
+
+        async def track_publish(redis, event_type, workspace_id, payload):
+            publish_payloads.append(payload)
+
+        mock_update_repo = MagicMock()
+        mock_update_repo.get_by_id = AsyncMock(return_value=update)
+        mock_update_repo.update_status = AsyncMock(side_effect=track_status)
+
+        with (
+            patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
+            patch(_UPDATE_REPO) as mock_update_repo_cls,
+            patch(_WORKSPACE_REPO) as mock_workspace_repo_cls,
+            patch(_PROFILE_REPO) as mock_profile_repo_cls,
+            patch(_SUMMARISE, new=AsyncMock()),
+            patch(_PUBLISH_EVENT, side_effect=track_publish),
+            patch("app.workers.tasks.logger"),
+        ):
+            mock_update_repo_cls.from_session.return_value = mock_update_repo
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                side_effect=RuntimeError("DB connection lost"))
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
+
+            # Must NOT raise — terminal failure is handled, not propagated
+            await _process_update_async(task, UPDATE_ID)
+
+        assert "failed" in status_calls
+        failed_payloads = [
+            p for p in publish_payloads if p.get("status") == "failed"]
+        assert len(failed_payloads) == 1
+
+    @pytest.mark.asyncio
+    async def test_processing_status_write_failure_is_caught(self):
+        """update_status('processing') itself raising must also be caught
+        by the restructured handler — the other half of the previously-
+        uncovered region."""
+        update = make_fake_update()
+        task = make_mock_task(retries=3, max_retries=3)
+        mock_factory, _ = _make_mock_session_factory()
+
+        mock_update_repo = MagicMock()
+        mock_update_repo.get_by_id = AsyncMock(return_value=update)
+        mock_update_repo.update_status = AsyncMock(
+            side_effect=[RuntimeError("DB write failed"), update])
+
+        with (
+            patch(_ASYNC_SESSIONMAKER, return_value=mock_factory),
+            patch(_UPDATE_REPO) as mock_update_repo_cls,
+            patch(_WORKSPACE_REPO) as mock_workspace_repo_cls,
+            patch(_PROFILE_REPO) as mock_profile_repo_cls,
+            patch(_SUMMARISE, new=AsyncMock()),
+            patch(_PUBLISH_EVENT, new=AsyncMock()),
+            patch("app.workers.tasks.logger"),
+        ):
+            mock_update_repo_cls.from_session.return_value = mock_update_repo
+            mock_workspace_repo_cls.from_session.return_value.get_by_id = AsyncMock(
+                return_value=make_fake_workspace())
+            mock_profile_repo_cls.from_session.return_value.get_by_user_id = AsyncMock(
+                return_value=make_fake_profile())
+
+            # Must not raise — final attempt: first update_status call raises
+            # (the "processing" write), second call (side_effect[1]) succeeds
+            # in marking it "failed"
+            await _process_update_async(task, UPDATE_ID)
+
+        assert mock_update_repo.update_status.await_count == 2
