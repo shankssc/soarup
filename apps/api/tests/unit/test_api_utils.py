@@ -11,10 +11,6 @@
 #   - Error code → HTTP status mapping for both auth and profile errors
 #   - Fallback behaviour when a non-AuthError/non-ProfileError is passed
 
-import json
-from typing import Any, cast
-from unittest.mock import MagicMock
-
 from fastapi import status
 
 from app.api._utils import (
@@ -22,26 +18,13 @@ from app.api._utils import (
     create_success_response,
     handle_auth_error,
     handle_profile_error,
+    handle_update_error,
 )
 from app.services.auth_service import AuthError
 from app.services.profile_service import ProfileError
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _parse_body(response: Any) -> dict[str, Any]:
-    """Parse JSONResponse body bytes into a dict."""
-    return cast(dict[str, Any], json.loads(response.body))
-
-
-def _mock_api_version(deprecated: bool = False) -> MagicMock:
-    v = MagicMock()
-    v.version = "v1"
-    v.deprecated = deprecated
-    return v
-
+from app.services.update_service import UpdateError
+from tests.conftest import mock_api_version as _mock_api_version
+from tests.conftest import parse_body as _parse_body
 
 # ---------------------------------------------------------------------------
 # create_error_response()
@@ -357,3 +340,58 @@ class TestErrorResponseShape:
         assert "error" in body
         assert "message" in body
         assert "details" in body
+
+
+# ---------------------------------------------------------------------------
+# handle_update_error()
+# ---------------------------------------------------------------------------
+
+
+class TestHandleUpdateError:
+    def test_update_already_exists_returns_409(self):
+        e = UpdateError(error_code="update_already_exists", message="Already submitted")
+        response = handle_update_error(e)
+        assert response.status_code == 409
+
+    def test_update_not_found_returns_404(self):
+        e = UpdateError(error_code="update_not_found", message="Not found")
+        response = handle_update_error(e)
+        assert response.status_code == 404
+
+    def test_unauthorized_returns_403(self):
+        e = UpdateError(error_code="unauthorized", message="Not yours")
+        response = handle_update_error(e)
+        assert response.status_code == 403
+
+    def test_service_unavailable_returns_503(self):
+        e = UpdateError(error_code="service_unavailable", message="Try again shortly")
+        response = handle_update_error(e)
+        assert response.status_code == 503
+
+    def test_unknown_error_code_defaults_to_400(self):
+        e = UpdateError(error_code="some_unknown_code", message="Unknown")
+        response = handle_update_error(e)
+        assert response.status_code == 400
+
+    def test_error_code_in_response_body(self):
+        e = UpdateError(error_code="update_not_found", message="Not found")
+        response = handle_update_error(e)
+        body = _parse_body(response)
+        assert body["error"] == "update_not_found"
+
+    def test_details_included_when_present(self):
+        e = UpdateError(
+            error_code="service_unavailable",
+            message="Try again shortly",
+            details={"update_id": "u-1"},
+        )
+        response = handle_update_error(e)
+        body = _parse_body(response)
+        assert body["details"]["update_id"] == "u-1"
+
+    def test_non_update_error_returns_500(self):
+        e = RuntimeError("boom")
+        response = handle_update_error(e)
+        assert response.status_code == 500
+        body = _parse_body(response)
+        assert body["error"] == "internal_error"

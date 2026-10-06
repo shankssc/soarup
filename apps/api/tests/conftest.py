@@ -1,5 +1,6 @@
 # apps/api/tests/conftest.py
 
+import json
 import os
 import sys
 import time
@@ -355,6 +356,18 @@ def _signup_response_dict(
     )
 
 
+def _parse_body(response: Any) -> dict[str, Any]:
+    """Parse JSONResponse body bytes into a dict."""
+    return cast(dict[str, Any], json.loads(response.body))
+
+
+def _mock_api_version(deprecated: bool = False) -> MagicMock:
+    v = MagicMock()
+    v.version = "v1"
+    v.deprecated = deprecated
+    return v
+
+
 def _profile_response(
     user_id: str = "user-abc",
     email: str = "test@example.com",
@@ -548,3 +561,5 @@ async def digest_repo(db_session):
 login_response = _login_response_dict
 profile_response = _profile_response
 signup_response = _signup_response_dict
+parse_body = _parse_body
+mock_api_version = _mock_api_version
