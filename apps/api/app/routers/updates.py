@@ -136,3 +136,23 @@ async def delete_update(
     except UpdateError as e:
         return handle_update_error(e, api_version)
     return Response(status_code=204)
+
+
+@router.post(
+    "/{workspace_id}/updates/{update_id}/retry",
+    status_code=200,
+    dependencies=[Depends(rate_limit("update_retry", requests_per_minute=30, burst=5))],
+)
+async def retry_update(
+    workspace_id: str,
+    update_id: str,
+    api_version: ApiVersionDep,
+    user_ctx: WorkspaceMemberDep,
+    service: UpdateService = Depends(get_update_service),
+) -> Response:
+    """Retry a failed update. Only the owner can retry; only failed updates can be retried."""
+    try:
+        result = await service.retry_update(workspace_id, user_ctx["user_id"], update_id)
+        return create_success_response(result, api_version=api_version)
+    except UpdateError as e:
+        return handle_update_error(e, api_version)

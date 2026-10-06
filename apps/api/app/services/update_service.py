@@ -227,6 +227,71 @@ class UpdateService:
 
         return await self._to_response(update)
 
+    async def retry_update(
+        self,
+        workspace_id: str,
+        user_id: str,
+        update_id: str,
+    ) -> UpdateResponse:
+        """
+        Retry a failed update: flip failed -> pending and re-enqueue.
+
+        Ownership/not-found checks mirror edit_update. Only a "failed"
+        update can be retried.
+
+        Race guard: the failed -> pending flip is a single atomic UPDATE
+        guarded by status='failed' (UpdateRepository.flip_status). If two
+        Retry clicks race, only one matches; the loser gets None back and
+        this call becomes an idempotent no-op — it returns the row as it
+        now stands rather than double-enqueueing.
+
+        Order matters: flip to pending, publish the "pending"
+        status_changed event, THEN enqueue. Enqueueing first risks the
+        worker's "processing" event landing before "pending" reaches other
+        open tabs, leaving them stuck showing "pending" indefinitely.
+
+        Does not publish member.update_submitted — that marks a new
+        submission, not a retry of an existing one.
+        """
+        repo = self._get_update_repo()
+        update = await repo.get_by_id(update_id)
+        if not update or update.workspace_id != workspace_id:
+            raise UpdateError("update_not_found", "Update not found.")
+        if update.user_id != user_id:
+            raise UpdateError("unauthorized", "You can only retry your own updates.")
+        if update.status != "failed":
+            raise UpdateError(
+                "update_not_failed",
+                "Only failed updates can be retried.",
+                {"status": update.status},
+            )
+
+        flipped = await repo.flip_status(update_id, from_status="failed", to_status="pending", summary=None)
+        if flipped is None:
+            # Lost the race — another request already flipped this row.
+            current = await repo.get_by_id(update_id)
+            return await self._to_response(current)
+
+        await append_event(
+            self._redis,
+            "update.status_changed",
+            workspace_id,
+            {
+                "update_id": flipped.id,
+                "workspace_id": workspace_id,
+                "update_date": flipped.update_date,
+                "status": "pending",
+                "summary": None,
+            },
+        )
+
+        # On failure, _enqueue_processing (from #161) already flips the
+        # row back to "failed", publishes that event, and raises
+        # UpdateError("service_unavailable", ...) — propagates untouched.
+        await self._enqueue_processing(flipped)
+
+        return await self._to_response(flipped)
+
     async def get_workspace_updates(
         self,
         workspace_id: str,

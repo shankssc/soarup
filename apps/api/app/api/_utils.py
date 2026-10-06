@@ -182,6 +182,7 @@ def handle_update_error(
         "update_already_exists": status.HTTP_409_CONFLICT,
         "update_not_found": status.HTTP_404_NOT_FOUND,
         "unauthorized": status.HTTP_403_FORBIDDEN,
+        "update_not_failed": status.HTTP_400_BAD_REQUEST,
         "service_unavailable": status.HTTP_503_SERVICE_UNAVAILABLE,
     }
 

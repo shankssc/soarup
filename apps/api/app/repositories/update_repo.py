@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, or_, select
+from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.update import Update
@@ -131,6 +132,10 @@ class UpdateRepository:
           processing → processed (summary populated)
           processing → failed    (no summary)
 
+        A pending row isn't necessarily a brand new submission — retry_update's
+        failed → pending flip (via flip_status) re-enters the pipeline at
+        this same state, so this method still applies unchanged from there.
+
         Args:
             update:  ORM instance to mutate — must belong to the current session.
             status:  Target status string: "processing", "processed", or "failed".
@@ -147,6 +152,42 @@ class UpdateRepository:
         await self.db.commit()
         await self.db.refresh(update)
         return update
+
+    async def flip_status(
+        self,
+        update_id: str,
+        from_status: str,
+        to_status: str,
+        summary: str | None = None,
+    ) -> Update | None:
+        """
+        Atomically transition status, guarded by the row's current status —
+        UPDATE ... WHERE id=:id AND status=:from_status ... RETURNING *.
+
+        This is the race guard for UpdateService.retry_update's failed ->
+        pending flip: if two Retry clicks land concurrently, only one
+        UPDATE matches the WHERE clause. The other gets None back and
+        should treat the call as an idempotent no-op rather than
+        double-enqueueing.
+
+        Returns the updated row, or None if no row matched (either it
+        doesn't exist/is deleted, or its status had already moved past
+        from_status — someone else got there first).
+        """
+        result = await self.db.execute(
+            sa_update(Update)
+            .where(
+                and_(
+                    Update.id == update_id,
+                    Update.status == from_status,
+                    Update.is_deleted == False,  # noqa: E712
+                )
+            )
+            .values(status=to_status, summary=summary)
+            .returning(Update)
+        )
+        await self.db.commit()
+        return result.scalar_one_or_none()
 
     async def get_stale_processing(self, older_than_minutes: int) -> list[Update]:
         """
