@@ -36,6 +36,7 @@ export interface DashboardViewProps {
   onVoiceCancel: () => void;
   onEdit: (updateId: string, content: string) => Promise<void>;
   onDelete: (updateId: string, updateDate: string) => Promise<void>;
+  onRetry: (updateId: string) => Promise<void>;
   isSubmitting?: boolean;
 }
 
@@ -58,6 +59,7 @@ export function DashboardView({
   onVoiceCancel,
   onEdit,
   onDelete,
+  onRetry,
   isSubmitting = false,
 }: DashboardViewProps) {
   return (
@@ -138,6 +140,7 @@ export function DashboardView({
               currentUserId={currentUserId}
               onEdit={onEdit}
               onDelete={onDelete}
+              onRetry={onRetry}
             />
           ))}
         </div>
