@@ -182,3 +182,40 @@ export function useDeleteUpdate(workspaceId: string) {
     },
   });
 }
+
+/*
+Retries a failed update — re-enqueues processing.
+
+Applies the response only if the cached row is still "failed": the
+worker can publish "processing" or "processed" over the WebSocket before
+this mutation's HTTP response resolves, and overwriting with a stale
+"pending" row would visibly downgrade the card. useDashboardUpdates' WS
+handler maps by id and sets status/summary directly, so later events
+stay correct regardless of this race.
+*/
+export function useRetryUpdate(workspaceId: string) {
+  const { tokens } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ updateId, updateDate }: { updateId: string; updateDate: string }) =>
+      apiClient
+        .post<UpdateResponse>(
+          `/workspaces/${workspaceId}/updates/${updateId}/retry`,
+          undefined,
+          tokens?.access_token,
+        )
+        .then((updated) => ({ updated, updateDate })),
+    onSuccess: ({ updated, updateDate }) => {
+      queryClient.setQueryData<UpdateListResponse>(
+        updateKeys.byDate(workspaceId, updateDate),
+        (old) => ({
+          updates: (old?.updates ?? []).map((u) =>
+            u.id === updated.id && u.status === 'failed' ? updated : u,
+          ),
+          total: old?.total ?? 0,
+        }),
+      );
+    },
+  });
+}
