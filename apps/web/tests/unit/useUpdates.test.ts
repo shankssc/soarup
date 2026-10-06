@@ -9,6 +9,7 @@ import {
   useSubmitUpdate,
   useEditUpdate,
   useDeleteUpdate,
+  useRetryUpdate,
   updateKeys,
 } from '@/hooks/useUpdates';
 import { useAuthStore } from '@/hooks/useAuth';
@@ -475,5 +476,88 @@ describe('useDeleteUpdate', () => {
       updateKeys.byDate(WORKSPACE_ID, TODAY),
     );
     expect(cached?.total).toBe(0); // Math.max(0 - 1, 0) = 0
+  });
+});
+
+// ─── useRetryUpdate ───────────────────────────────────────────────────────────
+
+describe('useRetryUpdate', () => {
+  const retriedUpdate = { ...MOCK_UPDATE, status: 'pending', summary: null };
+
+  it('calls POST retry endpoint with no body', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue(retriedUpdate);
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useRetryUpdate(WORKSPACE_ID), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ updateId: 'update-abc', updateDate: TODAY });
+    });
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      `/workspaces/${WORKSPACE_ID}/updates/update-abc/retry`,
+      undefined,
+      'mock-access-token',
+    );
+  });
+
+  it('success replaces the cached row when it is still failed', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue(retriedUpdate);
+    const { wrapper, queryClient } = createWrapper();
+
+    queryClient.setQueryData(updateKeys.byDate(WORKSPACE_ID, TODAY), {
+      updates: [{ ...MOCK_UPDATE, status: 'failed' }],
+      total: 1,
+    });
+
+    const { result } = renderHook(() => useRetryUpdate(WORKSPACE_ID), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ updateId: 'update-abc', updateDate: TODAY });
+    });
+
+    const cached = queryClient.getQueryData<{
+      updates: (typeof MOCK_UPDATE)[];
+      total: number;
+    }>(updateKeys.byDate(WORKSPACE_ID, TODAY));
+    expect(cached?.updates[0].status).toBe('pending');
+  });
+
+  it('a stale response does not overwrite a newer cached status', async () => {
+    // Simulates the WS "processing" event landing before this mutation's
+    // HTTP response resolves — applying the stale "pending" row would
+    // visibly downgrade the card.
+    vi.mocked(apiClient.post).mockResolvedValue(retriedUpdate);
+    const { wrapper, queryClient } = createWrapper();
+
+    queryClient.setQueryData(updateKeys.byDate(WORKSPACE_ID, TODAY), {
+      updates: [{ ...MOCK_UPDATE, status: 'processing' }],
+      total: 1,
+    });
+
+    const { result } = renderHook(() => useRetryUpdate(WORKSPACE_ID), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ updateId: 'update-abc', updateDate: TODAY });
+    });
+
+    const cached = queryClient.getQueryData<{
+      updates: (typeof MOCK_UPDATE)[];
+      total: number;
+    }>(updateKeys.byDate(WORKSPACE_ID, TODAY));
+    expect(cached?.updates[0].status).toBe('processing');
+  });
+
+  it('errors propagate', async () => {
+    vi.mocked(apiClient.post).mockRejectedValue(
+      new ApiRequestError('service_unavailable', 'Try again shortly.', 503),
+    );
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useRetryUpdate(WORKSPACE_ID), { wrapper });
+
+    await expect(
+      act(async () => {
+        await result.current.mutateAsync({ updateId: 'update-abc', updateDate: TODAY });
+      }),
+    ).rejects.toThrow('Try again shortly.');
   });
 });

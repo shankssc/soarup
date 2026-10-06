@@ -48,6 +48,7 @@ const defaultProps = {
   currentUserId: 'user-123', // matches MOCK_UPDATE.user_id → isOwner = true
   onEdit: vi.fn().mockResolvedValue(undefined),
   onDelete: vi.fn().mockResolvedValue(undefined),
+  onRetry: vi.fn().mockResolvedValue(undefined),
 };
 
 const otherUserProps = {
@@ -247,5 +248,71 @@ describe('UpdateCard — edit mode', () => {
         MOCK_UPDATE.content.trim(),
       ),
     );
+  });
+});
+
+// ─── Retry ────────────────────────────────────────────────────────────────────
+
+describe('UpdateCard — retry', () => {
+  it('shows Retry for the owner on a failed update', () => {
+    render(
+      <UpdateCard {...defaultProps} update={{ ...MOCK_UPDATE, status: 'failed' }} />,
+    );
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("hides Retry for a teammate's failed update", () => {
+    render(
+      <UpdateCard {...otherUserProps} update={{ ...MOCK_UPDATE, status: 'failed' }} />,
+    );
+    expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+  });
+
+  it('clicking Retry calls onRetry once with the update id', async () => {
+    const user = userEvent.setup();
+    render(
+      <UpdateCard {...defaultProps} update={{ ...MOCK_UPDATE, status: 'failed' }} />,
+    );
+    await user.click(screen.getByRole('button', { name: /retry/i }));
+    await waitFor(() => expect(defaultProps.onRetry).toHaveBeenCalledTimes(1));
+    expect(defaultProps.onRetry).toHaveBeenCalledWith(MOCK_UPDATE.id);
+  });
+
+  it('double-clicking Retry only fires onRetry once', async () => {
+    const user = userEvent.setup();
+    let resolveRetry: () => void = () => {};
+    const onRetry = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveRetry = resolve;
+        }),
+    );
+    render(
+      <UpdateCard
+        {...defaultProps}
+        onRetry={onRetry}
+        update={{ ...MOCK_UPDATE, status: 'failed' }}
+      />,
+    );
+    const button = screen.getByRole('button', { name: /retry/i });
+    await user.dblClick(button);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    resolveRetry();
+  });
+
+  it('retry failure shows the error and re-enables the button', async () => {
+    const user = userEvent.setup();
+    const onRetry = vi.fn().mockRejectedValue(new Error('Broker down'));
+    render(
+      <UpdateCard
+        {...defaultProps}
+        onRetry={onRetry}
+        update={{ ...MOCK_UPDATE, status: 'failed' }}
+      />,
+    );
+    const button = screen.getByRole('button', { name: /retry/i });
+    await user.click(button);
+    await waitFor(() => expect(screen.getByText('Broker down')).toBeInTheDocument());
+    expect(button).not.toBeDisabled();
   });
 });
