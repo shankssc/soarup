@@ -200,6 +200,7 @@ interface UpdateCardProps {
   currentUserId: string;
   onEdit: (updateId: string, content: string) => Promise<void>;
   onDelete: (updateId: string, updateDate: string) => Promise<void>;
+  onRetry: (updateId: string) => Promise<void>;
 }
 
 export function UpdateCard({
@@ -207,10 +208,12 @@ export function UpdateCard({
   currentUserId,
   onEdit,
   onDelete,
+  onRetry,
 }: UpdateCardProps) {
   const [editMode, setEditMode] = useState(false);
   const [editContent, setEditContent] = useState(update.content);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isOwner = update.user_id === currentUserId;
@@ -255,6 +258,21 @@ export function UpdateCard({
         err instanceof Error ? err.message : 'Failed to delete. Please try again.',
       );
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleRetry() {
+    if (isRetrying) return;
+    setIsRetrying(true);
+    setError(null);
+    try {
+      await onRetry(update.id);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to retry. Please try again.',
+      );
+    } finally {
+      setIsRetrying(false);
     }
   }
 
@@ -410,13 +428,18 @@ export function UpdateCard({
               <span className="font-label text-[10px] uppercase tracking-[0.08em] text-error">
                 Summary unavailable
               </span>
-              <button
-                disabled
-                className="text-on-surface-variant/40 cursor-not-allowed font-label text-[10px] uppercase tracking-[0.08em]"
-                title="Retry coming in a future update"
-              >
-                Retry
-              </button>
+              {isOwner && (
+                <button
+                  onClick={handleRetry}
+                  disabled={isRetrying}
+                  className={cn(
+                    'font-label text-[10px] uppercase tracking-[0.08em] text-primary transition-opacity hover:opacity-80',
+                    isRetrying && 'cursor-not-allowed opacity-50',
+                  )}
+                >
+                  {isRetrying ? 'Retrying...' : 'Retry'}
+                </button>
+              )}
             </div>
           )}
 
