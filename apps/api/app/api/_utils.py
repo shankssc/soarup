@@ -108,6 +108,9 @@ def handle_auth_error(
         "user_already_exists": status.HTTP_409_CONFLICT,
         "registration_failed": status.HTTP_400_BAD_REQUEST,
         "service_unavailable": status.HTTP_503_SERVICE_UNAVAILABLE,
+        "update_already_exists": status.HTTP_409_CONFLICT,
+        "update_not_found": status.HTTP_404_NOT_FOUND,
+        "unauthorized": status.HTTP_403_FORBIDDEN,
     }
 
     return create_error_response(

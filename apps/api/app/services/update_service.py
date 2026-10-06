@@ -65,6 +65,53 @@ class UpdateService:
             self._workspace_repo = WorkspaceRepository.from_session(self.db)
         return self._workspace_repo
 
+    async def _enqueue_processing(self, update: Any) -> None:
+        """
+        Enqueue the appropriate Celery task for a newly-created update.
+
+        If .delay() raises (broker down/unreachable), the row would
+        otherwise be left "pending" with no task behind it — and
+        unrecoverable, since the retry endpoint only accepts "failed"
+        rows. The #22 409-recovery flow makes this worse: resubmitting
+        identical content just gets a 409 with matching content, so the
+        frontend reports success for an update that will never process.
+
+        Marks the row "failed" and publishes the same update.status_changed
+        event the worker's own terminal-failure path uses — so the
+        frontend sees it exactly the same way the Retry button is already
+        wired for — then raises UpdateError so the caller gets a 503
+        instead of a misleading 202.
+        """
+        task = process_audio_update if update.mode == "voice" else process_update
+        try:
+            task.delay(update.id)
+        except Exception as e:
+            logger.error(
+                "enqueue_processing_failed",
+                update_id=update.id,
+                workspace_id=update.workspace_id,
+                mode=update.mode,
+                error=str(e),
+            )
+            await self._get_update_repo().update_status(update, "failed")
+            await append_event(
+                self._redis,
+                "update.status_changed",
+                update.workspace_id,
+                {
+                    "update_id": update.id,
+                    "workspace_id": update.workspace_id,
+                    "update_date": update.update_date,
+                    "status": "failed",
+                    "summary": None,
+                },
+            )
+            raise UpdateError(
+                "service_unavailable",
+                "Could not queue your update for processing. Please try again shortly.",
+                {"update_id": update.id},
+            ) from e
+
     async def submit_update(
         self,
         workspace_id: str,
@@ -143,7 +190,7 @@ class UpdateService:
                 audio_key=request.audio_key,
                 audio_duration_seconds=request.audio_duration_seconds,
             )
-            process_audio_update.delay(update.id)
+            await self._enqueue_processing(update)
             logger.info(
                 "voice_update_submitted",
                 update_id=update.id,
@@ -158,7 +205,7 @@ class UpdateService:
                 update_date=request.update_date,
                 mode=request.mode,
             )
-            process_update.delay(update.id)
+            await self._enqueue_processing(update)
             logger.info(
                 "update_submitted",
                 update_id=update.id,
