@@ -257,3 +257,148 @@ class TestEnqueueProcessingFailure:
                 await service.submit_update(WORKSPACE_ID, USER_ID, _text_request())
 
         assert profile_repo.get_by_user_id.await_count == 1
+
+
+# ---------------------------------------------------------------------------
+# retry_update
+# ---------------------------------------------------------------------------
+
+
+class TestRetryUpdate:
+    async def test_not_found_raises_update_not_found(self):
+        service, update_repo, *_ = _make_service()
+        update_repo.get_by_id = AsyncMock(return_value=None)
+
+        with pytest.raises(UpdateError) as exc_info:
+            await service.retry_update(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+        assert exc_info.value.error_code == "update_not_found"
+
+    async def test_wrong_workspace_raises_update_not_found(self):
+        service, update_repo, *_ = _make_service()
+        update = _fake_update(mode="text")
+        update.status = "failed"
+        update.workspace_id = "other-workspace"
+        update_repo.get_by_id = AsyncMock(return_value=update)
+
+        with pytest.raises(UpdateError) as exc_info:
+            await service.retry_update(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+        assert exc_info.value.error_code == "update_not_found"
+
+    async def test_not_owner_raises_unauthorized(self):
+        service, update_repo, *_ = _make_service()
+        update = _fake_update(mode="text")
+        update.status = "failed"
+        update.user_id = "someone-else"
+        update_repo.get_by_id = AsyncMock(return_value=update)
+
+        with pytest.raises(UpdateError) as exc_info:
+            await service.retry_update(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+        assert exc_info.value.error_code == "unauthorized"
+
+    async def test_non_failed_status_raises_update_not_failed(self):
+        service, update_repo, *_ = _make_service()
+        update = _fake_update(mode="text")
+        update.status = "processing"
+        update_repo.get_by_id = AsyncMock(return_value=update)
+
+        with pytest.raises(UpdateError) as exc_info:
+            await service.retry_update(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+        assert exc_info.value.error_code == "update_not_failed"
+        assert exc_info.value.details == {"status": "processing"}
+
+    async def test_lost_race_returns_current_row_without_enqueueing(self):
+        """
+        flip_status returning None means another request already flipped
+        this row — idempotent no-op, no second enqueue.
+        """
+        service, update_repo, *_ = _make_service()
+        update = _fake_update(mode="text")
+        update.status = "failed"
+        update_repo.get_by_id = AsyncMock(side_effect=[update, _fake_update(mode="text")])
+        update_repo.flip_status = AsyncMock(return_value=None)
+
+        with patch("app.services.update_service.process_update") as mock_task:
+            mock_task.delay = MagicMock()
+            result = await service.retry_update(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+        mock_task.delay.assert_not_called()
+        assert result.id == UPDATE_ID
+
+    async def test_success_flips_publishes_pending_then_enqueues(self):
+        service, update_repo, _, _, redis = _make_service()
+        update = _fake_update(mode="text")
+        update.status = "failed"
+        flipped = _fake_update(mode="text")
+        flipped.status = "pending"
+        update_repo.get_by_id = AsyncMock(return_value=update)
+        update_repo.flip_status = AsyncMock(return_value=flipped)
+
+        with patch("app.services.update_service.process_update") as mock_task:
+            mock_task.delay = MagicMock()
+            result = await service.retry_update(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+        update_repo.flip_status.assert_awaited_once_with(UPDATE_ID, from_status="failed", to_status="pending", summary=None)
+        mock_task.delay.assert_called_once_with(UPDATE_ID)
+        redis.xadd.assert_awaited_once()
+        assert result.status == "pending"
+
+    async def test_success_does_not_publish_member_update_submitted(self):
+        """
+        Exactly one event goes out — status_changed(pending) — never
+        member.update_submitted, which marks a brand-new submission.
+        """
+        service, update_repo, _, _, redis = _make_service()
+        update = _fake_update(mode="text")
+        update.status = "failed"
+        flipped = _fake_update(mode="text")
+        flipped.status = "pending"
+        update_repo.get_by_id = AsyncMock(return_value=update)
+        update_repo.flip_status = AsyncMock(return_value=flipped)
+
+        with patch("app.services.update_service.process_update") as mock_task:
+            mock_task.delay = MagicMock()
+            await service.retry_update(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+        assert redis.xadd.await_count == 1
+
+    async def test_voice_mode_retry_enqueues_process_audio_update(self):
+        service, update_repo, *_ = _make_service()
+        update = _fake_update(mode="voice")
+        update.status = "failed"
+        flipped = _fake_update(mode="voice")
+        flipped.status = "pending"
+        update_repo.get_by_id = AsyncMock(return_value=update)
+        update_repo.flip_status = AsyncMock(return_value=flipped)
+
+        with patch("app.services.update_service.process_audio_update") as mock_task:
+            mock_task.delay = MagicMock()
+            await service.retry_update(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+        mock_task.delay.assert_called_once_with(UPDATE_ID)
+
+    async def test_enqueue_failure_propagates_service_unavailable(self):
+        """
+        _enqueue_processing's own failure path (#161) already flips the
+        row back to failed, publishes the failed event, and raises — this
+        confirms retry_update doesn't swallow or alter that.
+        """
+        service, update_repo, *_ = _make_service()
+        update = _fake_update(mode="text")
+        update.status = "failed"
+        flipped = _fake_update(mode="text")
+        flipped.status = "pending"
+        update_repo.get_by_id = AsyncMock(return_value=update)
+        update_repo.flip_status = AsyncMock(return_value=flipped)
+
+        with patch("app.services.update_service.process_update") as mock_task:
+            mock_task.delay = MagicMock(side_effect=Exception("broker down"))
+
+            with pytest.raises(UpdateError) as exc_info:
+                await service.retry_update(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+        assert exc_info.value.error_code == "service_unavailable"
+        update_repo.update_status.assert_awaited_once_with(flipped, "failed")
