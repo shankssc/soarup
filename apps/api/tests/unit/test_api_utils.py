@@ -395,3 +395,14 @@ class TestHandleUpdateError:
         assert response.status_code == 500
         body = _parse_body(response)
         assert body["error"] == "internal_error"
+
+    def test_update_not_failed_returns_400(self):
+        e = UpdateError(error_code="update_not_failed", message="Only failed updates can be retried.")
+        response = handle_update_error(e)
+        assert response.status_code == 400
+
+    def test_update_not_failed_error_code_in_body(self):
+        e = UpdateError(error_code="update_not_failed", message="Only failed updates can be retried.")
+        response = handle_update_error(e)
+        body = _parse_body(response)
+        assert body["error"] == "update_not_failed"
