@@ -130,7 +130,7 @@ function Avatar({
 // ── Three-dot menu ────────────────────────────────────────────────────────────
 
 interface CardMenuProps {
-  onEdit: () => void;
+  onEdit?: () => void;
   onDelete: () => void;
 }
 
@@ -167,16 +167,18 @@ function CardMenu({ onEdit, onDelete }: CardMenuProps) {
 
       {open && (
         <div className="absolute right-0 top-full z-10 mt-1 w-32 border border-outline-variant bg-surface-high shadow-electric-sm">
-          <button
-            className="flex w-full items-center gap-2 px-3 py-2 font-label text-xs uppercase tracking-[0.08em] text-on-surface hover:bg-surface-highest"
-            onClick={() => {
-              onEdit();
-              setOpen(false);
-            }}
-          >
-            <Pencil className="h-[14px] w-[14px]" aria-hidden="true" />
-            Edit
-          </button>
+          {onEdit && (
+            <button
+              className="flex w-full items-center gap-2 px-3 py-2 font-label text-xs uppercase tracking-[0.08em] text-on-surface hover:bg-surface-highest"
+              onClick={() => {
+                onEdit();
+                setOpen(false);
+              }}
+            >
+              <Pencil className="h-[14px] w-[14px]" aria-hidden="true" />
+              Edit
+            </button>
+          )}
           <button
             className="flex w-full items-center gap-2 px-3 py-2 font-label text-xs uppercase tracking-[0.08em] text-error hover:bg-surface-highest"
             onClick={() => {
@@ -305,7 +307,7 @@ export function UpdateCard({
           {isOwner && !isVoice && (
             <CardMenu onEdit={() => setEditMode(true)} onDelete={handleDelete} />
           )}
-          {isOwner && isVoice && <CardMenu onEdit={() => {}} onDelete={handleDelete} />}
+          {isOwner && isVoice && <CardMenu onDelete={handleDelete} />}
         </div>
       </div>
 
