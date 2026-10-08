@@ -7,7 +7,7 @@
 
 import * as React from 'react';
 import Image from 'next/image';
-import { Mic, ChevronDown } from 'lucide-react';
+import { Mic, ChevronDown, AlertCircle } from 'lucide-react';
 import type { UpdateResponse } from '@/hooks/useUpdates';
 
 // ---------------------------------------------------------------------------
@@ -57,6 +57,21 @@ function VoiceBadge() {
 }
 
 // ---------------------------------------------------------------------------
+// Failed badge
+// ---------------------------------------------------------------------------
+
+function FailedBadge() {
+  return (
+    <div className="flex items-center gap-1.5 border border-error px-2 py-1">
+      <AlertCircle className="h-3 w-3 text-error" aria-hidden="true" />
+      <span className="font-label text-[10px] uppercase tracking-[0.08em] text-error">
+        Failed
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -88,6 +103,7 @@ export function UpdateCardCompact({ update }: UpdateCardCompactProps) {
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-2">
+          {update.status === 'failed' && <FailedBadge />}
           {isVoice && <VoiceBadge />}
           <ChevronDown
             className="h-[14px] w-[14px] text-outline transition-transform duration-200"
