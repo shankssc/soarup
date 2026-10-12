@@ -61,6 +61,13 @@ class Digest(Base):
         default=0,
         doc="Number of updates included in this digest",
     )
+    excluded_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+        server_default="0",
+        doc="Updates for this date that were still processing or had failed, " "and so were left out of the digest.",
+    )
     delivered_to_slack: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
@@ -108,3 +115,49 @@ class DigestItem(Base):
 
     def __repr__(self) -> str:
         return f"<DigestItem(digest_id='{self.digest_id}', update_id='{self.update_id}')>"
+
+
+class DigestRecipient(Base):
+    """
+    Tracks which members were successfully emailed for a given digest.
+
+    Exists because the send loop in app.workers.tasks._send_workspace_digest_async
+    emails recipients one at a time and the digest itself only tracks an
+    overall status (pending/processing/sent/failed) — not "sent to whom".
+    Without this, a Celery retry after a partial failure (crash, timeout)
+    partway through the loop would re-send to recipients who already got
+    it. The unique (digest_id, user_id) constraint plus an INSERT ... ON
+    CONFLICT DO NOTHING on write makes marking a recipient sent idempotent.
+    """
+
+    __tablename__ = "digest_recipients"
+
+    __table_args__ = (
+        Index(
+            "ux_digest_recipients_digest_user",
+            "digest_id",
+            "user_id",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_new_uuid)
+    digest_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("digests.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("profiles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    email_sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return f"<DigestRecipient(digest_id='{self.digest_id}', user_id='{self.user_id}')>"
