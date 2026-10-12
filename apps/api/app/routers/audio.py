@@ -9,10 +9,10 @@ from fastapi.responses import JSONResponse
 from app.api import (
     ApiVersionDep,
     DBSessionDep,
-    OnboardedDep,
     create_error_response,
     create_success_response,
 )
+from app.api.rbac import WorkspaceMemberDep
 from app.repositories.storage_repo import StorageError, StorageRepository
 from app.repositories.update_repo import UpdateRepository
 from app.schemas.audio import (
@@ -49,7 +49,7 @@ async def get_upload_url(
     workspace_id: str,
     request: PresignedUploadUrlRequest,
     api_version: ApiVersionDep,
-    user_ctx: OnboardedDep,
+    user_ctx: WorkspaceMemberDep,
 ) -> JSONResponse:
     """
     Issue a pre-signed PUT URL for direct browser-to-storage upload.
@@ -123,7 +123,7 @@ async def get_audio_playback_url(
     workspace_id: str,
     update_id: str,
     api_version: ApiVersionDep,
-    user_ctx: OnboardedDep,
+    user_ctx: WorkspaceMemberDep,
     db: DBSessionDep,
 ) -> JSONResponse:
     """

@@ -108,6 +108,7 @@ const meta = {
     currentUserId: 'user-123',
     onEdit: async () => {},
     onDelete: async () => {},
+    onRetry: async () => {},
   },
   tags: ['autodocs'],
 } satisfies Meta<typeof UpdateCard>;
@@ -206,6 +207,16 @@ export const TeammateProcessedDark: Story = {
       summary:
         'They reviewed the auth middleware PR with comments and are planning to begin the Redis pub/sub integration next.',
     },
+    currentUserId: 'user-123',
+  },
+};
+
+export const FailedTeammateDark: Story = {
+  name: "Teammate's Update — Failed, No Retry (Dark)",
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    update: { ...TEAMMATE_UPDATE, status: 'failed' },
     currentUserId: 'user-123',
   },
 };

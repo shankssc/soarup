@@ -130,7 +130,7 @@ function Avatar({
 // ── Three-dot menu ────────────────────────────────────────────────────────────
 
 interface CardMenuProps {
-  onEdit: () => void;
+  onEdit?: () => void;
   onDelete: () => void;
 }
 
@@ -167,16 +167,18 @@ function CardMenu({ onEdit, onDelete }: CardMenuProps) {
 
       {open && (
         <div className="absolute right-0 top-full z-10 mt-1 w-32 border border-outline-variant bg-surface-high shadow-electric-sm">
-          <button
-            className="flex w-full items-center gap-2 px-3 py-2 font-label text-xs uppercase tracking-[0.08em] text-on-surface hover:bg-surface-highest"
-            onClick={() => {
-              onEdit();
-              setOpen(false);
-            }}
-          >
-            <Pencil className="h-[14px] w-[14px]" aria-hidden="true" />
-            Edit
-          </button>
+          {onEdit && (
+            <button
+              className="flex w-full items-center gap-2 px-3 py-2 font-label text-xs uppercase tracking-[0.08em] text-on-surface hover:bg-surface-highest"
+              onClick={() => {
+                onEdit();
+                setOpen(false);
+              }}
+            >
+              <Pencil className="h-[14px] w-[14px]" aria-hidden="true" />
+              Edit
+            </button>
+          )}
           <button
             className="flex w-full items-center gap-2 px-3 py-2 font-label text-xs uppercase tracking-[0.08em] text-error hover:bg-surface-highest"
             onClick={() => {
@@ -200,6 +202,7 @@ interface UpdateCardProps {
   currentUserId: string;
   onEdit: (updateId: string, content: string) => Promise<void>;
   onDelete: (updateId: string, updateDate: string) => Promise<void>;
+  onRetry: (updateId: string) => Promise<void>;
 }
 
 export function UpdateCard({
@@ -207,10 +210,12 @@ export function UpdateCard({
   currentUserId,
   onEdit,
   onDelete,
+  onRetry,
 }: UpdateCardProps) {
   const [editMode, setEditMode] = useState(false);
   const [editContent, setEditContent] = useState(update.content);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isOwner = update.user_id === currentUserId;
@@ -258,6 +263,21 @@ export function UpdateCard({
     }
   }
 
+  async function handleRetry() {
+    if (isRetrying) return;
+    setIsRetrying(true);
+    setError(null);
+    try {
+      await onRetry(update.id);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to retry. Please try again.',
+      );
+    } finally {
+      setIsRetrying(false);
+    }
+  }
+
   const timestamp = formatDistanceToNow(new Date(update.created_at), {
     addSuffix: true,
   });
@@ -287,7 +307,7 @@ export function UpdateCard({
           {isOwner && !isVoice && (
             <CardMenu onEdit={() => setEditMode(true)} onDelete={handleDelete} />
           )}
-          {isOwner && isVoice && <CardMenu onEdit={() => {}} onDelete={handleDelete} />}
+          {isOwner && isVoice && <CardMenu onDelete={handleDelete} />}
         </div>
       </div>
 
@@ -410,13 +430,18 @@ export function UpdateCard({
               <span className="font-label text-[10px] uppercase tracking-[0.08em] text-error">
                 Summary unavailable
               </span>
-              <button
-                disabled
-                className="text-on-surface-variant/40 cursor-not-allowed font-label text-[10px] uppercase tracking-[0.08em]"
-                title="Retry coming in a future update"
-              >
-                Retry
-              </button>
+              {isOwner && (
+                <button
+                  onClick={handleRetry}
+                  disabled={isRetrying}
+                  className={cn(
+                    'font-label text-[10px] uppercase tracking-[0.08em] text-primary transition-opacity hover:opacity-80',
+                    isRetrying && 'cursor-not-allowed opacity-50',
+                  )}
+                >
+                  {isRetrying ? 'Retrying...' : 'Retry'}
+                </button>
+              )}
             </div>
           )}
 

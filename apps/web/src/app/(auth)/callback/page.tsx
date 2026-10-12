@@ -21,6 +21,7 @@
 // the Zustand store, then navigate based on is_onboarded.
 
 import * as React from 'react';
+import * as Sentry from '@sentry/nextjs';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -62,6 +63,8 @@ export default function AuthCallbackPage() {
       const queryErrorDescription = searchParams.get('error_description');
 
       if (queryError) {
+        // Expected — user declined provider consent. Not sent to Sentry;
+        // this isn't actionable, just normal behavior.
         const message = queryErrorDescription
           ? decodeURIComponent(queryErrorDescription)
           : 'Authentication was cancelled or denied.';
@@ -77,12 +80,6 @@ export default function AuthCallbackPage() {
           const supabase = createClient();
           const { data, error: exchangeError } =
             await supabase.auth.exchangeCodeForSession(code);
-
-          // eslint-disable-next-line no-console
-          console.log('[oauth-debug] exchange result:', {
-            exchangeError,
-            hasSession: !!data?.session,
-          });
 
           // Strip ?code= from the URL immediately — it's single-use and
           // shouldn't linger in browser history.
@@ -105,6 +102,15 @@ export default function AuthCallbackPage() {
               return;
             }
 
+            // Real exchange failure — no prior successful session to recover.
+            // No code/token material in the payload, just enough to investigate.
+            Sentry.captureException(new Error('oauth_code_exchange_failed'), {
+              tags: { flow: 'pkce' },
+              extra: {
+                supabaseErrorMessage: exchangeError?.message ?? 'no session returned',
+              },
+            });
+
             if (!cancelled) setError('Could not complete sign in. Please try again.');
             return;
           }
@@ -118,7 +124,8 @@ export default function AuthCallbackPage() {
           const { user } = useAuthStore.getState();
           window.location.href =
             user?.is_onboarded === false ? '/onboarding' : '/dashboard';
-        } catch {
+        } catch (err) {
+          Sentry.captureException(err, { tags: { flow: 'pkce' } });
           if (!cancelled) setError('Could not sign you in. Please try logging in.');
         }
         return;
@@ -133,11 +140,16 @@ export default function AuthCallbackPage() {
       window.history.replaceState(null, '', window.location.pathname);
 
       if (hashError) {
+        // Expected — expired/invalid confirmation link.
         if (!cancelled) setError(decodeURIComponent(hashError));
         return;
       }
 
       if (!accessToken || !refreshToken) {
+        Sentry.captureMessage('oauth_callback_missing_tokens', {
+          level: 'warning',
+          tags: { flow: 'implicit' },
+        });
         if (!cancelled) setError('This link is invalid or has expired.');
         return;
       }

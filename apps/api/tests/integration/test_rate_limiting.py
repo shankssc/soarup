@@ -68,6 +68,7 @@ def _make_mock_update_service() -> MagicMock:
     svc.submit_update = AsyncMock()
     svc.edit_update = AsyncMock()
     svc.delete_update = AsyncMock(return_value=None)
+    svc.retry_update = AsyncMock()
     return svc
 
 
@@ -272,6 +273,29 @@ class TestEditDeleteRateLimit:
         for _ in range(10):
             response = await client.delete(
                 f"/api/v1/workspaces/{WORKSPACE_ID}/updates/{UPDATE_ID}",
+                headers=auth_headers(USER_ID),
+            )
+            statuses.append(response.status_code)
+
+        assert 429 in statuses
+
+
+class TestRetryRateLimit:
+    @pytest.mark.asyncio
+    async def test_retry_endpoint_is_rate_limited(self, rate_limited_client, auth_headers):
+        """
+        retry_update is configured with requests_per_minute=30, burst=5 at
+        the router level — same as edit/delete — baked into the dependency
+        closure at import time, so firing enough rapid requests to exceed
+        burst+1 reliably trips the real configured limit.
+        """
+        client, svc = rate_limited_client
+        svc.retry_update.return_value = _fake_update_response(status="pending")
+
+        statuses = []
+        for _ in range(10):
+            response = await client.post(
+                f"/api/v1/workspaces/{WORKSPACE_ID}/updates/{UPDATE_ID}/retry",
                 headers=auth_headers(USER_ID),
             )
             statuses.append(response.status_code)

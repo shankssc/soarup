@@ -1,6 +1,9 @@
 # SoarUp — Milestone: GitHub Integration (Pre-fill via GitHub App)
+
 # Branch: feature/milestone-github-integration
+
 # Merges into: develop
+
 # Prerequisites: feature/milestone-oauth merged to develop ✅
 
 ---
@@ -37,46 +40,130 @@ use case.
 ## What This Milestone Delivers
 
 ### Pre-checklist (issues worth closing before this milestone starts)
+
+**Status: all 14 items resolved — this milestone is unblocked.**
+
 1. Fix concurrent OAuth profile-creation race (#150) — incremental
    authorization for repo scope adds more session-exchange traffic
-   through this exact path
+   through this exact path ✅ Resolved
 2. Validate JWT locally instead of Supabase Admin API call (#151) —
    don't stack a new external dependency (GitHub API) on top of an
-   existing avoidable one
+   existing avoidable one ✅ Resolved
 3. Sentry observability for OAuth failures (#153) — incremental
    authorization is a second consent screen; want visibility before
-   it exists
+   it exists ✅ Resolved
 4. Idempotency on update submission (#22) — GitHub-enriched updates
-   are more costly to duplicate or lose than plain text
+   are more costly to duplicate or lose than plain text ✅ Resolved
 5. Retry endpoint for failed AI summaries (#21) — losing a
-   GitHub-enriched summary means losing more than plain text
+   GitHub-enriched summary means losing more than plain text ✅ Resolved
 6. Resolve or explicitly close #60 (E2E invite flow, open under a
-   completed milestone)
+   completed milestone) ✅ Resolved
 7. Resolve or explicitly deprioritize #15 (mobile voice recording
    device testing) — voice is a headline feature, worth finally
-   verifying rather than leaving indefinitely open
+   verifying rather than leaving indefinitely open ✅ Resolved
+8. Enforce workspace membership on update routes and the workspace
+   webSocket (#158) ✅ Resolved
+9. Websocket connection lifecycle reliability issue (#159) ✅ Resolved
+10. Terminal failure in workers must end in a failed state (#160) ✅ Resolved
+11. submit_update task from the workers should be able to handle
+    enqueue failure (#161) ✅ Resolved — `_enqueue_processing` now
+    catches `.delay()` failures, flips the update to `failed`,
+    publishes `update.status_changed`, and raises a
+    `service_unavailable` (503) error instead of leaving the row
+    silently stuck `pending`.
+12. Create Retry endpoint for update submission (backend) (#162)
+    ✅ Resolved — `POST .../updates/{id}/retry`, gated by an atomic
+    `failed → pending` CAS (`UpdateRepository.flip_status`) so
+    concurrent retry clicks can't double-enqueue. Design decision:
+    the pre-existing non-atomic rollback inside `_enqueue_processing`
+    was deliberately left as-is rather than switched to the new CAS
+    method — no actual race exists in that call window, and changing
+    it would've meant rewriting already-passing #161 assertions for
+    no behavioral gain. See the design-decision comment on the GitHub
+    issue.
+13. Retry flow on the frontend (#163) ✅ Resolved — `useRetryUpdate`
+    hook + working Retry button on `UpdateCard`, guarded against the
+    stale-response race by the existing WebSocket-driven cache patch
+    (`update.status_changed` is idempotent, so applying an HTTP
+    response after a newer WS event is a no-op).
+14. Small independent cleanups (#164) ✅ Resolved — failed-status
+    indicator on the compact history card (no retry there, by
+    design); removed the silent `onEdit={() => {}}` no-op on voice
+    cards; digests now report an `excluded_count` (surfaced in both
+    the email and the API) instead of silently dropping
+    failed/stuck-processing updates; a new `digest_recipients` table
+    makes the per-recipient send loop retry-safe (a Celery retry no
+    longer re-emails recipients who already got the digest);
+    `UpdateRepository.get_by_id` can now be workspace-scoped, and its
+    pagination-cursor lookup uses that; `updates.status` and
+    `digests.status` now have DB-level CHECK constraints.
 
 ### Core GitHub Integration Work
-8. GitHub App registered (staging; production documented for later,
-   same two-environment pattern as the OAuth milestone's GitHub
-   OAuth Apps)
-9. `GitHubInstallation` model — tracks which GitHub account/org(s) a
-   user has connected, independent of their sign-in method
-10. Connect flow — Settings → Integrations → GitHub, supports both
+
+15. GitHub App registered (staging; production documented for later,
+    same two-environment pattern as the OAuth milestone's GitHub
+    OAuth Apps)
+16. `GitHubInstallation` model — tracks which GitHub account/org(s) a
+    user has connected, independent of their sign-in method
+17. Connect flow — Settings → Integrations → GitHub, supports both
     personal account and organization installs, handles the
     org-admin-approval pending state
-11. App-level JWT + installation access token generation, cached in
+18. App-level JWT + installation access token generation, cached in
     Redis with a TTL under the token's real 1-hour lifetime
-12. GitHub data fetch service — merged PRs, closed issues, and
+19. GitHub data fetch service — merged PRs, closed issues, and
     commits authored by the user "today" (server-side, timezone-aware,
     same date-boundary logic already used for update submission)
-13. Pre-fill draft shown in the update submission flow — user reviews
+20. Pre-fill draft shown in the update submission flow — user reviews
     and edits before submitting, never auto-submitted
-14. Disconnect flow — removes the stored installation reference
+21. Disconnect flow — removes the stored installation reference
     (does not revoke the GitHub-side installation itself; user
     manages that from GitHub's own settings)
 
 ---
+
+## Pre-checklist: Scaling Notes & Trade-offs
+
+Observations from closing #161–#164 worth carrying into how GitHub
+Integration's own retry/failure paths get designed, since this
+milestone adds a second, more expensive thing (GitHub-enriched
+updates) that can fail mid-pipeline.
+
+**Retry strategy is correctness-first, not throughput-first.**
+#162's retry endpoint and #164's digest-recipient tracking both solve
+for correctness under retry (no double-processing, no duplicate
+sends) using a CAS flip on a status column (`flip_status`) and a
+unique-constrained tracking table (`digest_recipients`), respectively.
+Both are sound at current scale — single-digit concurrent retries,
+small recipient lists per workspace. The open question going forward:
+if this needs to survive real customer load (many workspaces, many
+concurrent retries, large recipient lists), a dead-letter-queue (DLQ)
+pattern for permanently-failed Celery tasks would be a more scalable
+foundation than the current "flip status + re-call `.delay()`"
+approach — it isolates terminally-failed work for separate inspection
+and reprocessing instead of leaning on Postgres as the retry ledger.
+Not needed yet; worth revisiting if/when GitHub-enriched update
+processing failure rates or volume make inline retry unwieldy.
+
+**The digest send loop is correctness-fixed, not throughput-fixed.**
+#164 made per-recipient digest sends crash-safe (each successful send
+is committed immediately via `mark_recipient_sent`, so a retry skips
+already-sent recipients), but the loop itself is still strictly
+sequential — one Resend call per recipient, because each needs its
+own unsubscribe link. For a workspace with a large member list this
+is a latency concern, not a correctness one. Acceptable for current
+scale; worth revisiting (e.g. parallelizing while keeping the same
+per-recipient idempotency guarantee) before this is a pain point.
+
+**CHECK constraints and workspace-scoping were cheap, additive
+hardening — not blockers.** Both #164 items (the `status` CHECK
+constraints and `UpdateRepository.get_by_id`'s optional workspace
+scoping) were explicitly "low severity"/"optional" in the ticket and
+didn't change any existing behavior — they close small gaps rather
+than fix live bugs. Flagging only because GitHub Integration adds a
+new status-bearing model (`GitHubInstallation.status`) — worth giving
+it the same CHECK constraint treatment when that table lands, rather
+than letting it drift unconstrained the way `updates.status` did
+until now.
 
 ## Branch Strategy
 
@@ -134,7 +221,7 @@ GITHUB_APP_PRIVATE_KEY_BASE64=          # PEM file, base64-encoded for env stora
 `GITHUB_ENCRYPTION_KEY` is needed for this milestone's scope. Nothing
 per-user requiring encryption gets persisted — only the App's own
 private key (a single, application-wide secret, stored as an env var
-like any other API credential). If a future feature needs to act *as*
+like any other API credential). If a future feature needs to act _as_
 the connected user (rather than just read their repos as the App),
 that would introduce a genuine per-user token worth encrypting at
 that point — documented as a forward-looking note, not built now.
@@ -199,6 +286,7 @@ class GitHubInstallation(Base):
 ```
 
 Migration:
+
 ```bash
 docker compose exec api alembic revision --autogenerate \
   -m "add_github_installations_table"
@@ -605,10 +693,18 @@ async def get_prefill_suggestion(
 ```typescript
 // apps/web/src/hooks/useGitHubIntegration.ts
 
-export function useGitHubConnectionStatus() { /* GET /integrations/github/status */ }
-export function useStartGitHubConnect() { /* GET /integrations/github/connect, redirect */ }
-export function useDisconnectGitHub(installationId: string) { /* DELETE .../{id} */ }
-export function useGitHubPrefill() { /* GET /integrations/github/prefill, mutation-style trigger */ }
+export function useGitHubConnectionStatus() {
+  /* GET /integrations/github/status */
+}
+export function useStartGitHubConnect() {
+  /* GET /integrations/github/connect, redirect */
+}
+export function useDisconnectGitHub(installationId: string) {
+  /* DELETE .../{id} */
+}
+export function useGitHubPrefill() {
+  /* GET /integrations/github/prefill, mutation-style trigger */
+}
 ```
 
 ---
@@ -686,7 +782,7 @@ feature sees meaningful concurrent usage.
 ## Acceptance Criteria
 
 ```
-[ ] Pre-checklist items 1-7 resolved
+[x] Pre-checklist items 1-14 resolved
 [ ] GitHub App registered for staging, permissions read-only,
     webhook disabled
 [ ] GitHubInstallation model + migration applied
@@ -714,6 +810,7 @@ feature sees meaningful concurrent usage.
 ## Files To Create Summary
 
 ### Backend (apps/api/)
+
 ```
 app/models/github_installation.py
 app/lib/github_app.py
@@ -728,6 +825,7 @@ tests/integration/test_github_endpoints.py
 ```
 
 ### Frontend (apps/web/src/)
+
 ```
 hooks/useGitHubIntegration.ts
 app/(app)/settings/integrations/page.tsx
@@ -737,6 +835,7 @@ stories/domain/updates/UpdateFormWithPrefill.stories.tsx
 ```
 
 ### Updated Files
+
 ```
 apps/api/app/config.py       ← +github_app_id, +github_app_slug,
                                 +github_app_client_id/secret,

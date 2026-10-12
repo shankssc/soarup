@@ -1,6 +1,9 @@
 # apps/api/app/repositories/update_repo.py
 
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import and_, or_, select
+from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.update import Update
@@ -42,14 +45,24 @@ class UpdateRepository:
         await self.db.refresh(update)
         return update
 
-    async def get_by_id(self, update_id: str) -> Update | None:
-        """Fetch a single update by ID, or None if not found or soft-deleted."""
-        result = await self.db.execute(
-            select(Update).where(
-                Update.id == update_id,
-                Update.is_deleted == False,  # noqa: E712
-            )
-        )
+    async def get_by_id(self, update_id: str, workspace_id: str | None = None) -> Update | None:
+        """
+        Fetch a single update by ID, or None if not found or soft-deleted.
+
+        Pass workspace_id to additionally scope the lookup (e.g. the
+        pagination cursor lookup below). Left optional, and omitted by
+        callers like UpdateService.retry_update that need to tell
+        "not found" apart from "found in a different workspace" so they
+        can raise the right error — they do their own workspace check
+        after fetching.
+        """
+        conditions = [
+            Update.id == update_id,
+            Update.is_deleted == False,  # noqa: E712
+        ]
+        if workspace_id is not None:
+            conditions.append(Update.workspace_id == workspace_id)
+        result = await self.db.execute(select(Update).where(and_(*conditions)))
         return result.scalar_one_or_none()
 
     async def get_for_user_on_date(
@@ -129,6 +142,10 @@ class UpdateRepository:
           processing → processed (summary populated)
           processing → failed    (no summary)
 
+        A pending row isn't necessarily a brand new submission — retry_update's
+        failed → pending flip (via flip_status) re-enters the pipeline at
+        this same state, so this method still applies unchanged from there.
+
         Args:
             update:  ORM instance to mutate — must belong to the current session.
             status:  Target status string: "processing", "processed", or "failed".
@@ -145,6 +162,72 @@ class UpdateRepository:
         await self.db.commit()
         await self.db.refresh(update)
         return update
+
+    async def flip_status(
+        self,
+        update_id: str,
+        from_status: str,
+        to_status: str,
+        summary: str | None = None,
+    ) -> Update | None:
+        """
+        Atomically transition status, guarded by the row's current status —
+        UPDATE ... WHERE id=:id AND status=:from_status ... RETURNING *.
+
+        This is the race guard for UpdateService.retry_update's failed ->
+        pending flip: if two Retry clicks land concurrently, only one
+        UPDATE matches the WHERE clause. The other gets None back and
+        should treat the call as an idempotent no-op rather than
+        double-enqueueing.
+
+        Returns the updated row, or None if no row matched (either it
+        doesn't exist/is deleted, or its status had already moved past
+        from_status — someone else got there first).
+        """
+        result = await self.db.execute(
+            sa_update(Update)
+            .where(
+                and_(
+                    Update.id == update_id,
+                    Update.status == from_status,
+                    Update.is_deleted == False,  # noqa: E712
+                )
+            )
+            .values(status=to_status, summary=summary)
+            .returning(Update)
+        )
+        await self.db.commit()
+        return result.scalar_one_or_none()
+
+    async def get_stale_processing(self, older_than_minutes: int) -> list[Update]:
+        """
+        Return non-deleted updates still "processing" after older_than_minutes.
+
+        Used by the Celery beat reaper (tasks.reap_stale_processing_updates)
+        to catch the crash case a task's own try/except can't cover — a
+        worker killed mid-task (OOM, deploy, SIGKILL) never runs its except
+        branch, so the row's status is never written past "processing".
+
+        updated_at is the liveness signal: it's bumped by onupdate=func.now()
+        on every ORM write to the row, including the mid-pipeline
+        update_transcript() call for voice updates — so this measures time
+        since the row's last write, not strictly time since it entered
+        "processing". That's still a valid staleness signal; it just means
+        a voice update that got as far as storing its transcript before
+        crashing is measured from the transcript write, not from when
+        processing started.
+        """
+        cutoff = datetime.now(UTC) - timedelta(minutes=older_than_minutes)
+        result = await self.db.execute(
+            select(Update).where(
+                and_(
+                    Update.status == "processing",
+                    Update.updated_at < cutoff,
+                    Update.is_deleted == False,  # noqa: E712
+                )
+            )
+        )
+        return list(result.scalars().all())
 
     async def get_workspace_updates_paginated(
         self,
@@ -178,7 +261,7 @@ class UpdateRepository:
             query = query.where(Update.user_id == user_id)
 
         if cursor:
-            cursor_update = await self.get_by_id(cursor)
+            cursor_update = await self.get_by_id(cursor, workspace_id=workspace_id)
             if cursor_update:
                 # Keyset: fetch updates older than the cursor item.
                 # Handles ties on update_date by also comparing id.

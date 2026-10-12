@@ -28,6 +28,7 @@ USER_ID = "user-test-abc"
 _READ_EVENTS = "app.routers.websockets.read_events"
 _GET_REDIS = "app.routers.websockets._get_redis"
 _VALIDATE_JWT = "app.routers.websockets.validate_supabase_jwt_ws"
+_GET_MEMBER = "app.repositories.workspace_repo.WorkspaceRepository.get_member"
 
 WS_URL = f"/api/v1/ws/workspaces/{WORKSPACE_ID}"
 
@@ -82,16 +83,26 @@ def make_ws_client(
     valid_token: bool = True,
     user_id: str = USER_ID,
     events_sequence: list | None = None,
+    is_member: bool = True,
 ):
     from app.main import create_app
 
     mock_redis = _make_mock_redis()
     jwt_mock = AsyncMock(return_value={"sub": user_id}) if valid_token else AsyncMock(side_effect=Exception("Invalid token"))
 
+    async def _member_lookup(self, workspace_id, lookup_user_id):
+        if is_member and lookup_user_id == user_id:
+            m = MagicMock()
+            m.user_id = user_id
+            m.role = "member"
+            return m
+        return None
+
     with (
         patch(_GET_REDIS, return_value=mock_redis),
         patch(_READ_EVENTS, side_effect=_make_read_events_mock(events_sequence or [])),
         patch(_VALIDATE_JWT, jwt_mock),
+        patch(_GET_MEMBER, new=_member_lookup),
     ):
         app = create_app()
         with TestClient(app, raise_server_exceptions=False) as client:
@@ -178,6 +189,7 @@ class TestChannelNaming:
             patch(_GET_REDIS, return_value=mock_redis),
             patch(_READ_EVENTS, side_effect=capture_read_events),
             patch(_VALIDATE_JWT, AsyncMock(return_value={"sub": USER_ID})),
+            patch(_GET_MEMBER, new=AsyncMock(return_value=MagicMock(role="member"))),
         ):
             from app.main import create_app
 
@@ -212,6 +224,7 @@ class TestChannelNaming:
         with (
             patch(_GET_REDIS, return_value=mock_redis),
             patch(_VALIDATE_JWT, AsyncMock(return_value={"sub": USER_ID})),
+            patch(_GET_MEMBER, new=AsyncMock(return_value=MagicMock(role="member"))),
         ):
             from app.main import create_app
 
@@ -230,6 +243,46 @@ class TestChannelNaming:
         assert calls[0] != calls[1]
 
 
+# ─── Workspace membership tests ──────────────────────────────────
+
+
+class TestWorkspaceMembership:
+    def test_non_member_closes_with_4003(self):
+        with make_ws_client(is_member=False) as (client, _):  # Noqa: SIM117
+            with pytest.raises(WebSocketDisconnect) as exc_info:  # Noqa: SIM117
+                with client.websocket_connect(f"{WS_URL}?token=valid-token") as ws:
+                    ws.receive_json()
+            assert exc_info.value.code == 4003
+
+
+class TestLastEventIdValidation:
+    def test_malformed_last_event_id_falls_back_to_dollar(self):
+        captured = {}
+        event = _make_event()
+
+        async def capture_read_events(redis, workspace_id, last_event_id="$"):
+            if "seen" not in captured:
+                captured["seen"] = last_event_id
+                return [event]
+            raise WebSocketDisconnect(code=1000)
+
+        mock_redis = _make_mock_redis()
+        with (
+            patch(_GET_REDIS, return_value=mock_redis),
+            patch(_READ_EVENTS, side_effect=capture_read_events),
+            patch(_VALIDATE_JWT, AsyncMock(return_value={"sub": USER_ID})),
+            patch(_GET_MEMBER, new=AsyncMock(return_value=MagicMock(role="member"))),
+        ):
+            from app.main import create_app
+
+            app = create_app()
+            with TestClient(app, raise_server_exceptions=False) as client:  # Noqa: SIM117
+                with client.websocket_connect(f"{WS_URL}?token=valid-token&last_event_id=garbage") as ws:
+                    ws.receive_json()
+
+        assert captured["seen"] == "$"
+
+
 # ─── Redis cleanup test ───────────────────────────────────────────────────────
 
 
@@ -243,6 +296,7 @@ class TestRedisCleanup:
             patch(_GET_REDIS, return_value=mock_redis),
             patch(_READ_EVENTS, side_effect=_make_read_events_mock([event])),
             patch(_VALIDATE_JWT, AsyncMock(return_value={"sub": USER_ID})),
+            patch(_GET_MEMBER, new=AsyncMock(return_value=MagicMock(role="member"))),
         ):
             from app.main import create_app
 

@@ -16,6 +16,7 @@ import {
   useSubmitUpdate,
   useEditUpdate,
   useDeleteUpdate,
+  useRetryUpdate,
 } from '@/hooks/useUpdates';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useDashboardUpdates } from '@/hooks/useDashboardUpdates';
@@ -71,6 +72,7 @@ export default function DashboardPage() {
   const submitMutation = useSubmitUpdate(workspace?.id ?? '');
   const editMutation = useEditUpdate(workspace?.id ?? '');
   const deleteMutation = useDeleteUpdate(workspace?.id ?? '');
+  const retryMutation = useRetryUpdate(workspace?.id ?? '');
 
   useWebSocket({
     workspaceId: workspace?.id,
@@ -94,6 +96,10 @@ export default function DashboardPage() {
 
   async function handleDelete(updateId: string, updateDate: string) {
     await deleteMutation.mutateAsync({ updateId, updateDate });
+  }
+
+  async function handleRetry(updateId: string) {
+    await retryMutation.mutateAsync({ updateId, updateDate: today });
   }
 
   async function handleVoiceSuccess(
@@ -151,6 +157,7 @@ export default function DashboardPage() {
       onVoiceCancel={() => setShowVoiceRecorder(false)}
       onEdit={handleEdit}
       onDelete={handleDelete}
+      onRetry={handleRetry}
       isSubmitting={submitMutation.isPending || !workspace?.id}
     />
   );

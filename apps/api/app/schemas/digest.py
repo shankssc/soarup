@@ -22,6 +22,7 @@ class DigestResponse(BaseModel):
     summary: str | None
     status: str
     update_count: int
+    excluded_count: int = 0
     email_sent_at: datetime | None
     delivered_to_slack: bool = False
     slack_delivered_at: datetime | None = None
@@ -56,6 +57,7 @@ class DigestPreviewResponse(BaseModel):
     html: str
     digest_date: str
     update_count: int
+    excluded_count: int = 0
     would_send_to: list[str]
 
 

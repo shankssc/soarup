@@ -6,7 +6,7 @@ from typing import Any
 
 import structlog
 from sqlalchemy import func, select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.profile import Profile
@@ -71,7 +71,13 @@ class ProfileRepository:
         full_name: str | None = None,
     ) -> Profile:
         """
-        Create new profile after signup.
+        Create new profile after signup or return the existing one if a concurrent
+        request already created it (double-clicked OAuth button, client-side
+        retry racing the first request, etc).
+
+        INSERT ... ON CONFLICT DO NOTHING RETURNING * makes create-or-fetch
+        one atomic statement — no check-then-act gap for a second request
+        to land in.
 
         Args:
             user_id: The Supabase auth user ID (UUID string).
@@ -79,29 +85,54 @@ class ProfileRepository:
             full_name: Optional user's full name.
 
         Returns:
-            Created Profile instance.
+            The profile for this user_id — either the one just created, or the
+            existing row if a concurrent request created it first.
 
         Raises:
-            IntegrityError: If profile with user_id already exists.
+            Exception: Propagated if the database operation itself fails
+            (connection issue, other constraint violation) — not raised
+            for the user_id-already-exists race, which this method
+            resolves internally.
         """
-        profile = Profile(
-            id=user_id,
-            full_name=full_name,
-            email_notifications=True,
-            timezone="UTC",
-            email=email,
+        stmt = (
+            pg_insert(Profile)
+            .values(
+                id=user_id,
+                full_name=full_name,
+                email_notifications=True,
+                timezone="UTC",
+                email=email,
+            )
+            .on_conflict_do_nothing(index_elements=[Profile.id])
+            .returning(Profile)
         )
-        self.db.add(profile)
+
         try:
+            result = await self.db.execute(stmt)
+            newly_inserted = result.scalar_one_or_none()
             await self.db.commit()
-            await self.db.refresh(profile)
-            return profile
-        except IntegrityError:
+        except Exception as e:
             await self.db.rollback()
-            logger.error("Profile creation failed: user already exists", user_id=user_id)
+            logger.error("profile_create_failed", user_id=user_id, error=str(e))
             raise
 
+        if newly_inserted is not None:
+            # This request's INSERT actually landed — RETURNING already gives
+            # us the fully-populated row (server defaults included).
+            return newly_inserted
+
+        # ON CONFLICT DO NOTHING means nothing was inserted — a concurrent
+        # request beat us to it. Fetch and return that row instead of
+        # leaving the caller with None.
+        logger.info("profile_create_conflict_resolved", user_id=user_id)
+        existing = await self.get_by_user_id(user_id)
+        if existing is None:
+            # Unreachable in practice — a conflict means a row exists.
+            raise RuntimeError(f"Profile conflict for {user_id} but no row found on refetch")
+        return existing
+
     # ← Fixed: added "data:" parameter name
+
     async def update(self, user_id: str, data: dict[str, Any]) -> Profile | None:
         """
         Update profile fields.

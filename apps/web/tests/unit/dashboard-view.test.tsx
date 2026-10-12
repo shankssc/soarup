@@ -70,6 +70,7 @@ const defaultProps: DashboardViewProps = {
   onVoiceCancel: vi.fn(),
   onEdit: vi.fn().mockResolvedValue(undefined),
   onDelete: vi.fn().mockResolvedValue(undefined),
+  onRetry: vi.fn().mockResolvedValue(undefined),
   isSubmitting: false,
 };
 

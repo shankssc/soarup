@@ -164,6 +164,7 @@ const meta = {
     onVoiceCancel: noop,
     onEdit: noop,
     onDelete: noop,
+    onRetry: noop,
     isSubmitting: false,
   },
   tags: ['autodocs'],
@@ -271,6 +272,23 @@ export const WithFailedUpdateDark: Story = {
     hasSubmittedToday: true,
   },
 };
+
+export const FailedTeammateDark: Story = {
+  name: "Teammate's Update — Failed, No Retry (Dark)",
+  parameters: { theme: 'dark' },
+  decorators: [DashboardShell, withAuthStore()],
+  args: {
+    updates: [{ ...MOCK_TEAMMATE_UPDATE, status: 'failed' }],
+    hasSubmittedToday: true,
+  },
+};
+
+// A "Retrying" story is intentionally omitted — isRetrying is UpdateCard's
+// own internal state, not a prop, so showing it needs a play function
+// (click Retry, leave onRetry's promise unresolved) and this codebase has
+// no existing play-function story to model one on. Verify it manually:
+// run Storybook on FailedDark, wire a never-resolving onRetry, and click
+// Retry to see the "Retrying..." label and disabled state.
 
 // ─── With voice updates ───────────────────────────────────────────────────────
 

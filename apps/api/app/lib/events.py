@@ -16,6 +16,7 @@
 #
 # Retention: MAXLEN ~1000 per workspace (approximate trim).
 
+import asyncio
 import json
 import uuid
 from datetime import UTC, datetime
@@ -159,6 +160,8 @@ async def read_events(
             workspace_id=workspace_id,
             error=str(e),
         )
+        # avoid a tight spin loop when Redis is unreachable
+        await asyncio.sleep(1.0)
         return []
 
     if not results:

@@ -4,7 +4,11 @@
 # Strategy:
 #   - UpdateService is mocked via dependency_overrides on get_update_service
 #   - OnboardedDep is overridden to bypass DB profile check in most tests
-#   - For the not_onboarded test, OnboardedDep raises HTTP 403 directly
+#   - RBAC's WorkspaceRepository.get_member is patched so WorkspaceMemberDep
+#     (now guarding submit/get/edit/delete, not just history) sees USER_ID
+#     as a member without touching the DB
+#   - For the not_onboarded test, OnboardedDep raises HTTP 403 directly —
+#     this still short-circuits before the membership check runs
 #   - JWT validation runs for real — valid tokens required for protected endpoints
 #   - Endpoints are at /api/v1/workspaces/{workspace_id}/updates
 
@@ -67,6 +71,7 @@ def _make_mock_update_service() -> MagicMock:
     svc.edit_update = AsyncMock()
     svc.delete_update = AsyncMock(return_value=None)
     svc.get_update_history = AsyncMock()
+    svc.retry_update = AsyncMock()
     return svc
 
 
@@ -75,6 +80,15 @@ def _onboarded_user_ctx(
     email: str = EMAIL,
 ) -> dict[str, str]:
     return {"user_id": user_id, "email": email, "access_token": "tok"}
+
+
+def _member_side_effect(workspace_id: str, user_id: str):
+    if user_id == USER_ID:
+        m = MagicMock()
+        m.user_id = USER_ID
+        m.role = "member"
+        return m
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -90,19 +104,22 @@ def mock_update_service() -> MagicMock:
 @pytest.fixture
 async def update_client(db_session, mock_update_service):
     """
-    AsyncClient with UpdateService mocked and OnboardedDep bypassed.
-    OnboardedDep override returns a valid user context without hitting the DB.
+    AsyncClient with UpdateService mocked and OnboardedDep bypassed and RBAC
+    membership patched so WorkspaceMemberDep revolves without a real
+    WorkspaceMember row - submit/get/edit/delete now sit behind.
+    WorkspaceMemberDep, not just the history endpoint.
     """
     app = create_app()
     app.dependency_overrides[get_db_session] = lambda: db_session
     app.dependency_overrides[get_update_service] = lambda: mock_update_service
     app.dependency_overrides[require_onboarded] = lambda: _onboarded_user_ctx()
 
-    async with AsyncClient(
-        transport=ASGITransport(app=cast(Any, app)),
-        base_url="http://test",
-    ) as client:
-        yield client, mock_update_service
+    with patch(RBAC_GET_MEMBER, new=AsyncMock(side_effect=_member_side_effect)):
+        async with AsyncClient(
+            transport=ASGITransport(app=cast(Any, app)),
+            base_url="http://test",
+        ) as client:
+            yield client, mock_update_service
 
     app.dependency_overrides.clear()
 
@@ -649,6 +666,118 @@ class TestGetUpdateHistory:
     async def test_no_token_returns_401_or_403(self, unauthed_client):
         response = await unauthed_client.get(
             f"/api/v1/workspaces/{WORKSPACE_ID}/updates/history",
+        )
+
+        assert response.status_code in (401, 403)
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/workspaces/{workspace_id}/updates/{update_id}/retry
+# ---------------------------------------------------------------------------
+
+
+class TestRetryUpdate:
+    @pytest.mark.asyncio
+    async def test_retry_returns_200(self, update_client, auth_headers):
+        client, svc = update_client
+        svc.retry_update.return_value = _fake_update_response(status="pending")
+
+        response = await client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/{UPDATE_ID}/retry",
+            headers=auth_headers(USER_ID),
+        )
+
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_retry_returns_pending_status_in_body(self, update_client, auth_headers):
+        client, svc = update_client
+        svc.retry_update.return_value = _fake_update_response(status="pending")
+
+        response = await client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/{UPDATE_ID}/retry",
+            headers=auth_headers(USER_ID),
+        )
+
+        assert response.json()["status"] == "pending"
+
+    @pytest.mark.asyncio
+    async def test_retry_calls_service_with_correct_args(self, update_client, make_jwt):
+        client, svc = update_client
+        svc.retry_update.return_value = _fake_update_response(status="pending")
+        token = make_jwt(USER_ID, EMAIL)
+
+        await client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/{UPDATE_ID}/retry",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        svc.retry_update.assert_awaited_once_with(WORKSPACE_ID, USER_ID, UPDATE_ID)
+
+    @pytest.mark.asyncio
+    async def test_retry_not_owner_returns_403(self, update_client, auth_headers):
+        client, svc = update_client
+        svc.retry_update.side_effect = UpdateError("unauthorized", "You can only retry your own updates.")
+
+        response = await client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/{UPDATE_ID}/retry",
+            headers=auth_headers(USER_ID),
+        )
+
+        assert response.status_code == 403
+        assert response.json()["error"] == "unauthorized"
+
+    @pytest.mark.asyncio
+    async def test_retry_not_found_returns_404(self, update_client, auth_headers):
+        client, svc = update_client
+        svc.retry_update.side_effect = UpdateError("update_not_found", "Update not found.")
+
+        response = await client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/{UPDATE_ID}/retry",
+            headers=auth_headers(USER_ID),
+        )
+
+        assert response.status_code == 404
+        assert response.json()["error"] == "update_not_found"
+
+    @pytest.mark.asyncio
+    async def test_retry_not_failed_returns_400(self, update_client, auth_headers):
+        client, svc = update_client
+        svc.retry_update.side_effect = UpdateError(
+            "update_not_failed",
+            "Only failed updates can be retried.",
+            {"status": "processing"},
+        )
+
+        response = await client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/{UPDATE_ID}/retry",
+            headers=auth_headers(USER_ID),
+        )
+
+        assert response.status_code == 400
+        assert response.json()["error"] == "update_not_failed"
+
+    @pytest.mark.asyncio
+    async def test_retry_broker_down_returns_503(self, update_client, auth_headers):
+        client, svc = update_client
+        svc.retry_update.side_effect = UpdateError(
+            "service_unavailable",
+            "Could not queue your update for processing. Please try again shortly.",
+            {"update_id": UPDATE_ID},
+        )
+
+        response = await client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/{UPDATE_ID}/retry",
+            headers=auth_headers(USER_ID),
+        )
+
+        assert response.status_code == 503
+        assert response.json()["error"] == "service_unavailable"
+
+    @pytest.mark.asyncio
+    async def test_retry_no_token_returns_401_or_403(self, unauthed_client):
+        response = await unauthed_client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/updates/{UPDATE_ID}/retry",
         )
 
         assert response.status_code in (401, 403)
