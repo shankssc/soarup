@@ -270,6 +270,7 @@ class DigestService:
             update_date=today,
         )
         updates = [u for u in all_updates if u.status == "processed"]
+        excluded_count = len(all_updates) - len(updates)
 
         # Fetch recipient emails for would_send_to
         rows = await workspace_repo.get_workspace_members_with_profiles(workspace_id)
@@ -280,6 +281,7 @@ class DigestService:
                 html="",
                 digest_date=today,
                 update_count=0,
+                excluded_count=excluded_count,
                 would_send_to=would_send_to,
             )
 
@@ -316,6 +318,7 @@ class DigestService:
             digest_date=today,
             team_summary=team_summary,
             items=items,
+            excluded_count=excluded_count,
             unsubscribe_url="",
         )
 
@@ -323,6 +326,7 @@ class DigestService:
             html=html,
             digest_date=today,
             update_count=len(updates),
+            excluded_count=excluded_count,
             would_send_to=would_send_to,
         )
 
@@ -343,7 +347,10 @@ def _map_digest(
         summary=digest.summary,
         status=digest.status,
         update_count=digest.update_count,
+        excluded_count=digest.excluded_count,
         email_sent_at=digest.email_sent_at,
+        delivered_to_slack=digest.delivered_to_slack,
+        slack_delivered_at=digest.slack_delivered_at,
         created_at=digest.created_at,
         items=items or [],
     )
