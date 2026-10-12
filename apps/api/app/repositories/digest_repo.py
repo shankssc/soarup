@@ -6,9 +6,10 @@ from typing import Any
 
 import structlog
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.digest import Digest, DigestItem
+from app.models.digest import Digest, DigestItem, DigestRecipient
 
 logger = structlog.get_logger(__name__)
 
@@ -53,6 +54,7 @@ class DigestRepository:
         status: str,
         summary: str | None = None,
         update_count: int | None = None,
+        excluded_count: int | None = None,
         email_sent_at: datetime | None = None,
         delivered_to_slack: bool | None = None,
         slack_delivered_at: datetime | None = None,
@@ -72,6 +74,8 @@ class DigestRepository:
             digest.summary = summary
         if update_count is not None:
             digest.update_count = update_count
+        if excluded_count is not None:
+            digest.excluded_count = excluded_count
         if email_sent_at is not None:
             digest.email_sent_at = email_sent_at
         if delivered_to_slack is not None:
@@ -187,3 +191,29 @@ class DigestRepository:
         """Fetch all DigestItems for a given digest, ordered by insertion."""
         result = await self.db.execute(select(DigestItem).where(DigestItem.digest_id == digest_id).order_by(DigestItem.id))
         return list(result.scalars().all())
+
+    async def get_sent_recipient_user_ids(self, digest_id: str) -> set[str]:
+        """
+        User IDs already successfully emailed for this digest. Used by the
+        send loop to skip recipients on a retry after a partial failure.
+        """
+        result = await self.db.execute(select(DigestRecipient.user_id).where(DigestRecipient.digest_id == digest_id))
+        return set(result.scalars().all())
+
+    # ------------------------------------------------------------------
+    # Write
+    # ------------------------------------------------------------------
+
+    async def mark_recipient_sent(self, digest_id: str, user_id: str) -> None:
+        """
+        Record that this recipient was successfully emailed.
+
+        Commits immediately — not just flushed — so the record survives a
+        crash later in the same send loop. That per-recipient durability is
+        what makes it safe for a Celery retry to skip already-sent
+        recipients. ON CONFLICT DO NOTHING makes the call idempotent if it's
+        ever invoked twice for the same (digest_id, user_id).
+        """
+        stmt = pg_insert(DigestRecipient).values(digest_id=digest_id, user_id=user_id).on_conflict_do_nothing(index_elements=["digest_id", "user_id"])
+        await self.db.execute(stmt)
+        await self.db.commit()
