@@ -4,7 +4,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -23,6 +23,10 @@ class Digest(Base):
     __tablename__ = "digests"
 
     __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'processing', 'sent', 'failed')",
+            name="ck_digests_status",
+        ),
         # History queries — filter by workspace, order by created_at desc
         Index("ix_digests_workspace_created", "workspace_id", "created_at"),
         # Date lookup — get digest for a specific date
