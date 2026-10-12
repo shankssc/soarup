@@ -45,14 +45,24 @@ class UpdateRepository:
         await self.db.refresh(update)
         return update
 
-    async def get_by_id(self, update_id: str) -> Update | None:
-        """Fetch a single update by ID, or None if not found or soft-deleted."""
-        result = await self.db.execute(
-            select(Update).where(
-                Update.id == update_id,
-                Update.is_deleted == False,  # noqa: E712
-            )
-        )
+    async def get_by_id(self, update_id: str, workspace_id: str | None = None) -> Update | None:
+        """
+        Fetch a single update by ID, or None if not found or soft-deleted.
+
+        Pass workspace_id to additionally scope the lookup (e.g. the
+        pagination cursor lookup below). Left optional, and omitted by
+        callers like UpdateService.retry_update that need to tell
+        "not found" apart from "found in a different workspace" so they
+        can raise the right error — they do their own workspace check
+        after fetching.
+        """
+        conditions = [
+            Update.id == update_id,
+            Update.is_deleted == False,  # noqa: E712
+        ]
+        if workspace_id is not None:
+            conditions.append(Update.workspace_id == workspace_id)
+        result = await self.db.execute(select(Update).where(and_(*conditions)))
         return result.scalar_one_or_none()
 
     async def get_for_user_on_date(
@@ -251,7 +261,7 @@ class UpdateRepository:
             query = query.where(Update.user_id == user_id)
 
         if cursor:
-            cursor_update = await self.get_by_id(cursor)
+            cursor_update = await self.get_by_id(cursor, workspace_id=workspace_id)
             if cursor_update:
                 # Keyset: fetch updates older than the cursor item.
                 # Handles ties on update_date by also comparing id.
