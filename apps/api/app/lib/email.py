@@ -56,6 +56,7 @@ def render_digest_email(
     team_summary: str,
     items: list[dict[str, Any]],
     unsubscribe_url: str,
+    excluded_count: int = 0,
 ) -> str:
     tmpl = _jinja.get_template("digest_email.html")
     return tmpl.render(
@@ -64,6 +65,7 @@ def render_digest_email(
         team_summary=team_summary,
         items=items,
         unsubscribe_url=unsubscribe_url,
+        excluded_count=excluded_count,
     )
 
 

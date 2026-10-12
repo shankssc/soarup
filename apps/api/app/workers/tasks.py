@@ -775,16 +775,20 @@ async def _send_workspace_digest_async(
                 digest_date=digest_date,
             )
 
-        # 3. Fetch all processed updates for this workspace + date
+        # 3. Fetch all processed updates for this workspace + date; only "processed"
+        # ones go into the digest. Failed/stuck-processing updates are
+        # silently excluded — excluded_count surfaces that to recipients
+        # and to the admin preview, rather than just dropping them.
         all_updates = await update_repo.get_workspace_updates_for_date(
             workspace_id=workspace_id,
             update_date=digest_date,
         )
         updates = [u for u in all_updates if u.status == "processed"]
+        excluded_count = len(all_updates) - len(updates)
 
         # 4. No processed updates — mark failed and exit
         if not updates:
-            await digest_repo.update_status(digest.id, status="failed")
+            await digest_repo.update_status(digest.id, status="failed", excluded_count=excluded_count)
             await db.commit()
             logger.info(
                 "digest_skipped_no_updates",
@@ -841,6 +845,7 @@ async def _send_workspace_digest_async(
             status="processing",  # still processing — email not sent yet
             summary=team_summary,
             update_count=len(updates),
+            excluded_count=excluded_count,
         )
 
         # 9. Fetch recipients — members with per-workspace email_notifications=True
@@ -874,12 +879,18 @@ async def _send_workspace_digest_async(
         ]
 
         # 11. Render + send per-recipient — each email needs its own
-        # unsubscribe link, so batched sending (previously up to 50
-        # recipients/call) is no longer possible. See Known Tradeoff #3.
+        # unsubscribe link, so batched sending is not possible. Recipients
+        # already recorded in digest_recipients (from an earlier attempt
+        # of this same digest) are skipped, so a Celery retry after a
+        # partial failure doesn't re-email people who already got it.
+        already_sent_user_ids = await digest_repo.get_sent_recipient_user_ids(digest.id)
 
-        sent_count = 0
+        newly_sent_count = 0
         for member, profile in recipients:
             assert profile.email is not None
+
+            if member.user_id in already_sent_user_ids:
+                continue
 
             token = generate_unsubscribe_token(workspace_id, member.user_id)
             unsubscribe_url = f"{settings.app_base_url}/api/v1/digests/unsubscribe/{token}"
@@ -889,6 +900,7 @@ async def _send_workspace_digest_async(
                 digest_date=digest_date,
                 team_summary=team_summary,
                 items=items_for_template,
+                excluded_count=excluded_count,
                 unsubscribe_url=unsubscribe_url,
             )
             ok = await send_digest_email(
@@ -898,9 +910,11 @@ async def _send_workspace_digest_async(
                 html=html,
             )
             if ok:
-                sent_count += 1
+                newly_sent_count += 1
+                await digest_repo.mark_recipient_sent(digest.id, member.user_id)
 
-        sent = sent_count > 0
+        total_sent_count = len(already_sent_user_ids) + newly_sent_count
+        sent = total_sent_count > 0
         final_status = "sent" if sent else "failed"
 
         # 12. Persist the final outcome — must happen regardless of
