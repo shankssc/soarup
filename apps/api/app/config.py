@@ -131,6 +131,32 @@ class Settings(BaseSettings):
     # === Observability ===
     sentry_dsn: str | None = None
 
+    # === GitHub App Integration ===
+    github_app_id: str | None = Field(
+        None,
+        description="GitHub App ID — the numeric ID shown on the App's settings page. " "Used as the 'iss' claim when generating App-level JWTs.",
+    )
+    github_app_slug: str | None = Field(
+        None,
+        description="GitHub App slug — the short name in the App's install URL " "(e.g. 'soarup-staging'). Used to build the installation URL " "returned by GET /integrations/github/connect.",
+    )
+    github_app_client_id: str | None = Field(
+        None,
+        description="GitHub App Client ID (the Iv23... string). " "Forward-looking — not used in this milestone's scope.",
+    )
+    github_app_client_secret: SecretStr | None = Field(
+        None,
+        description="GitHub App Client Secret. " "Forward-looking — reserved for OAuth callback CSRF verification " "if that flow is added in a future milestone.",
+    )
+    github_app_private_key_base64: SecretStr | None = Field(
+        None,
+        description="GitHub App private key (.pem), base64-encoded for env storage. "
+        "Encode with (PowerShell): "
+        "[Convert]::ToBase64String([IO.File]::ReadAllBytes('path/to/key.pem')). "
+        "This is the primary secret for this integration — treat with the "
+        "same care as SUPABASE_JWT_SECRET.",
+    )
+
     # === Validation: Fail fast in production if secrets are missing ===
     @field_validator("r2_access_key_id", "r2_secret_access_key", mode="after")
     @classmethod
@@ -165,6 +191,27 @@ class Settings(BaseSettings):
     def validate_resend_from_email(cls, v: str, info: ValidationInfo) -> str:
         if info.data.get("environment") == "production" and "resend.dev" in v:
             raise ValueError("RESEND_FROM_EMAIL must not use resend.dev test address in production")
+        return v
+
+    @field_validator("github_app_id", mode="after")
+    @classmethod
+    def validate_github_app_id(cls, v: str | None, info: ValidationInfo) -> str | None:
+        if info.data.get("environment") == "production" and not v:
+            raise ValueError("GITHUB_APP_ID is required in production")
+        return v
+
+    @field_validator("github_app_slug", mode="after")
+    @classmethod
+    def validate_github_app_slug(cls, v: str | None, info: ValidationInfo) -> str | None:
+        if info.data.get("environment") == "production" and not v:
+            raise ValueError("GITHUB_APP_SLUG is required in production")
+        return v
+
+    @field_validator("github_app_private_key_base64", mode="after")
+    @classmethod
+    def validate_github_private_key(cls, v: SecretStr | None, info: ValidationInfo) -> SecretStr | None:
+        if info.data.get("environment") == "production" and not v:
+            raise ValueError("GITHUB_APP_PRIVATE_KEY_BASE64 is required in production")
         return v
 
     # === Rate Limiting ===

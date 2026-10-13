@@ -186,25 +186,25 @@ prefill-ui → stories-tests → feature/milestone-github-integration → develo
 ## Part 1: GitHub App Registration
 
 ```
-[ ] GitHub → Settings → Developer settings → GitHub Apps → New GitHub App
-[ ] App name: "SoarUp (Staging)" — separate app for production later,
+[x] GitHub → Settings → Developer settings → GitHub Apps → New GitHub App
+[x] App name: "SoarUp (Staging)" — separate app for production later,
     same two-environment pattern established for GitHub OAuth Apps
-[ ] Homepage URL: https://app.soarupapi.dpdns.org
-[ ] Callback URL: https://app.soarupapi.dpdns.org/integrations/github/callback
-[ ] Setup URL (used for post-install redirect): same as callback URL
-[ ] Webhook: DISABLE for this milestone — GitHub Apps can be created
+[x] Homepage URL: https://app.soarupapi.dpdns.org
+[x] Callback URL: https://app.soarupapi.dpdns.org/integrations/github/callback
+[x] Setup URL (used for post-install redirect): same as callback URL
+[x] Webhook: DISABLE for this milestone — GitHub Apps can be created
     without an active webhook; no webhook handling is in scope (see
     Known Tradeoffs)
-[ ] Permissions (all read-only):
+[x] Permissions (all read-only):
     - Repository → Contents: Read-only (needed for commit listing)
     - Repository → Issues: Read-only
     - Repository → Pull requests: Read-only
     - Repository → Metadata: Read-only (mandatory minimum)
-[ ] Where can this GitHub App be installed: "Any account" (supports
+[x] Where can this GitHub App be installed: "Any account" (supports
     both personal accounts and organizations)
-[ ] Generate a private key (.pem) — this is THE secret for this
+[x] Generate a private key (.pem) post app creation — this is THE secret for this
     milestone, treat with the same care as SUPABASE_JWT_SECRET
-[ ] Note the App ID and Client ID
+[x] Note the App ID and Client ID
 ```
 
 New environment variables:
