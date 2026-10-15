@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import base64
 import time
-from typing import Any
 
 import httpx
 import jwt  # PyJWT
@@ -22,7 +21,7 @@ from app.db.redis import get_redis_client
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-_GITHUB_API_BASE = "https://api.github.com"
+GITHUB_API_BASE = "https://api.github.com"
 _TOKEN_TTL_SECONDS = 3000  # cache for 50 min; GitHub issues 60-min tokens
 
 
@@ -52,7 +51,7 @@ def generate_app_jwt() -> str:
         raise RuntimeError("GITHUB_APP_ID is not configured")
 
     now = int(time.time())
-    payload: dict[str, Any] = {
+    payload: dict[str, int | str] = {
         "iat": now - 60,
         "exp": now + 600,
         "iss": settings.github_app_id,
@@ -80,7 +79,7 @@ async def get_installation_token(installation_id: int) -> str:
         return cached  # decode_responses=True → already str
 
     app_jwt = generate_app_jwt()
-    url = f"{_GITHUB_API_BASE}/app/installations/{installation_id}/access_tokens"
+    url = f"{GITHUB_API_BASE}/app/installations/{installation_id}/access_tokens"
     headers = {
         "Authorization": f"Bearer {app_jwt}",
         "Accept": "application/vnd.github+json",
