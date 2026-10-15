@@ -4,6 +4,7 @@
 from dotenv import load_dotenv
 from app.config import settings
 # Ensure models are imported for autogenerate
+from app.models.github_installation import GitHubInstallation
 from app.models.profile import Profile
 from app.models.update import Update
 from app.models.workspace import Workspace, WorkspaceMember
