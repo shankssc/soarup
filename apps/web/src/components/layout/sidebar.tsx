@@ -13,6 +13,7 @@ import {
   Mail,
   Tag,
   Building2,
+  Plug,
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,6 +43,7 @@ const SETTINGS_LINKS = [
   { href: '/settings/members', label: 'Members', icon: Users },
   { href: '/settings/digest', label: 'Digest', icon: Mail },
   { href: '/settings/slack', label: 'Slack', icon: Tag },
+  { href: '/settings/integrations', label: 'Integrations', icon: Plug },
   { href: '/settings/workspace', label: 'Workspace', icon: Building2 },
 ];
 
