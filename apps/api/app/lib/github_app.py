@@ -74,7 +74,7 @@ async def get_installation_token(installation_id: int) -> str:
     redis = get_redis_client()
     cache_key = f"gh:install_token:{installation_id}"
 
-    cached = redis.get(cache_key)
+    cached = await redis.get(cache_key)
     if isinstance(cached, str):
         return cached  # decode_responses=True → already str
 
@@ -91,5 +91,5 @@ async def get_installation_token(installation_id: int) -> str:
         response.raise_for_status()
 
     token: str = response.json()["token"]
-    redis.setex(cache_key, _TOKEN_TTL_SECONDS, token)
+    await redis.setex(cache_key, _TOKEN_TTL_SECONDS, token)
     return token
